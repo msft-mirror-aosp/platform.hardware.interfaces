@@ -438,7 +438,7 @@ bool verify_attestation_record(const string& challenge, const string& app_id,
     // TODO(b/136282179): When running under VTS-on-GSI the TEE-backed
     // keymaster implementation will report YYYYMM dates instead of YYYYMMDD
     // for the BOOT_PATCH_LEVEL.
-    if (avb_verification_enabled()) {
+    if (!is_gsi()) {
         for (int i = 0; i < att_hw_enforced.size(); i++) {
             if (att_hw_enforced[i].tag == TAG_BOOT_PATCHLEVEL ||
                 att_hw_enforced[i].tag == TAG_VENDOR_PATCHLEVEL) {
@@ -940,7 +940,11 @@ TEST_P(NewKeyGenerationTest, HmacDigestNone) {
  * UNSUPPORTED_KEY_SIZE.
  */
 TEST_P(NewKeyGenerationTest, AesInvalidKeySize) {
+    int32_t firstApiLevel = property_get_int32("ro.board.first_api_level", 0);
     for (auto key_size : InvalidKeySizes(Algorithm::AES)) {
+        if (key_size == 192 && SecLevel() == SecurityLevel::STRONGBOX && firstApiLevel < 31) {
+            continue;
+        }
         ASSERT_EQ(ErrorCode::UNSUPPORTED_KEY_SIZE,
                   GenerateKey(AuthorizationSetBuilder()
                                       .Authorization(TAG_NO_AUTH_REQUIRED)
