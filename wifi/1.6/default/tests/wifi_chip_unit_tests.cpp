@@ -278,6 +278,9 @@ class WifiChipTest : public Test {
                 .WillRepeatedly(testing::Return(true));
         EXPECT_CALL(*legacy_hal_, start())
                 .WillRepeatedly(testing::Return(legacy_hal::WIFI_SUCCESS));
+        // Vendor HAL does not override the name by default.
+        EXPECT_CALL(*legacy_hal_, getSupportedIfaceName(testing::_, testing::_))
+                .WillRepeatedly(testing::Return(legacy_hal::WIFI_ERROR_UNKNOWN));
     }
 
     void TearDown() override {
@@ -843,13 +846,15 @@ TEST_F(WifiChip_MultiIfaceTest, CreateStaWithCustomAltNames) {
 }
 
 TEST_F(WifiChip_MultiIfaceTest, CreateApStartsWithIdx1) {
+    // WifiChip_MultiIfaceTest iface combo: STAx3 + APx1
+    // When the HAL support dual STAs, AP should start with idx 2.
     findModeAndConfigureForIfaceType(IfaceConcurrencyType::STA);
     // First AP will be slotted to wlan1.
-    ASSERT_EQ(createIface(IfaceType::AP), "wlan1");
+    ASSERT_EQ(createIface(IfaceType::AP), "wlan2");
     // First STA will be slotted to wlan0.
     ASSERT_EQ(createIface(IfaceType::STA), "wlan0");
     // All further STA will be slotted to the remaining free indices.
-    ASSERT_EQ(createIface(IfaceType::STA), "wlan2");
+    ASSERT_EQ(createIface(IfaceType::STA), "wlan1");
     ASSERT_EQ(createIface(IfaceType::STA), "wlan3");
 }
 }  // namespace implementation

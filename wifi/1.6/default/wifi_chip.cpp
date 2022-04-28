@@ -131,7 +131,7 @@ std::string getPredefinedP2pIfaceName() {
     if (strncmp(buffer.data(), P2P_MGMT_DEVICE_PREFIX, strlen(P2P_MGMT_DEVICE_PREFIX)) == 0) {
         /* Get the p2p parent interface name from p2p device interface name set
          * in property */
-        strncpy(p2pParentIfname, buffer.data() + strlen(P2P_MGMT_DEVICE_PREFIX),
+        strlcpy(p2pParentIfname, buffer.data() + strlen(P2P_MGMT_DEVICE_PREFIX),
                 strlen(buffer.data()) - strlen(P2P_MGMT_DEVICE_PREFIX));
         if (property_get(kActiveWlanIfaceNameProperty, primaryIfaceName.data(), nullptr) == 0) {
             return buffer.data();
@@ -217,14 +217,15 @@ bool removeOldFilesInternal() {
 
 // Helper function for |cpioArchiveFilesInDir|
 bool cpioWriteHeader(int out_fd, struct stat& st, const char* file_name, size_t file_name_len) {
-    std::array<char, 32 * 1024> read_buf;
-    ssize_t llen =
-            sprintf(read_buf.data(), "%s%08X%08X%08X%08X%08X%08X%08X%08X%08X%08X%08X%08X%08X",
-                    kCpioMagic, static_cast<int>(st.st_ino), st.st_mode, st.st_uid, st.st_gid,
-                    static_cast<int>(st.st_nlink), static_cast<int>(st.st_mtime),
-                    static_cast<int>(st.st_size), major(st.st_dev), minor(st.st_dev),
-                    major(st.st_rdev), minor(st.st_rdev), static_cast<uint32_t>(file_name_len), 0);
-    if (write(out_fd, read_buf.data(), llen) == -1) {
+    const int buf_size = 32 * 1024;
+    std::array<char, buf_size> read_buf;
+    ssize_t llen = snprintf(
+            read_buf.data(), buf_size, "%s%08X%08X%08X%08X%08X%08X%08X%08X%08X%08X%08X%08X%08X",
+            kCpioMagic, static_cast<int>(st.st_ino), st.st_mode, st.st_uid, st.st_gid,
+            static_cast<int>(st.st_nlink), static_cast<int>(st.st_mtime),
+            static_cast<int>(st.st_size), major(st.st_dev), minor(st.st_dev), major(st.st_rdev),
+            minor(st.st_rdev), static_cast<uint32_t>(file_name_len), 0);
+    if (write(out_fd, read_buf.data(), llen < buf_size ? llen : buf_size - 1) == -1) {
         PLOG(ERROR) << "Error writing cpio header to file " << file_name;
         return false;
     }
@@ -282,10 +283,11 @@ size_t cpioWriteFileContent(int fd_read, int out_fd, struct stat& st) {
 
 // Helper function for |cpioArchiveFilesInDir|
 bool cpioWriteFileTrailer(int out_fd) {
-    std::array<char, 4096> read_buf;
+    const int buf_size = 4096;
+    std::array<char, buf_size> read_buf;
     read_buf.fill(0);
-    if (write(out_fd, read_buf.data(),
-              sprintf(read_buf.data(), "070701%040X%056X%08XTRAILER!!!", 1, 0x0b, 0) + 4) == -1) {
+    ssize_t llen = snprintf(read_buf.data(), 4096, "070701%040X%056X%08XTRAILER!!!", 1, 0x0b, 0);
+    if (write(out_fd, read_buf.data(), (llen < buf_size ? llen : buf_size - 1) + 4) == -1) {
         PLOG(ERROR) << "Error writing trailing bytes";
         return false;
     }
@@ -791,8 +793,57 @@ std::pair<WifiStatus, uint32_t> WifiChip::getCapabilitiesInternal() {
 
 std::pair<WifiStatus, std::vector<V1_0::IWifiChip::ChipMode>>
 WifiChip::getAvailableModesInternal() {
-    // Deprecated support -- use getAvailableModes_1_6.
-    return {createWifiStatus(WifiStatusCode::ERROR_NOT_SUPPORTED), {}};
+    // Deprecated support -- use getAvailableModes_1_6 for more granular concurrency combinations.
+    std::vector<V1_0::IWifiChip::ChipMode> modes_1_0 = {};
+    for (const auto& mode_1_6 : modes_) {
+        std::vector<V1_0::IWifiChip::ChipIfaceCombination> combos_1_0;
+        for (const auto& combo_1_6 : mode_1_6.availableCombinations) {
+            std::vector<V1_0::IWifiChip::ChipIfaceCombinationLimit> limits_1_0;
+            for (const auto& limit_1_6 : combo_1_6.limits) {
+                std::vector<IfaceType> types_1_0;
+                for (IfaceConcurrencyType type_1_6 : limit_1_6.types) {
+                    switch (type_1_6) {
+                        case IfaceConcurrencyType::STA:
+                            types_1_0.push_back(IfaceType::STA);
+                            break;
+                        case IfaceConcurrencyType::AP:
+                            types_1_0.push_back(IfaceType::AP);
+                            break;
+                        case IfaceConcurrencyType::AP_BRIDGED:
+                            // Ignore AP_BRIDGED
+                            break;
+                        case IfaceConcurrencyType::P2P:
+                            types_1_0.push_back(IfaceType::P2P);
+                            break;
+                        case IfaceConcurrencyType::NAN:
+                            types_1_0.push_back(IfaceType::NAN);
+                            break;
+                    }
+                }
+                if (types_1_0.empty()) {
+                    continue;
+                }
+                V1_0::IWifiChip::ChipIfaceCombinationLimit limit_1_0;
+                limit_1_0.types = hidl_vec(types_1_0);
+                limit_1_0.maxIfaces = limit_1_6.maxIfaces;
+                limits_1_0.push_back(limit_1_0);
+            }
+            if (limits_1_0.empty()) {
+                continue;
+            }
+            V1_0::IWifiChip::ChipIfaceCombination combo_1_0;
+            combo_1_0.limits = hidl_vec(limits_1_0);
+            combos_1_0.push_back(combo_1_0);
+        }
+        if (combos_1_0.empty()) {
+            continue;
+        }
+        V1_0::IWifiChip::ChipMode mode_1_0;
+        mode_1_0.id = mode_1_6.id;
+        mode_1_0.availableCombinations = hidl_vec(combos_1_0);
+        modes_1_0.push_back(mode_1_0);
+    }
+    return {createWifiStatus(WifiStatusCode::SUCCESS), modes_1_0};
 }
 
 WifiStatus WifiChip::configureChipInternal(
@@ -952,14 +1003,14 @@ std::pair<WifiStatus, sp<V1_5::IWifiApIface>> WifiChip::createBridgedApIfaceInte
     br_ifaces_ap_instances_[br_ifname] = ap_instances;
     if (!iface_util_->createBridge(br_ifname)) {
         LOG(ERROR) << "Failed createBridge - br_name=" << br_ifname.c_str();
-        invalidateAndClearBridgedAp(br_ifname);
+        deleteApIface(br_ifname);
         return {createWifiStatus(WifiStatusCode::ERROR_NOT_AVAILABLE), {}};
     }
     for (auto const& instance : ap_instances) {
         // Bind ap instance interface to AP bridge
         if (!iface_util_->addIfaceToBridge(br_ifname, instance)) {
             LOG(ERROR) << "Failed add if to Bridge - if_name=" << instance.c_str();
-            invalidateAndClearBridgedAp(br_ifname);
+            deleteApIface(br_ifname);
             return {createWifiStatus(WifiStatusCode::ERROR_NOT_AVAILABLE), {}};
         }
     }
@@ -993,8 +1044,7 @@ WifiStatus WifiChip::removeApIfaceInternal(const std::string& ifname) {
     // nan/rtt objects over AP iface. But, there is no harm to do it
     // here and not make that assumption all over the place.
     invalidateAndRemoveDependencies(ifname);
-    // Clear the bridge interface and the iface instance.
-    invalidateAndClearBridgedAp(ifname);
+    deleteApIface(ifname);
     invalidateAndClear(ap_ifaces_, iface);
     for (const auto& callback : event_cb_handler_.getCallbacks()) {
         if (!callback->onIfaceRemoved(IfaceType::AP, ifname).isOk()) {
@@ -1954,21 +2004,28 @@ void WifiChip::invalidateAndClearBridgedApAll() {
     br_ifaces_ap_instances_.clear();
 }
 
-void WifiChip::invalidateAndClearBridgedAp(const std::string& br_name) {
-    if (br_name.empty()) return;
-    // delete managed interfaces
+void WifiChip::deleteApIface(const std::string& if_name) {
+    if (if_name.empty()) return;
+    // delete bridged interfaces if have
     for (auto const& it : br_ifaces_ap_instances_) {
-        if (it.first == br_name) {
+        if (it.first == if_name) {
             for (auto const& iface : it.second) {
-                iface_util_->removeIfaceFromBridge(br_name, iface);
+                iface_util_->removeIfaceFromBridge(if_name, iface);
                 legacy_hal_.lock()->deleteVirtualInterface(iface);
             }
-            iface_util_->deleteBridge(br_name);
-            br_ifaces_ap_instances_.erase(br_name);
-            break;
+            iface_util_->deleteBridge(if_name);
+            br_ifaces_ap_instances_.erase(if_name);
+            // ifname is bridged AP, return here.
+            return;
         }
     }
-    return;
+
+    // No bridged AP case, delete AP iface
+    legacy_hal::wifi_error legacy_status = legacy_hal_.lock()->deleteVirtualInterface(if_name);
+    if (legacy_status != legacy_hal::WIFI_SUCCESS) {
+        LOG(ERROR) << "Failed to remove interface: " << if_name << " "
+                   << legacyErrorToString(legacy_status);
+    }
 }
 
 bool WifiChip::findUsingNameFromBridgedApInstances(const std::string& name) {

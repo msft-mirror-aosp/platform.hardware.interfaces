@@ -23,6 +23,7 @@
 #include <FakeObd2Frame.h>
 #include <JsonFakeValueGenerator.h>
 #include <PropertyUtils.h>
+#include <TestPropertyUtils.h>
 #include <VehicleHalTypes.h>
 #include <VehicleUtils.h>
 #include <android-base/parsedouble.h>
@@ -65,6 +66,7 @@ using ::android::base::EqualsIgnoreCase;
 using ::android::base::Error;
 using ::android::base::ParseFloat;
 using ::android::base::Result;
+using ::android::base::ScopedLockAssertion;
 using ::android::base::StartsWith;
 using ::android::base::StringPrintf;
 
@@ -130,19 +132,22 @@ void FakeVehicleHardware::storePropInitialValue(const defaultconfig::ConfigDecla
 }
 
 FakeVehicleHardware::FakeVehicleHardware()
-    : mValuePool(new VehiclePropValuePool),
-      mServerSidePropStore(new VehiclePropertyStore(mValuePool)),
-      mFakeObd2Frame(new obd2frame::FakeObd2Frame(mServerSidePropStore)),
-      mFakeUserHal(new FakeUserHal(mValuePool)) {
-    init();
-}
+    : FakeVehicleHardware(std::make_unique<VehiclePropValuePool>()) {}
 
 FakeVehicleHardware::FakeVehicleHardware(std::unique_ptr<VehiclePropValuePool> valuePool)
     : mValuePool(std::move(valuePool)),
       mServerSidePropStore(new VehiclePropertyStore(mValuePool)),
       mFakeObd2Frame(new obd2frame::FakeObd2Frame(mServerSidePropStore)),
-      mFakeUserHal(new FakeUserHal(mValuePool)) {
+      mFakeUserHal(new FakeUserHal(mValuePool)),
+      mRecurrentTimer(new RecurrentTimer()),
+      mPendingGetValueRequests(this),
+      mPendingSetValueRequests(this) {
     init();
+}
+
+FakeVehicleHardware::~FakeVehicleHardware() {
+    mPendingGetValueRequests.stop();
+    mPendingSetValueRequests.stop();
 }
 
 void FakeVehicleHardware::init() {
@@ -191,13 +196,13 @@ VehiclePropValuePool::RecyclableType FakeVehicleHardware::createApPowerStateReq(
     return req;
 }
 
-Result<void> FakeVehicleHardware::setApPowerStateReport(const VehiclePropValue& value) {
+VhalResult<void> FakeVehicleHardware::setApPowerStateReport(const VehiclePropValue& value) {
     auto updatedValue = mValuePool->obtain(value);
     updatedValue->timestamp = elapsedRealtimeNano();
 
     if (auto writeResult = mServerSidePropStore->writeValue(std::move(updatedValue));
         !writeResult.ok()) {
-        return Error(getIntErrorCode(writeResult))
+        return StatusError(getErrorCode(writeResult))
                << "failed to write value into property store, error: " << getErrorMsg(writeResult);
     }
 
@@ -211,14 +216,20 @@ Result<void> FakeVehicleHardware::setApPowerStateReport(const VehiclePropValue& 
         case toInt(VehicleApPowerStateReport::SHUTDOWN_CANCELLED):
             [[fallthrough]];
         case toInt(VehicleApPowerStateReport::WAIT_FOR_VHAL):
-            // CPMS is in WAIT_FOR_VHAL state, simply move to ON
-            // Send back to HAL
-            // ALWAYS update status for generated property value
+            // CPMS is in WAIT_FOR_VHAL state, simply move to ON and send back to HAL.
+            // Must erase existing state because in the case when Car Service crashes, the power
+            // state would already be ON when we receive WAIT_FOR_VHAL and thus new property change
+            // event would be generated. However, Car Service always expect a property change event
+            // even though there is not actual state change.
+            mServerSidePropStore->removeValuesForProperty(
+                    toInt(VehicleProperty::AP_POWER_STATE_REQ));
             prop = createApPowerStateReq(VehicleApPowerStateReq::ON);
+
+            // ALWAYS update status for generated property value
             if (auto writeResult =
                         mServerSidePropStore->writeValue(std::move(prop), /*updateStatus=*/true);
                 !writeResult.ok()) {
-                return Error(getIntErrorCode(writeResult))
+                return StatusError(getErrorCode(writeResult))
                        << "failed to write AP_POWER_STATE_REQ into property store, error: "
                        << getErrorMsg(writeResult);
             }
@@ -235,7 +246,7 @@ Result<void> FakeVehicleHardware::setApPowerStateReport(const VehiclePropValue& 
             if (auto writeResult =
                         mServerSidePropStore->writeValue(std::move(prop), /*updateStatus=*/true);
                 !writeResult.ok()) {
-                return Error(getIntErrorCode(writeResult))
+                return StatusError(getErrorCode(writeResult))
                        << "failed to write AP_POWER_STATE_REQ into property store, error: "
                        << getErrorMsg(writeResult);
             }
@@ -262,10 +273,10 @@ bool FakeVehicleHardware::isHvacPropAndHvacNotAvailable(int32_t propId) {
     return false;
 }
 
-Result<void> FakeVehicleHardware::setUserHalProp(const VehiclePropValue& value) {
+VhalResult<void> FakeVehicleHardware::setUserHalProp(const VehiclePropValue& value) {
     auto result = mFakeUserHal->onSetProperty(value);
     if (!result.ok()) {
-        return Error(getIntErrorCode(result))
+        return StatusError(getErrorCode(result))
                << "onSetProperty(): HAL returned error: " << getErrorMsg(result);
     }
     auto& updatedValue = result.value();
@@ -274,7 +285,7 @@ Result<void> FakeVehicleHardware::setUserHalProp(const VehiclePropValue& value) 
               updatedValue->toString().c_str());
         if (auto writeResult = mServerSidePropStore->writeValue(std::move(result.value()));
             !writeResult.ok()) {
-            return Error(getIntErrorCode(writeResult))
+            return StatusError(getErrorCode(writeResult))
                    << "failed to write value into property store, error: "
                    << getErrorMsg(writeResult);
         }
@@ -282,14 +293,14 @@ Result<void> FakeVehicleHardware::setUserHalProp(const VehiclePropValue& value) 
     return {};
 }
 
-Result<VehiclePropValuePool::RecyclableType> FakeVehicleHardware::getUserHalProp(
+FakeVehicleHardware::ValueResultType FakeVehicleHardware::getUserHalProp(
         const VehiclePropValue& value) const {
     auto propId = value.prop;
     ALOGI("get(): getting value for prop %d from User HAL", propId);
 
     auto result = mFakeUserHal->onGetProperty(value);
     if (!result.ok()) {
-        return Error(getIntErrorCode(result))
+        return StatusError(getErrorCode(result))
                << "get(): User HAL returned error: " << getErrorMsg(result);
     } else {
         auto& gotValue = result.value();
@@ -298,17 +309,16 @@ Result<VehiclePropValuePool::RecyclableType> FakeVehicleHardware::getUserHalProp
             gotValue->timestamp = elapsedRealtimeNano();
             return result;
         } else {
-            return Error(toInt(StatusCode::INTERNAL_ERROR))
-                   << "get(): User HAL returned null value";
+            return StatusError(StatusCode::INTERNAL_ERROR) << "get(): User HAL returned null value";
         }
     }
 }
 
-Result<VehiclePropValuePool::RecyclableType> FakeVehicleHardware::maybeGetSpecialValue(
+FakeVehicleHardware::ValueResultType FakeVehicleHardware::maybeGetSpecialValue(
         const VehiclePropValue& value, bool* isSpecialValue) const {
     *isSpecialValue = false;
     int32_t propId = value.prop;
-    Result<VehiclePropValuePool::RecyclableType> result;
+    ValueResultType result;
 
     if (mFakeUserHal->isSupported(propId)) {
         *isSpecialValue = true;
@@ -330,6 +340,9 @@ Result<VehiclePropValuePool::RecyclableType> FakeVehicleHardware::maybeGetSpecia
                 result.value()->timestamp = elapsedRealtimeNano();
             }
             return result;
+        case ECHO_REVERSE_BYTES:
+            *isSpecialValue = true;
+            return getEchoReverseBytes(value);
         default:
             // Do nothing.
             break;
@@ -338,8 +351,24 @@ Result<VehiclePropValuePool::RecyclableType> FakeVehicleHardware::maybeGetSpecia
     return nullptr;
 }
 
-Result<void> FakeVehicleHardware::maybeSetSpecialValue(const VehiclePropValue& value,
-                                                       bool* isSpecialValue) {
+FakeVehicleHardware::ValueResultType FakeVehicleHardware::getEchoReverseBytes(
+        const VehiclePropValue& value) const {
+    auto readResult = mServerSidePropStore->readValue(value);
+    if (!readResult.ok()) {
+        return readResult;
+    }
+    auto& gotValue = readResult.value();
+    gotValue->timestamp = elapsedRealtimeNano();
+    std::vector<uint8_t> byteValues = gotValue->value.byteValues;
+    size_t byteSize = byteValues.size();
+    for (size_t i = 0; i < byteSize; i++) {
+        gotValue->value.byteValues[i] = byteValues[byteSize - 1 - i];
+    }
+    return std::move(gotValue);
+}
+
+VhalResult<void> FakeVehicleHardware::maybeSetSpecialValue(const VehiclePropValue& value,
+                                                           bool* isSpecialValue) {
     *isSpecialValue = false;
     VehiclePropValuePool::RecyclableType updatedValue;
     int32_t propId = value.prop;
@@ -351,7 +380,7 @@ Result<void> FakeVehicleHardware::maybeSetSpecialValue(const VehiclePropValue& v
 
     if (isHvacPropAndHvacNotAvailable(propId)) {
         *isSpecialValue = true;
-        return Error(toInt(StatusCode::NOT_AVAILABLE)) << "hvac not available";
+        return StatusError(StatusCode::NOT_AVAILABLE) << "hvac not available";
     }
 
     switch (propId) {
@@ -390,7 +419,7 @@ Result<void> FakeVehicleHardware::maybeSetSpecialValue(const VehiclePropValue& v
             updatedValue->areaId = value.areaId;
             if (auto writeResult = mServerSidePropStore->writeValue(std::move(updatedValue));
                 !writeResult.ok()) {
-                return Error(getIntErrorCode(writeResult))
+                return StatusError(getErrorCode(writeResult))
                        << "failed to write value into property store, error: "
                        << getErrorMsg(writeResult);
             }
@@ -405,43 +434,31 @@ Result<void> FakeVehicleHardware::maybeSetSpecialValue(const VehiclePropValue& v
 
 StatusCode FakeVehicleHardware::setValues(std::shared_ptr<const SetValuesCallback> callback,
                                           const std::vector<SetValueRequest>& requests) {
-    std::vector<SetValueResult> results;
     for (auto& request : requests) {
-        const VehiclePropValue& value = request.value;
-        int propId = value.prop;
-
         if (FAKE_VEHICLEHARDWARE_DEBUG) {
-            ALOGD("Set value for property ID: %d", propId);
+            ALOGD("Set value for property ID: %d", request.value.prop);
         }
 
-        SetValueResult setValueResult;
-        setValueResult.requestId = request.requestId;
-
-        if (auto result = setValue(value); !result.ok()) {
-            ALOGE("failed to set value, error: %s, code: %d", getErrorMsg(result).c_str(),
-                  getIntErrorCode(result));
-            setValueResult.status = getErrorCode(result);
-        } else {
-            setValueResult.status = StatusCode::OK;
-        }
-
-        results.push_back(std::move(setValueResult));
+        // In a real VHAL implementation, you could either send the setValue request to vehicle bus
+        // here in the binder thread, or you could send the request in setValue which runs in
+        // the handler thread. If you decide to send the setValue request here, you should not
+        // wait for the response here and the handler thread should handle the setValue response.
+        mPendingSetValueRequests.addRequest(request, callback);
     }
-
-    // In the real vhal, the values will be sent to Car ECU. We just pretend it is done here and
-    // send back the updated property values to client.
-    (*callback)(std::move(results));
 
     return StatusCode::OK;
 }
 
-Result<void> FakeVehicleHardware::setValue(const VehiclePropValue& value) {
+VhalResult<void> FakeVehicleHardware::setValue(const VehiclePropValue& value) {
+    // In a real VHAL implementation, this will send the request to vehicle bus if not already
+    // sent in setValues, and wait for the response from vehicle bus.
+    // Here we are just updating mValuePool.
     bool isSpecialValue = false;
     auto setSpecialValueResult = maybeSetSpecialValue(value, &isSpecialValue);
 
     if (isSpecialValue) {
         if (!setSpecialValueResult.ok()) {
-            return Error(getIntErrorCode(setSpecialValueResult))
+            return StatusError(getErrorCode(setSpecialValueResult))
                    << StringPrintf("failed to set special value for property ID: %d, error: %s",
                                    value.prop, getErrorMsg(setSpecialValueResult).c_str());
         }
@@ -454,7 +471,7 @@ Result<void> FakeVehicleHardware::setValue(const VehiclePropValue& value) {
 
     auto writeResult = mServerSidePropStore->writeValue(std::move(updatedValue));
     if (!writeResult.ok()) {
-        return Error(getIntErrorCode(writeResult))
+        return StatusError(getErrorCode(writeResult))
                << StringPrintf("failed to write value into property store, error: %s",
                                getErrorMsg(writeResult).c_str());
     }
@@ -462,46 +479,64 @@ Result<void> FakeVehicleHardware::setValue(const VehiclePropValue& value) {
     return {};
 }
 
-StatusCode FakeVehicleHardware::getValues(std::shared_ptr<const GetValuesCallback> callback,
-                                          const std::vector<GetValueRequest>& requests) const {
-    std::vector<GetValueResult> results;
-    for (auto& request : requests) {
-        const VehiclePropValue& value = request.prop;
+SetValueResult FakeVehicleHardware::handleSetValueRequest(const SetValueRequest& request) {
+    SetValueResult setValueResult;
+    setValueResult.requestId = request.requestId;
 
-        if (FAKE_VEHICLEHARDWARE_DEBUG) {
-            ALOGD("getValues(%d)", value.prop);
-        }
-
-        GetValueResult getValueResult;
-        getValueResult.requestId = request.requestId;
-
-        auto result = getValue(value);
-        if (!result.ok()) {
-            ALOGE("failed to get value, error: %s, code: %d", getErrorMsg(result).c_str(),
-                  getIntErrorCode(result));
-            getValueResult.status = getErrorCode(result);
-        } else {
-            getValueResult.status = StatusCode::OK;
-            getValueResult.prop = *result.value();
-        }
-        results.push_back(std::move(getValueResult));
+    if (auto result = setValue(request.value); !result.ok()) {
+        ALOGE("failed to set value, error: %s, code: %d", getErrorMsg(result).c_str(),
+              getIntErrorCode(result));
+        setValueResult.status = getErrorCode(result);
+    } else {
+        setValueResult.status = StatusCode::OK;
     }
 
-    // In a real VHAL implementation, getValue would be async and we would call the callback after
-    // we actually received the values from vehicle bus. Here we are getting the result
-    // synchronously so we could call the callback here.
-    (*callback)(std::move(results));
+    return setValueResult;
+}
+
+StatusCode FakeVehicleHardware::getValues(std::shared_ptr<const GetValuesCallback> callback,
+                                          const std::vector<GetValueRequest>& requests) const {
+    for (auto& request : requests) {
+        if (FAKE_VEHICLEHARDWARE_DEBUG) {
+            ALOGD("getValues(%d)", request.prop.prop);
+        }
+
+        // In a real VHAL implementation, you could either send the getValue request to vehicle bus
+        // here in the binder thread, or you could send the request in getValue which runs in
+        // the handler thread. If you decide to send the getValue request here, you should not
+        // wait for the response here and the handler thread should handle the getValue response.
+        mPendingGetValueRequests.addRequest(request, callback);
+    }
 
     return StatusCode::OK;
 }
 
-Result<VehiclePropValuePool::RecyclableType> FakeVehicleHardware::getValue(
+GetValueResult FakeVehicleHardware::handleGetValueRequest(const GetValueRequest& request) {
+    GetValueResult getValueResult;
+    getValueResult.requestId = request.requestId;
+
+    auto result = getValue(request.prop);
+    if (!result.ok()) {
+        ALOGE("failed to get value, error: %s, code: %d", getErrorMsg(result).c_str(),
+              getIntErrorCode(result));
+        getValueResult.status = getErrorCode(result);
+    } else {
+        getValueResult.status = StatusCode::OK;
+        getValueResult.prop = *result.value();
+    }
+    return getValueResult;
+}
+
+FakeVehicleHardware::ValueResultType FakeVehicleHardware::getValue(
         const VehiclePropValue& value) const {
+    // In a real VHAL implementation, this will send the request to vehicle bus if not already
+    // sent in getValues, and wait for the response from vehicle bus.
+    // Here we are just reading value from mValuePool.
     bool isSpecialValue = false;
     auto result = maybeGetSpecialValue(value, &isSpecialValue);
     if (isSpecialValue) {
         if (!result.ok()) {
-            return Error(getIntErrorCode(result))
+            return StatusError(getErrorCode(result))
                    << StringPrintf("failed to get special value: %d, error: %s", value.prop,
                                    getErrorMsg(result).c_str());
         } else {
@@ -513,9 +548,9 @@ Result<VehiclePropValuePool::RecyclableType> FakeVehicleHardware::getValue(
     if (!readResult.ok()) {
         StatusCode errorCode = getErrorCode(readResult);
         if (errorCode == StatusCode::NOT_AVAILABLE) {
-            return Error(toInt(errorCode)) << "value has not been set yet";
+            return StatusError(errorCode) << "value has not been set yet";
         } else {
-            return Error(toInt(errorCode))
+            return StatusError(errorCode)
                    << "failed to get value, error: " << getErrorMsg(readResult);
         }
     }
@@ -542,6 +577,12 @@ DumpResult FakeVehicleHardware::dump(const std::vector<std::string>& options) {
         result.buffer = dumpSpecificProperty(options);
     } else if (EqualsIgnoreCase(option, "--set")) {
         result.buffer = dumpSetProperties(options);
+    } else if (EqualsIgnoreCase(option, kUserHalDumpOption)) {
+        if (options.size() == 1) {
+            result.buffer = mFakeUserHal->showDumpHelp();
+        } else {
+            result.buffer = mFakeUserHal->dump(options[1]);
+        }
     } else {
         result.buffer = StringPrintf("Invalid option: %s\n", option.c_str());
     }
@@ -559,7 +600,9 @@ std::string FakeVehicleHardware::dumpHelp() {
            "[-b BYTES_VALUE] [-a AREA_ID] : sets the value of property PROP. "
            "Notice that the string, bytes and area value can be set just once, while the other can"
            " have multiple values (so they're used in the respective array), "
-           "BYTES_VALUE is in the form of 0xXXXX, e.g. 0xdeadbeef.\n";
+           "BYTES_VALUE is in the form of 0xXXXX, e.g. 0xdeadbeef.\n\n"
+           "Fake user HAL usage: \n" +
+           mFakeUserHal->showDumpHelp();
 }
 
 std::string FakeVehicleHardware::dumpAllProperties() {
@@ -812,18 +855,57 @@ StatusCode FakeVehicleHardware::checkHealth() {
 
 void FakeVehicleHardware::registerOnPropertyChangeEvent(
         std::unique_ptr<const PropertyChangeCallback> callback) {
-    std::scoped_lock<std::mutex> lockGuard(mCallbackLock);
+    std::scoped_lock<std::mutex> lockGuard(mLock);
     mOnPropertyChangeCallback = std::move(callback);
 }
 
 void FakeVehicleHardware::registerOnPropertySetErrorEvent(
         std::unique_ptr<const PropertySetErrorCallback> callback) {
-    std::scoped_lock<std::mutex> lockGuard(mCallbackLock);
+    std::scoped_lock<std::mutex> lockGuard(mLock);
     mOnPropertySetErrorCallback = std::move(callback);
 }
 
+StatusCode FakeVehicleHardware::updateSampleRate(int32_t propId, int32_t areaId, float sampleRate) {
+    // DefaultVehicleHal makes sure that sampleRate must be within minSampleRate and maxSampleRate.
+    // For fake implementation, we would write the same value with a new timestamp into propStore
+    // at sample rate.
+    std::scoped_lock<std::mutex> lockGuard(mLock);
+
+    PropIdAreaId propIdAreaId{
+            .propId = propId,
+            .areaId = areaId,
+    };
+    if (mRecurrentActions.find(propIdAreaId) != mRecurrentActions.end()) {
+        mRecurrentTimer->unregisterTimerCallback(mRecurrentActions[propIdAreaId]);
+    }
+    if (sampleRate == 0) {
+        return StatusCode::OK;
+    }
+    int64_t interval = static_cast<int64_t>(1'000'000'000. / sampleRate);
+    auto action = std::make_shared<RecurrentTimer::Callback>([this, propId, areaId] {
+        // Refresh the property value. In real implementation, this should poll the latest value
+        // from vehicle bus. Here, we are just refreshing the existing value with a new timestamp.
+        auto result = getValue(VehiclePropValue{
+                .prop = propId,
+                .areaId = areaId,
+        });
+        if (!result.ok()) {
+            // Failed to read current value, skip refreshing.
+            return;
+        }
+        result.value()->timestamp = elapsedRealtimeNano();
+        // Must remove the value before writing, otherwise, we would generate no update event since
+        // the value is the same.
+        mServerSidePropStore->removeValue(*result.value());
+        mServerSidePropStore->writeValue(std::move(result.value()));
+    });
+    mRecurrentTimer->registerTimerCallback(interval, action);
+    mRecurrentActions[propIdAreaId] = action;
+    return StatusCode::OK;
+}
+
 void FakeVehicleHardware::onValueChangeCallback(const VehiclePropValue& value) {
-    std::scoped_lock<std::mutex> lockGuard(mCallbackLock);
+    std::scoped_lock<std::mutex> lockGuard(mLock);
 
     if (mOnPropertyChangeCallback == nullptr) {
         return;
@@ -908,6 +990,60 @@ Result<std::vector<uint8_t>> FakeVehicleHardware::parseHexString(const std::stri
         highDigit = !highDigit;
     }
     return bytes;
+}
+
+template <class CallbackType, class RequestType>
+FakeVehicleHardware::PendingRequestHandler<CallbackType, RequestType>::PendingRequestHandler(
+        FakeVehicleHardware* hardware)
+    : mHardware(hardware), mThread([this] {
+          while (mRequests.waitForItems()) {
+              handleRequestsOnce();
+          }
+      }) {}
+
+template <class CallbackType, class RequestType>
+void FakeVehicleHardware::PendingRequestHandler<CallbackType, RequestType>::addRequest(
+        RequestType request, std::shared_ptr<const CallbackType> callback) {
+    mRequests.push({
+            request,
+            callback,
+    });
+}
+
+template <class CallbackType, class RequestType>
+void FakeVehicleHardware::PendingRequestHandler<CallbackType, RequestType>::stop() {
+    mRequests.deactivate();
+    if (mThread.joinable()) {
+        mThread.join();
+    }
+}
+
+template <>
+void FakeVehicleHardware::PendingRequestHandler<FakeVehicleHardware::GetValuesCallback,
+                                                GetValueRequest>::handleRequestsOnce() {
+    std::unordered_map<std::shared_ptr<const GetValuesCallback>, std::vector<GetValueResult>>
+            callbackToResults;
+    for (const auto& rwc : mRequests.flush()) {
+        auto result = mHardware->handleGetValueRequest(rwc.request);
+        callbackToResults[rwc.callback].push_back(std::move(result));
+    }
+    for (const auto& [callback, results] : callbackToResults) {
+        (*callback)(std::move(results));
+    }
+}
+
+template <>
+void FakeVehicleHardware::PendingRequestHandler<FakeVehicleHardware::SetValuesCallback,
+                                                SetValueRequest>::handleRequestsOnce() {
+    std::unordered_map<std::shared_ptr<const SetValuesCallback>, std::vector<SetValueResult>>
+            callbackToResults;
+    for (const auto& rwc : mRequests.flush()) {
+        auto result = mHardware->handleSetValueRequest(rwc.request);
+        callbackToResults[rwc.callback].push_back(std::move(result));
+    }
+    for (const auto& [callback, results] : callbackToResults) {
+        (*callback)(std::move(results));
+    }
 }
 
 }  // namespace fake
