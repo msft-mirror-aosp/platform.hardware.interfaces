@@ -289,6 +289,74 @@ const std::vector<ConfigDeclaration> kVehicleProperties = {
 
         {.config =
                  {
+                         .prop = toInt(VehicleProperty::EV_CHARGE_CURRENT_DRAW_LIMIT),
+                         .access = VehiclePropertyAccess::READ_WRITE,
+                         .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
+                         .configArray = {/*max current draw allowed by vehicle in amperes=*/20},
+                 },
+         .initialValue = {.floatValues = {(float)12.5}}},
+
+        {.config =
+                 {
+                         .prop = toInt(VehicleProperty::EV_CHARGE_PERCENT_LIMIT),
+                         .access = VehiclePropertyAccess::READ_WRITE,
+                         .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
+                         .configArray = {20, 40, 60, 80, 100},
+                 },
+         .initialValue = {.floatValues = {40}}},
+
+        {.config =
+                 {
+                         .prop = toInt(VehicleProperty::EV_CHARGE_STATE),
+                         .access = VehiclePropertyAccess::READ,
+                         .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
+                 },
+         .initialValue = {.int32Values = {2}}},
+
+        {.config =
+                 {
+                         .prop = toInt(VehicleProperty::EV_CHARGE_SWITCH),
+                         .access = VehiclePropertyAccess::READ_WRITE,
+                         .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
+                 },
+         .initialValue = {.int32Values = {0 /* false */}}},
+
+        {.config =
+                 {
+                         .prop = toInt(VehicleProperty::EV_CHARGE_TIME_REMAINING),
+                         .access = VehiclePropertyAccess::READ,
+                         .changeMode = VehiclePropertyChangeMode::CONTINUOUS,
+                         .minSampleRate = 1.0f,
+                         .maxSampleRate = 10.0f,
+                 },
+         .initialValue = {.int32Values = {20}}},
+
+        {.config =
+                 {
+                         .prop = toInt(VehicleProperty::EV_REGENERATIVE_BRAKING_STATE),
+                         .access = VehiclePropertyAccess::READ,
+                         .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
+                 },
+         .initialValue = {.int32Values = {2}}},
+
+        {.config =
+                 {
+                         .prop = toInt(VehicleProperty::TRAILER_PRESENT),
+                         .access = VehiclePropertyAccess::READ,
+                         .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
+                 },
+         .initialValue = {.int32Values = {2}}},
+
+        {.config =
+                 {
+                         .prop = toInt(VehicleProperty::VEHICLE_CURB_WEIGHT),
+                         .access = VehiclePropertyAccess::READ,
+                         .changeMode = VehiclePropertyChangeMode::STATIC,
+                 },
+         .initialValue = {.int32Values = {30}}},
+
+        {.config =
+                 {
                          .prop = toInt(VehicleProperty::RANGE_REMAINING),
                          .access = VehiclePropertyAccess::READ_WRITE,
                          .changeMode = VehiclePropertyChangeMode::CONTINUOUS,
@@ -754,8 +822,7 @@ const std::vector<ConfigDeclaration> kVehicleProperties = {
         {.config = {.prop = toInt(VehicleProperty::AP_POWER_STATE_REQ),
                     .access = VehiclePropertyAccess::READ,
                     .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
-                    .configArray = {3}},
-         .initialValue = {.int32Values = {toInt(VehicleApPowerStateReq::ON), 0}}},
+                    .configArray = {3}}},
 
         {.config = {.prop = toInt(VehicleProperty::AP_POWER_STATE_REPORT),
                     .access = VehiclePropertyAccess::READ_WRITE,
@@ -821,6 +888,22 @@ const std::vector<ConfigDeclaration> kVehicleProperties = {
 
         {.config =
                  {
+                         .prop = toInt(VehicleProperty::FRONT_FOG_LIGHTS_STATE),
+                         .access = VehiclePropertyAccess::READ,
+                         .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
+                 },
+         .initialValue = {.int32Values = {LIGHT_STATE_ON}}},
+
+        {.config =
+                 {
+                         .prop = toInt(VehicleProperty::REAR_FOG_LIGHTS_STATE),
+                         .access = VehiclePropertyAccess::READ,
+                         .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
+                 },
+         .initialValue = {.int32Values = {LIGHT_STATE_ON}}},
+
+        {.config =
+                 {
                          .prop = toInt(VehicleProperty::HAZARD_LIGHTS_STATE),
                          .access = VehiclePropertyAccess::READ,
                          .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
@@ -846,6 +929,22 @@ const std::vector<ConfigDeclaration> kVehicleProperties = {
         {.config =
                  {
                          .prop = toInt(VehicleProperty::FOG_LIGHTS_SWITCH),
+                         .access = VehiclePropertyAccess::READ_WRITE,
+                         .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
+                 },
+         .initialValue = {.int32Values = {LIGHT_SWITCH_AUTO}}},
+
+        {.config =
+                 {
+                         .prop = toInt(VehicleProperty::FRONT_FOG_LIGHTS_SWITCH),
+                         .access = VehiclePropertyAccess::READ_WRITE,
+                         .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
+                 },
+         .initialValue = {.int32Values = {LIGHT_SWITCH_AUTO}}},
+
+        {.config =
+                 {
+                         .prop = toInt(VehicleProperty::REAR_FOG_LIGHTS_SWITCH),
                          .access = VehiclePropertyAccess::READ_WRITE,
                          .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
                  },
@@ -1124,6 +1223,14 @@ const std::vector<ConfigDeclaration> kVehicleProperties = {
                                 .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
                         },
                 .initialValue = {.stringValue = {"Test"}},
+        },
+        {
+                .config =
+                        {
+                                .prop = ECHO_REVERSE_BYTES,
+                                .access = VehiclePropertyAccess::READ_WRITE,
+                                .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
+                        },
         },
 #ifdef ENABLE_VENDOR_CLUSTER_PROPERTY_FOR_TESTING
         // Vendor propetry for E2E ClusterHomeService testing.

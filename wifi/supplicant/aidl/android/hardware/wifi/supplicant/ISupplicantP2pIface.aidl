@@ -21,6 +21,7 @@ import android.hardware.wifi.supplicant.ISupplicantP2pIfaceCallback;
 import android.hardware.wifi.supplicant.ISupplicantP2pNetwork;
 import android.hardware.wifi.supplicant.IfaceType;
 import android.hardware.wifi.supplicant.MiracastMode;
+import android.hardware.wifi.supplicant.P2pFrameTypeMask;
 import android.hardware.wifi.supplicant.P2pGroupCapabilityMask;
 import android.hardware.wifi.supplicant.WpsConfigMethods;
 import android.hardware.wifi.supplicant.WpsProvisionMethod;
@@ -103,7 +104,7 @@ interface ISupplicantP2pIface {
      *         |SupplicantStatusCode.FAILURE_UNKNOWN|,
      *         |SupplicantStatusCode.FAILURE_IFACE_INVALID|
      */
-    ISupplicantP2pNetwork addNetwork();
+    @PropagateAllowBlocking ISupplicantP2pNetwork addNetwork();
 
     /**
      * This command can be used to add a UPNP service.
@@ -320,7 +321,7 @@ interface ISupplicantP2pIface {
      *         |SupplicantStatusCode.FAILURE_IFACE_INVALID|,
      *         |SupplicantStatusCode.FAILURE_NETWORK_UNKNOWN|
      */
-    ISupplicantP2pNetwork getNetwork(in int id);
+    @PropagateAllowBlocking ISupplicantP2pNetwork getNetwork(in int id);
 
     /**
      * Gets the operational SSID of the device.
@@ -810,4 +811,20 @@ interface ISupplicantP2pIface {
      *         |SupplicantStatusCode.FAILURE_IFACE_DISABLED|
      */
     void findOnSpecificFrequency(in int freqInHz, in int timeoutInSec);
+
+    /**
+     * Set vendor-specific information elements to P2P frames.
+     *
+     * @param frameTypeMask The bit mask of P2P frame type represented by
+     *         P2pFrameTypeMask.
+     * @param vendorElemBytes Vendor-specific information element bytes. The format of an
+     *         information element is EID (1 byte) + Length (1 Byte) + Payload which is
+     *         defined in Section 9.4.4 TLV encodings of 802.11-2016 IEEE Standard for
+     *         Information technology. The length indicates the size of the payload.
+     *         Multiple information elements may be appended within the byte array.
+     * @throws ServiceSpecificException with one of the following values:
+     *         |SupplicantStatusCode.FAILURE_UNKNOWN|,
+     *         |SupplicantStatusCode.FAILURE_IFACE_INVALID|
+     */
+    void setVendorElements(in P2pFrameTypeMask frameTypeMask, in byte[] vendorElemBytes);
 }

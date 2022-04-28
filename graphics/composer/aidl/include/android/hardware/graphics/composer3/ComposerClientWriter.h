@@ -30,7 +30,7 @@
 #include <aidl/android/hardware/graphics/composer3/Color.h>
 #include <aidl/android/hardware/graphics/composer3/Composition.h>
 #include <aidl/android/hardware/graphics/composer3/DisplayBrightness.h>
-#include <aidl/android/hardware/graphics/composer3/Luminance.h>
+#include <aidl/android/hardware/graphics/composer3/LayerBrightness.h>
 #include <aidl/android/hardware/graphics/composer3/PerFrameMetadata.h>
 #include <aidl/android/hardware/graphics/composer3/PerFrameMetadataBlob.h>
 
@@ -80,8 +80,9 @@ class ComposerClientWriter {
         getDisplayCommand(display).colorTransformMatrix.emplace(std::move(matVec));
     }
 
-    void setDisplayBrightness(int64_t display, float brightness) {
-        getDisplayCommand(display).brightness.emplace(DisplayBrightness{.brightness = brightness});
+    void setDisplayBrightness(int64_t display, float brightness, float brightnessNits) {
+        getDisplayCommand(display).brightness.emplace(
+                DisplayBrightness{.brightness = brightness, .brightnessNits = brightnessNits});
     }
 
     void setClientTarget(int64_t display, uint32_t slot, const native_handle_t* target,
@@ -129,11 +130,6 @@ class ComposerClientWriter {
     void setLayerBuffer(int64_t display, int64_t layer, uint32_t slot,
                         const native_handle_t* buffer, int acquireFence) {
         getLayerCommand(display, layer).buffer = getBuffer(slot, buffer, acquireFence);
-    }
-
-    void setLayerBufferAhead(int64_t display, int64_t layer, uint32_t slot,
-                             const native_handle_t* buffer, int acquireFence) {
-        getLayerCommand(display, layer).bufferAhead = getBuffer(slot, buffer, acquireFence);
     }
 
     void setLayerSurfaceDamage(int64_t display, int64_t layer, const std::vector<Rect>& damage) {
@@ -194,7 +190,7 @@ class ComposerClientWriter {
 
     void setLayerZOrder(int64_t display, int64_t layer, uint32_t z) {
         ZOrder zorder;
-        zorder.z = z;
+        zorder.z = static_cast<int32_t>(z);
         getLayerCommand(display, layer).z.emplace(std::move(zorder));
     }
 
@@ -214,8 +210,9 @@ class ComposerClientWriter {
                 .perFrameMetadataBlob.emplace(metadata.begin(), metadata.end());
     }
 
-    void setLayerWhitePointNits(int64_t display, int64_t layer, float whitePointNits) {
-        getLayerCommand(display, layer).whitePointNits.emplace(Luminance{.nits = whitePointNits});
+    void setLayerBrightness(int64_t display, int64_t layer, float brightness) {
+        getLayerCommand(display, layer)
+                .brightness.emplace(LayerBrightness{.brightness = brightness});
     }
 
     void setLayerBlockingRegion(int64_t display, int64_t layer, const std::vector<Rect>& blocking) {
@@ -233,9 +230,9 @@ class ComposerClientWriter {
     std::optional<LayerCommand> mLayerCommand;
     std::vector<DisplayCommand> mCommands;
 
-    Buffer getBuffer(int slot, const native_handle_t* bufferHandle, int fence) {
+    Buffer getBuffer(uint32_t slot, const native_handle_t* bufferHandle, int fence) {
         Buffer bufferCommand;
-        bufferCommand.slot = slot;
+        bufferCommand.slot = static_cast<int32_t>(slot);
         if (bufferHandle) bufferCommand.handle.emplace(::android::dupToAidl(bufferHandle));
         if (fence > 0) bufferCommand.fence = ::ndk::ScopedFileDescriptor(fence);
         return bufferCommand;

@@ -201,10 +201,10 @@ GnssData Utils::getMockMeasurement(const bool enableCorrVecOutputs) {
                             .tropoDelayMeters = 3.882265204404031,
                             .ephemerisSource =
                                     SatellitePvt::SatelliteEphemerisSource::SERVER_LONG_TERM,
-                            .TOC = 12345,
-                            .IODC = 143,
-                            .TOE = 9876,
-                            .IODE = 48,
+                            .timeOfClockSeconds = 12345,
+                            .issueOfDataClock = 143,
+                            .timeOfEphemerisSeconds = 9876,
+                            .issueOfDataEphemeris = 48,
                     },
             .correlationVectors = {}};
 
@@ -217,7 +217,8 @@ GnssData Utils::getMockMeasurement(const bool enableCorrVecOutputs) {
                        .biasUncertaintyNs = 47514.989972114563,
                        .driftNsps = -51.757811607455452,
                        .driftUncertaintyNsps = 310.64968328491528,
-                       .hwClockDiscontinuityCount = 1};
+                       .hwClockDiscontinuityCount = 1,
+                       .referenceSignalTypeForIsb = signalType};
 
     ElapsedRealtime timestamp = {
             .flags = ElapsedRealtime::HAS_TIMESTAMP_NS | ElapsedRealtime::HAS_TIME_UNCERTAINTY_NS,

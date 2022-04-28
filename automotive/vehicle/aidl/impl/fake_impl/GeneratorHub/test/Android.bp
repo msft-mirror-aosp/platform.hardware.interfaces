@@ -24,7 +24,7 @@ cc_test {
     srcs: ["*.cpp"],
     defaults: ["VehicleHalDefaults"],
     static_libs: [
-        "VehicleHalUtilsVendor",
+        "VehicleHalUtils",
         "FakeVehicleHalValueGenerators",
         "FakeObd2Frame",
     ],
@@ -41,6 +41,7 @@ filegroup {
     name: "FakeVehicleHalValueGeneratorsTestFiles",
     srcs: [
         "prop.json",
+        "prop_different_types.json",
         "prop_invalid.json",
     ],
 }

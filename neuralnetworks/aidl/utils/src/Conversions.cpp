@@ -57,10 +57,6 @@
     while (UNLIKELY(value > std::numeric_limits<int32_t>::max())) return NN_ERROR()
 
 namespace {
-template <typename Type>
-constexpr std::underlying_type_t<Type> underlyingType(Type value) {
-    return static_cast<std::underlying_type_t<Type>>(value);
-}
 
 constexpr int64_t kNoTiming = -1;
 
@@ -70,6 +66,7 @@ namespace android::nn {
 namespace {
 
 using ::aidl::android::hardware::common::NativeHandle;
+using ::aidl::android::hardware::neuralnetworks::utils::underlyingType;
 
 template <typename Input>
 using UnvalidatedConvertOutput =
@@ -404,7 +401,7 @@ GeneralResult<SharedMemory> unvalidatedConvert(const aidl_hal::Memory& memory) {
 #endif  // __ANDROID__
         }
     }
-    return NN_ERROR() << "Unrecognized Memory::Tag: " << memory.getTag();
+    return NN_ERROR() << "Unrecognized Memory::Tag: " << underlyingType(memory.getTag());
 }
 
 GeneralResult<Timing> unvalidatedConvert(const aidl_hal::Timing& timing) {
@@ -614,7 +611,7 @@ struct overloaded : Ts... {
     using Ts::operator()...;
 };
 template <class... Ts>
-overloaded(Ts...)->overloaded<Ts...>;
+overloaded(Ts...) -> overloaded<Ts...>;
 
 #ifdef __ANDROID__
 nn::GeneralResult<common::NativeHandle> aidlHandleFromNativeHandle(
@@ -1188,6 +1185,10 @@ nn::GeneralResult<std::vector<int32_t>> toSigned(const std::vector<uint32_t>& ve
         return NN_ERROR() << "Vector contains a value that doesn't fit into int32_t.";
     }
     return std::vector<int32_t>(vec.begin(), vec.end());
+}
+
+std::vector<uint8_t> toVec(const std::array<uint8_t, IDevice::BYTE_SIZE_OF_CACHE_TOKEN>& token) {
+    return std::vector<uint8_t>(token.begin(), token.end());
 }
 
 }  // namespace aidl::android::hardware::neuralnetworks::utils

@@ -57,9 +57,13 @@ enum Capability {
      * validateDisplay step is needed.
      */
     SKIP_VALIDATE = 4,
+
     /**
-     * Specifies that a device is able to use the LayerCommand.bufferAhead
-     * when provided.
+     * Specifies that the device supports setting a display configuration that
+     * the device should boot at.
+     * @see IComposerClient.setBootDisplayConfig
+     * @see IComposerClient.clearBootDisplayConfig
+     * @see IComposerClient.getPreferredBootDisplayConfig
      */
-    BUFFER_AHEAD = 5
+    BOOT_DISPLAY_CONFIG = 5,
 }

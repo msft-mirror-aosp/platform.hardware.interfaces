@@ -19,11 +19,11 @@ package {
 }
 
 cc_test {
-    name: "VehicleHalVehicleUtilsVendorTest",
+    name: "VehicleHalVehicleUtilsTest",
     srcs: ["*.cpp"],
     vendor: true,
     static_libs: [
-        "VehicleHalUtilsVendor",
+        "VehicleHalUtils",
         "libgtest",
         "libgmock",
     ],

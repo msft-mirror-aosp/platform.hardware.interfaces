@@ -16,9 +16,8 @@
 
 package android.hardware.graphics.composer3;
 
-import android.hardware.graphics.composer3.BufferAheadResult;
 import android.hardware.graphics.composer3.ChangedCompositionTypes;
-import android.hardware.graphics.composer3.ClientTargetPropertyWithNits;
+import android.hardware.graphics.composer3.ClientTargetPropertyWithBrightness;
 import android.hardware.graphics.composer3.CommandError;
 import android.hardware.graphics.composer3.DisplayRequest;
 import android.hardware.graphics.composer3.PresentFence;
@@ -79,24 +78,18 @@ union CommandResultPayload {
     ReleaseFences releaseFences;
 
     /**
-     * Represents the result of the LayerCommand.bufferAhead that was
-     * sent in the last presentDisplay call. That is, the presentDisplay
-     * call prior to this presentDisplay.
-     */
-    BufferAheadResult bufferAheadResult;
-
-    /**
      * Sets the state of PRESENT_OR_VALIDATE_DISPLAY command.
      */
     PresentOrValidate presentOrValidateResult;
 
     /**
-     * The white point parameter describes the intended white point of the client target buffer.
+     * The brightness parameter describes the intended brightness space of the client target buffer.
+     * The brightness is in the range [0, 1], where 1 is the current brightness of the display.
      * When client composition blends both HDR and SDR content, the client must composite to the
      * brightness space as specified by the hardware composer. This is so that adjusting the real
      * display brightness may be applied atomically with compensating the client target output. For
      * instance, client-compositing a list of SDR layers requires dimming the brightness space of
      * the SDR buffers when an HDR layer is simultaneously device-composited.
      */
-    ClientTargetPropertyWithNits clientTargetProperty;
+    ClientTargetPropertyWithBrightness clientTargetProperty;
 }

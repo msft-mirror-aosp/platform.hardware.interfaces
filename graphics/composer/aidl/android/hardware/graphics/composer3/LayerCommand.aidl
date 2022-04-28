@@ -22,7 +22,7 @@ import android.hardware.graphics.common.Point;
 import android.hardware.graphics.common.Rect;
 import android.hardware.graphics.composer3.Buffer;
 import android.hardware.graphics.composer3.Color;
-import android.hardware.graphics.composer3.Luminance;
+import android.hardware.graphics.composer3.LayerBrightness;
 import android.hardware.graphics.composer3.ParcelableBlendMode;
 import android.hardware.graphics.composer3.ParcelableComposition;
 import android.hardware.graphics.composer3.ParcelableDataspace;
@@ -68,30 +68,6 @@ parcelable LayerCommand {
      * elsewhere).
      */
     @nullable Buffer buffer;
-
-    /**
-     * Sets a buffer handle to be displayed for this layer and a file descriptor
-     * referring to an acquire sync fence object, which must be signaled when it is
-     * safe to read from the given buffer.
-     *
-     * When bufferAhead is provided, the implementation should try to
-     * present it on the next scanout as long as its acquire sync fence
-     * is signaled by that time. Otherwise the bufferAhead should be dropped.
-     * This allows the client to set an
-     * unsignaled buffer on the layer without causing the entire display to miss
-     * an update if the buffer is not ready by the next scanout time.
-     *
-     * In case bufferAhead is dropped and LayerCommand.buffer is provided, LayerCommand.buffer
-     * should be used as the next layer buffer.
-     *
-     * The implementation is expected to populate the CommandResultPayload.bufferAheadResult
-     * with information about whether bufferAhead was presented or dropped.
-     * Since this information is not known at the current presentDisplay call
-     * of frame N (as the scanout happens after the call returns),
-     * the implementation should populate it when presentDisplay is
-     * called for frame N+1.
-     */
-    @nullable Buffer bufferAhead;
 
     /**
      * Provides the region of the source buffer which has been modified since
@@ -245,12 +221,12 @@ parcelable LayerCommand {
     @nullable float[] colorTransform;
 
     /**
-     * Sets the desired white point for the layer. This is intended to be used when presenting
-     * an SDR layer alongside HDR content. The HDR content will be presented at the display
-     * brightness in nits, and accordingly SDR content shall be dimmed to the desired white point
-     * provided.
+     * Sets the desired brightness for the layer. This is intended to be used for instance when
+     * presenting an SDR layer alongside HDR content. The HDR content will be presented at the
+     * display brightness in nits, and accordingly SDR content shall be dimmed according to the
+     * provided brightness ratio.
      */
-    @nullable Luminance whitePointNits;
+    @nullable LayerBrightness brightness;
 
     /**
      * Sets the PerFrameMetadata for the display. This metadata must be used

@@ -77,10 +77,6 @@ class ComposerClientReader {
                     parseSetClientTargetProperty(std::move(
                             result.get<CommandResultPayload::Tag::clientTargetProperty>()));
                     break;
-                case CommandResultPayload::Tag::bufferAheadResult:
-                    parseSetBufferAheadResultLayers(
-                            result.get<CommandResultPayload::Tag::bufferAheadResult>());
-                    break;
             }
         }
     }
@@ -157,29 +153,19 @@ class ComposerClientReader {
     }
 
     // Get the client target properties requested by hardware composer.
-    ClientTargetPropertyWithNits takeClientTargetProperty(int64_t display) {
+    ClientTargetPropertyWithBrightness takeClientTargetProperty(int64_t display) {
         auto found = mReturnData.find(display);
 
         // If not found, return the default values.
         if (found == mReturnData.end()) {
-            return ClientTargetPropertyWithNits{
+            return ClientTargetPropertyWithBrightness{
                     .clientTargetProperty = {common::PixelFormat::RGBA_8888, Dataspace::UNKNOWN},
-                    .whitePointNits = -1.f,
+                    .brightness = 1.f,
             };
         }
 
         ReturnData& data = found->second;
         return std::move(data.clientTargetProperty);
-    }
-
-    std::vector<BufferAheadResult::Layer> takeBufferAheadResultLayers(int64_t display) {
-        const auto found = mReturnData.find(display);
-
-        if (found == mReturnData.end()) {
-            return {};
-        }
-
-        return std::move(found->second.bufferAheadResultLayers);
     }
 
   private:
@@ -215,14 +201,10 @@ class ComposerClientReader {
         data.presentOrValidateState = std::move(presentOrValidate.result);
     }
 
-    void parseSetClientTargetProperty(const ClientTargetPropertyWithNits&& clientTargetProperty) {
+    void parseSetClientTargetProperty(
+            const ClientTargetPropertyWithBrightness&& clientTargetProperty) {
         auto& data = mReturnData[clientTargetProperty.display];
         data.clientTargetProperty = std::move(clientTargetProperty);
-    }
-
-    void parseSetBufferAheadResultLayers(const BufferAheadResult& bufferAheadResult) {
-        auto& data = mReturnData[bufferAheadResult.display];
-        data.bufferAheadResultLayers = std::move(bufferAheadResult.layers);
     }
 
     struct ReturnData {
@@ -231,11 +213,10 @@ class ComposerClientReader {
         ndk::ScopedFileDescriptor presentFence;
         std::vector<ReleaseFences::Layer> releasedLayers;
         PresentOrValidate::Result presentOrValidateState;
-        std::vector<BufferAheadResult::Layer> bufferAheadResultLayers;
 
-        ClientTargetPropertyWithNits clientTargetProperty = {
+        ClientTargetPropertyWithBrightness clientTargetProperty = {
                 .clientTargetProperty = {common::PixelFormat::RGBA_8888, Dataspace::UNKNOWN},
-                .whitePointNits = -1.f,
+                .brightness = 1.f,
         };
     };
 

@@ -38,6 +38,10 @@ aidl_interface {
                 enabled: true,
             },
             apps_enabled: false,
+            apex_available: [
+                "//apex_available:platform",
+                "com.android.compos",
+            ],
         },
         rust: {
             enabled: true,
@@ -47,5 +51,12 @@ aidl_interface {
             ],
         },
     },
+    versions_with_info: [
+        {
+            version: "1",
+            imports: [],
+        },
+    ],
+
     //     versions: ["1"],
 }
