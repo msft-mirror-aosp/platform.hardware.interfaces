@@ -25,9 +25,9 @@
       "name": "DefaultVehicleHalTest"
     }
   ],
-  "auto-postsubmit": [
+  "auto-presubmit": [
     {
-      "name": "AndroidCarApiTest"
+      "name": "VtsHalAutomotiveVehicle_TargetTest"
     }
   ]
 }
