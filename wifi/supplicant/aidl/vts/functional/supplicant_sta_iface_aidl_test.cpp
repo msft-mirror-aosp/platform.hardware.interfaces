@@ -43,7 +43,6 @@ using aidl::android::hardware::wifi::supplicant::ISupplicant;
 using aidl::android::hardware::wifi::supplicant::ISupplicantStaIface;
 using aidl::android::hardware::wifi::supplicant::ISupplicantStaNetwork;
 using aidl::android::hardware::wifi::supplicant::KeyMgmtMask;
-using aidl::android::hardware::wifi::supplicant::RxFilterType;
 using aidl::android::hardware::wifi::supplicant::WpaDriverCapabilitiesMask;
 using aidl::android::hardware::wifi::supplicant::WpsConfigMethods;
 using android::ProcessState;
@@ -77,6 +76,13 @@ class SupplicantStaIfaceCallback : public BnSupplicantStaIfaceCallback {
     }
     ::ndk::ScopedAStatus onAuthenticationTimeout(
         const std::vector<uint8_t>& /* bssid */) override {
+        return ndk::ScopedAStatus::ok();
+    }
+    ::ndk::ScopedAStatus onAuxiliarySupplicantEvent(
+            ::aidl::android::hardware::wifi::supplicant ::
+                    AuxiliarySupplicantEventCode /* eventCode */,
+            const std::vector<uint8_t>& /* bssid */,
+            const std::string& /* reasonString */) override {
         return ndk::ScopedAStatus::ok();
     }
     ::ndk::ScopedAStatus onBssTmHandlingDone(
@@ -123,7 +129,8 @@ class SupplicantStaIfaceCallback : public BnSupplicantStaIfaceCallback {
     ::ndk::ScopedAStatus onDppSuccessConfigSent() override {
         return ndk::ScopedAStatus::ok();
     }
-    ::ndk::ScopedAStatus onEapFailure(int32_t /* errorCode */) override {
+    ::ndk::ScopedAStatus onEapFailure(const std::vector<uint8_t>& /* bssid */,
+                                      int32_t /* errorCode */) override {
         return ndk::ScopedAStatus::ok();
     }
     ::ndk::ScopedAStatus onExtRadioWorkStart(int32_t /* id */) override {
@@ -194,6 +201,7 @@ class SupplicantStaIfaceCallback : public BnSupplicantStaIfaceCallback {
     }
     ::ndk::ScopedAStatus onQosPolicyReset() override { return ndk::ScopedAStatus::ok(); }
     ::ndk::ScopedAStatus onQosPolicyRequest(
+            int32_t /* qosPolicyRequestId */,
             const std::vector<::aidl::android::hardware::wifi::supplicant ::
                                       QosPolicyData /* qosPolicyData */>&) override {
         return ndk::ScopedAStatus::ok();
@@ -532,36 +540,6 @@ TEST_P(SupplicantStaIfaceAidlTest, Disconnect) {
 TEST_P(SupplicantStaIfaceAidlTest, SetPowerSave) {
     EXPECT_TRUE(sta_iface_->setPowerSave(true).isOk());
     EXPECT_TRUE(sta_iface_->setPowerSave(false).isOk());
-}
-
-/*
- * StartRxFilter
- */
-TEST_P(SupplicantStaIfaceAidlTest, StartRxFilter) {
-    EXPECT_TRUE(sta_iface_->startRxFilter().isOk());
-}
-
-/*
- * StopRxFilter
- */
-TEST_P(SupplicantStaIfaceAidlTest, StopRxFilter) {
-    EXPECT_TRUE(sta_iface_->stopRxFilter().isOk());
-}
-
-/*
- * AddRxFilter
- */
-TEST_P(SupplicantStaIfaceAidlTest, AddRxFilter) {
-    EXPECT_TRUE(sta_iface_->addRxFilter(RxFilterType::V4_MULTICAST).isOk());
-    EXPECT_TRUE(sta_iface_->addRxFilter(RxFilterType::V6_MULTICAST).isOk());
-}
-
-/*
- * RemoveRxFilter
- */
-TEST_P(SupplicantStaIfaceAidlTest, RemoveRxFilter) {
-    EXPECT_TRUE(sta_iface_->removeRxFilter(RxFilterType::V4_MULTICAST).isOk());
-    EXPECT_TRUE(sta_iface_->removeRxFilter(RxFilterType::V6_MULTICAST).isOk());
 }
 
 /*
