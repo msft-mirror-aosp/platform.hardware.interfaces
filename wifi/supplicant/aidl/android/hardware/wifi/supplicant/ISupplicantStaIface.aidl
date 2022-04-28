@@ -88,7 +88,7 @@ interface ISupplicantStaIface {
      *         |SupplicantStatusCode.FAILURE_UNKNOWN|,
      *         |SupplicantStatusCode.FAILURE_IFACE_INVALID|
      */
-    ISupplicantStaNetwork addNetwork();
+    @PropagateAllowBlocking ISupplicantStaNetwork addNetwork();
 
     /**
      * Send driver command to add the specified RX filter.
@@ -260,7 +260,7 @@ interface ISupplicantStaIface {
      *         |SupplicantStatusCode.FAILURE_IFACE_INVALID|,
      *         |SupplicantStatusCode.FAILURE_NETWORK_UNKNOWN|
      */
-    ISupplicantStaNetwork getNetwork(in int id);
+    @PropagateAllowBlocking ISupplicantStaNetwork getNetwork(in int id);
 
     /**
      * Retrieves the type of the network interface.
@@ -418,6 +418,7 @@ interface ISupplicantStaIface {
      * sends a solicited (uses the ongoing DSCP request as dialog token) DSCP
      * response. Otherwise, sends an unsolicited DSCP response.
      *
+     * @param qosPolicyRequestId Dialog token to identify the request.
      * @param morePolicies Flag to indicate more QoS policies can be accommodated.
      * @param qosPolicyStatusList QoS policy status info for each QoS policy id.
      * @throws ServiceSpecificException with one of the following values:
@@ -425,7 +426,8 @@ interface ISupplicantStaIface {
      *         |SupplicantStatusCode.FAILURE_UNKNOWN|,
      *         |SupplicantStatusCode.FAILURE_UNSUPPORTED|
      */
-    void sendQosPolicyResponse(in boolean morePolicies, in QosPolicyStatus[] qosPolicyStatusList);
+    void sendQosPolicyResponse(in int qosPolicyRequestId, in boolean morePolicies,
+            in QosPolicyStatus[] qosPolicyStatusList);
 
     /**
      * Indicate removal of all active QoS policies configured by the AP.
@@ -452,12 +454,12 @@ interface ISupplicantStaIface {
      * This allows other radio works to be performed. If this method is not
      * invoked (e.g., due to the external program terminating), supplicant
      * must time out the radio work item on the iface and send
-     * |ISupplicantCallback.onExtRadioWorkTimeout| event to indicate
+     * |ISupplicantStaIfaceCallback.onExtRadioWorkTimeout| event to indicate
      * that this has happened.
      *
      * This method may also be used to cancel items that have been scheduled
      * via |addExtRadioWork|, but have not yet been started (notified via
-     * |ISupplicantCallback.onExtRadioWorkStart|).
+     * |ISupplicantStaIfaceCallback.onExtRadioWorkStart|).
      *
      * @param id Identifier generated for the radio work addition
      *         (using |addExtRadioWork|).
