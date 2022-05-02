@@ -25,12 +25,17 @@
 #include <android-base/expected.h>
 #include <android-base/file.h>
 #include <android-base/stringprintf.h>
+#include <android-base/thread_annotations.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <utils/Log.h>
 #include <utils/SystemClock.h>
 
 #include <inttypes.h>
+#include <chrono>
+#include <condition_variable>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace android {
@@ -53,12 +58,15 @@ using ::aidl::android::hardware::automotive::vehicle::VehicleProperty;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyStatus;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropValue;
 using ::android::base::expected;
+using ::android::base::ScopedLockAssertion;
 using ::android::base::StringPrintf;
 using ::android::base::unexpected;
 using ::testing::ContainerEq;
 using ::testing::ContainsRegex;
 using ::testing::Eq;
 using ::testing::WhenSortedBy;
+
+using std::chrono::milliseconds;
 
 constexpr int INVALID_PROP_ID = 0;
 constexpr char CAR_MAKE[] = "Default Car";
@@ -93,11 +101,51 @@ class FakeVehicleHardwareTest : public ::testing::Test {
     FakeVehicleHardware* getHardware() { return &mHardware; }
 
     StatusCode setValues(const std::vector<SetValueRequest>& requests) {
-        return getHardware()->setValues(mSetValuesCallback, requests);
+        {
+            std::scoped_lock<std::mutex> lockGuard(mLock);
+            for (const auto& request : requests) {
+                mPendingSetValueRequests.insert(request.requestId);
+            }
+        }
+        if (StatusCode status = getHardware()->setValues(mSetValuesCallback, requests);
+            status != StatusCode::OK) {
+            return status;
+        }
+        std::unique_lock<std::mutex> lk(mLock);
+        // Wait for the onSetValueResults.
+        bool result = mCv.wait_for(lk, milliseconds(1000), [this] {
+            ScopedLockAssertion lockAssertion(mLock);
+            return mPendingSetValueRequests.size() == 0;
+        });
+        if (!result) {
+            ALOGE("wait for callbacks for setValues timed-out");
+            return StatusCode::INTERNAL_ERROR;
+        }
+        return StatusCode::OK;
     }
 
     StatusCode getValues(const std::vector<GetValueRequest>& requests) {
-        return getHardware()->getValues(mGetValuesCallback, requests);
+        {
+            std::scoped_lock<std::mutex> lockGuard(mLock);
+            for (const auto& request : requests) {
+                mPendingGetValueRequests.insert(request.requestId);
+            }
+        }
+        if (StatusCode status = getHardware()->getValues(mGetValuesCallback, requests);
+            status != StatusCode::OK) {
+            return status;
+        }
+        std::unique_lock<std::mutex> lk(mLock);
+        // Wait for the onGetValueResults.
+        bool result = mCv.wait_for(lk, milliseconds(1000), [this] {
+            ScopedLockAssertion lockAssertion(mLock);
+            return mPendingGetValueRequests.size() == 0;
+        });
+        if (!result) {
+            ALOGE("wait for callbacks for getValues timed-out");
+            return StatusCode::INTERNAL_ERROR;
+        }
+        return StatusCode::OK;
     }
 
     StatusCode setValue(const VehiclePropValue& value) {
@@ -158,30 +206,69 @@ class FakeVehicleHardwareTest : public ::testing::Test {
     }
 
     void onSetValues(std::vector<SetValueResult> results) {
+        std::scoped_lock<std::mutex> lockGuard(mLock);
         for (auto& result : results) {
             mSetValueResults.push_back(result);
+            mPendingSetValueRequests.erase(result.requestId);
         }
+        mCv.notify_all();
     }
 
-    const std::vector<SetValueResult>& getSetValueResults() { return mSetValueResults; }
+    const std::vector<SetValueResult>& getSetValueResults() {
+        std::scoped_lock<std::mutex> lockGuard(mLock);
+        return mSetValueResults;
+    }
 
     void onGetValues(std::vector<GetValueResult> results) {
+        std::scoped_lock<std::mutex> lockGuard(mLock);
         for (auto& result : results) {
             mGetValueResults.push_back(result);
+            mPendingGetValueRequests.erase(result.requestId);
         }
+        mCv.notify_all();
     }
 
-    const std::vector<GetValueResult>& getGetValueResults() { return mGetValueResults; }
+    const std::vector<GetValueResult>& getGetValueResults() {
+        std::scoped_lock<std::mutex> lockGuard(mLock);
+        return mGetValueResults;
+    }
 
     void onPropertyChangeEvent(std::vector<VehiclePropValue> values) {
+        std::scoped_lock<std::mutex> lockGuard(mLock);
         for (auto& value : values) {
             mChangedProperties.push_back(value);
+            PropIdAreaId propIdAreaId{
+                    .propId = value.prop,
+                    .areaId = value.areaId,
+            };
+            mEventCount[propIdAreaId]++;
         }
+        mCv.notify_all();
     }
 
-    const std::vector<VehiclePropValue>& getChangedProperties() { return mChangedProperties; }
+    const std::vector<VehiclePropValue>& getChangedProperties() {
+        std::scoped_lock<std::mutex> lockGuard(mLock);
+        return mChangedProperties;
+    }
 
-    void clearChangedProperties() { mChangedProperties.clear(); }
+    bool waitForChangedProperties(int32_t propId, int32_t areaId, size_t count,
+                                  milliseconds timeout) {
+        PropIdAreaId propIdAreaId{
+                .propId = propId,
+                .areaId = areaId,
+        };
+        std::unique_lock<std::mutex> lk(mLock);
+        return mCv.wait_for(lk, timeout, [this, propIdAreaId, count] {
+            ScopedLockAssertion lockAssertion(mLock);
+            return mEventCount[propIdAreaId] >= count;
+        });
+    }
+
+    void clearChangedProperties() {
+        std::scoped_lock<std::mutex> lockGuard(mLock);
+        mEventCount.clear();
+        mChangedProperties.clear();
+    }
 
     static void addSetValueRequest(std::vector<SetValueRequest>& requests,
                                    std::vector<SetValueResult>& expectedResults, int64_t requestId,
@@ -246,11 +333,16 @@ class FakeVehicleHardwareTest : public ::testing::Test {
 
   private:
     FakeVehicleHardware mHardware;
-    std::vector<SetValueResult> mSetValueResults;
-    std::vector<GetValueResult> mGetValueResults;
-    std::vector<VehiclePropValue> mChangedProperties;
     std::shared_ptr<IVehicleHardware::SetValuesCallback> mSetValuesCallback;
     std::shared_ptr<IVehicleHardware::GetValuesCallback> mGetValuesCallback;
+    std::condition_variable mCv;
+    std::mutex mLock;
+    std::unordered_map<PropIdAreaId, size_t, PropIdAreaIdHash> mEventCount GUARDED_BY(mLock);
+    std::vector<SetValueResult> mSetValueResults GUARDED_BY(mLock);
+    std::vector<GetValueResult> mGetValueResults GUARDED_BY(mLock);
+    std::vector<VehiclePropValue> mChangedProperties GUARDED_BY(mLock);
+    std::unordered_set<int64_t> mPendingSetValueRequests GUARDED_BY(mLock);
+    std::unordered_set<int64_t> mPendingGetValueRequests GUARDED_BY(mLock);
 };
 
 TEST_F(FakeVehicleHardwareTest, testGetAllPropertyConfigs) {
@@ -1313,6 +1405,28 @@ TEST_F(FakeVehicleHardwareTest, testDumpInvalidOptions) {
     ASSERT_THAT(result.buffer, ContainsRegex("Invalid option: --invalid"));
 }
 
+TEST_F(FakeVehicleHardwareTest, testDumpFakeUserHalHelp) {
+    std::vector<std::string> options;
+    options.push_back("--user-hal");
+
+    DumpResult result = getHardware()->dump(options);
+    ASSERT_FALSE(result.callerShouldDumpState);
+    ASSERT_NE(result.buffer, "");
+    ASSERT_THAT(result.buffer, ContainsRegex("dumps state used for user management"));
+}
+
+TEST_F(FakeVehicleHardwareTest, testDumpFakeUserHal) {
+    std::vector<std::string> options;
+    options.push_back("--user-hal");
+    // Indent: " ".
+    options.push_back(" ");
+
+    DumpResult result = getHardware()->dump(options);
+    ASSERT_FALSE(result.callerShouldDumpState);
+    ASSERT_NE(result.buffer, "");
+    ASSERT_THAT(result.buffer, ContainsRegex(" No InitialUserInfo response\n"));
+}
+
 struct SetPropTestCase {
     std::string test_name;
     std::vector<std::string> options;
@@ -1508,6 +1622,35 @@ TEST_F(FakeVehicleHardwareTest, testGetEchoReverseBytes) {
 
     ASSERT_TRUE(result.ok()) << "failed to get ECHO_REVERSE_BYTES value: " << getStatus(result);
     ASSERT_EQ(result.value().value.byteValues, std::vector<uint8_t>({0x04, 0x03, 0x02, 0x01}));
+}
+
+TEST_F(FakeVehicleHardwareTest, testUpdateSampleRate) {
+    int32_t propSpeed = toInt(VehicleProperty::PERF_VEHICLE_SPEED);
+    int32_t propSteering = toInt(VehicleProperty::PERF_STEERING_ANGLE);
+    int32_t areaId = 0;
+    getHardware()->updateSampleRate(propSpeed, areaId, 5);
+
+    ASSERT_TRUE(waitForChangedProperties(propSpeed, areaId, /*count=*/5, milliseconds(1500)))
+            << "not enough events generated for speed";
+
+    getHardware()->updateSampleRate(propSteering, areaId, 10);
+
+    ASSERT_TRUE(waitForChangedProperties(propSteering, areaId, /*count=*/10, milliseconds(1500)))
+            << "not enough events generated for steering";
+
+    int64_t timestamp = elapsedRealtimeNano();
+    // Disable refreshing for propSpeed.
+    getHardware()->updateSampleRate(propSpeed, areaId, 0);
+    clearChangedProperties();
+
+    ASSERT_TRUE(waitForChangedProperties(propSteering, areaId, /*count=*/5, milliseconds(1500)))
+            << "should still receive steering events after disable polling for speed";
+    auto updatedValues = getChangedProperties();
+    for (auto& value : updatedValues) {
+        ASSERT_GE(value.timestamp, timestamp);
+        ASSERT_EQ(value.prop, propSteering);
+        ASSERT_EQ(value.areaId, areaId);
+    }
 }
 
 }  // namespace fake
