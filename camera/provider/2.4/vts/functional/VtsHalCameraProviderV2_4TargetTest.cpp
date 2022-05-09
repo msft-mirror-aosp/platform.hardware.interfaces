@@ -222,7 +222,7 @@ enum SystemCameraKind {
     HIDDEN_SECURE_CAMERA
 };
 
-const static std::vector<int32_t> kMandatoryUseCases = {
+const static std::vector<int64_t> kMandatoryUseCases = {
         ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT,
         ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_PREVIEW,
         ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_STILL_CAPTURE,
@@ -6995,16 +6995,16 @@ TEST_P(CameraHidlTest, configureStreamsUseCases) {
         ASSERT_NE(0u, outputPreviewStreams.size());
 
         // Combine valid and invalid stream use cases
-        std::vector<int32_t> useCases(kMandatoryUseCases);
+        std::vector<int64_t> useCases(kMandatoryUseCases);
         useCases.push_back(ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_VIDEO_CALL + 1);
 
-        std::vector<int32_t> supportedUseCases;
+        std::vector<int64_t> supportedUseCases;
         camera_metadata_ro_entry entry;
         auto retcode = find_camera_metadata_ro_entry(staticMeta,
                 ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES, &entry);
         if ((0 == retcode) && (entry.count > 0)) {
-            supportedUseCases.insert(supportedUseCases.end(), entry.data.i32,
-                    entry.data.i32 + entry.count);
+            supportedUseCases.insert(supportedUseCases.end(), entry.data.i64,
+                    entry.data.i64 + entry.count);
         } else {
             supportedUseCases.push_back(ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT);
         }
@@ -7038,7 +7038,7 @@ TEST_P(CameraHidlTest, configureStreamsUseCases) {
                                                 });
         ASSERT_TRUE(ret.isOk());
 
-        for (int32_t useCase : useCases) {
+        for (int64_t useCase : useCases) {
             bool useCaseSupported = std::find(supportedUseCases.begin(),
                     supportedUseCases.end(), useCase) != supportedUseCases.end();
 
@@ -8287,21 +8287,21 @@ void CameraHidlTest::get10BitDynamicRangeProfiles(const camera_metadata_t* stati
     ASSERT_NE(nullptr, staticMeta);
     ASSERT_NE(nullptr, profiles);
     camera_metadata_ro_entry entry;
-    std::unordered_set<int32_t> entries;
+    std::unordered_set<int64_t> entries;
     int rc = find_camera_metadata_ro_entry(staticMeta,
             ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP, &entry);
     ASSERT_EQ(rc, 0);
     ASSERT_TRUE(entry.count > 0);
-    ASSERT_EQ(entry.count % 2, 0);
+    ASSERT_EQ(entry.count % 3, 0);
 
-    for (uint32_t i = 0; i < entry.count; i += 2) {
-        ASSERT_NE(entry.data.i32[i],
+    for (uint32_t i = 0; i < entry.count; i += 3) {
+        ASSERT_NE(entry.data.i64[i],
                 ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD);
-        ASSERT_EQ(entries.find(entry.data.i32[i]), entries.end());
-        entries.insert(static_cast<int32_t>(entry.data.i32[i]));
+        ASSERT_EQ(entries.find(entry.data.i64[i]), entries.end());
+        entries.insert(entry.data.i64[i]);
         profiles->emplace_back(
                 static_cast<CameraMetadataEnumAndroidRequestAvailableDynamicRangeProfilesMap>
-                (entry.data.i32[i]));
+                (entry.data.i64[i]));
     }
 
     if (!entries.empty()) {
@@ -8335,7 +8335,7 @@ void CameraHidlTest::verify10BitMetadata(HandleImporter& importer,
         bool smpte2094_40Present = importer.isSmpte2094_40Present(
                 b.buffer.buffer.getNativeHandle());
 
-        switch (static_cast<uint32_t>(profile)) {
+        switch (static_cast<int64_t>(profile)) {
             case ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_HLG10:
                 ASSERT_FALSE(smpte2086Present);
                 ASSERT_FALSE(smpte2094_10Present);
@@ -8364,7 +8364,7 @@ void CameraHidlTest::verify10BitMetadata(HandleImporter& importer,
                 ASSERT_FALSE(smpte2094_40Present);
                 break;
             default:
-                ALOGE("%s: Unexpected 10-bit dynamic range profile: %d",
+                ALOGE("%s: Unexpected 10-bit dynamic range profile: %" PRId64,
                         __FUNCTION__, profile);
                 ADD_FAILURE();
         }
@@ -9488,19 +9488,19 @@ void CameraHidlTest::verifyStreamUseCaseCharacteristics(const camera_metadata_t*
     if ((0 == retcode) && (entry.count > 0)) {
         supportMandatoryUseCases = true;
         for (size_t i = 0; i < kMandatoryUseCases.size(); i++) {
-            if (std::find(entry.data.i32, entry.data.i32 + entry.count, kMandatoryUseCases[i])
-                    == entry.data.i32 + entry.count) {
+            if (std::find(entry.data.i64, entry.data.i64 + entry.count, kMandatoryUseCases[i])
+                    == entry.data.i64 + entry.count) {
                 supportMandatoryUseCases = false;
                 break;
             }
         }
         bool supportDefaultUseCase = false;
         for (size_t i = 0; i < entry.count; i++) {
-            if (entry.data.i32[i] == ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT) {
+            if (entry.data.i64[i] == ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT) {
                 supportDefaultUseCase = true;
             }
-            ASSERT_TRUE(entry.data.i32[i] <= ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_VIDEO_CALL ||
-                    entry.data.i32[i] >= ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_VENDOR_START);
+            ASSERT_TRUE(entry.data.i64[i] <= ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_VIDEO_CALL ||
+                    entry.data.i64[i] >= ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_VENDOR_START);
         }
         ASSERT_TRUE(supportDefaultUseCase);
     }
