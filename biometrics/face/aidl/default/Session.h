@@ -41,7 +41,7 @@ class Session : public BnSession {
 
     ndk::ScopedAStatus enroll(const keymaster::HardwareAuthToken& hat,
                               EnrollmentType enrollmentType, const std::vector<Feature>& features,
-                              const NativeHandle& previewSurface,
+                              const std::optional<NativeHandle>& previewSurface,
                               std::shared_ptr<common::ICancellationSignal>* return_val) override;
 
     ndk::ScopedAStatus authenticate(
@@ -67,6 +67,22 @@ class Session : public BnSession {
     ndk::ScopedAStatus resetLockout(const keymaster::HardwareAuthToken& hat) override;
 
     ndk::ScopedAStatus close() override;
+
+    ndk::ScopedAStatus authenticateWithContext(
+            int64_t operationId, const common::OperationContext& context,
+            std::shared_ptr<common::ICancellationSignal>* out) override;
+
+    ndk::ScopedAStatus enrollWithContext(
+            const keymaster::HardwareAuthToken& hat, EnrollmentType enrollmentType,
+            const std::vector<Feature>& features, const std::optional<NativeHandle>& previewSurface,
+            const common::OperationContext& context,
+            std::shared_ptr<common::ICancellationSignal>* out) override;
+
+    ndk::ScopedAStatus detectInteractionWithContext(
+            const common::OperationContext& context,
+            std::shared_ptr<common::ICancellationSignal>* out) override;
+
+    ndk::ScopedAStatus onContextChanged(const common::OperationContext& context) override;
 
   private:
     std::shared_ptr<ISessionCallback> cb_;

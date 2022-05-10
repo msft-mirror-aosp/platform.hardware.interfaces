@@ -23,7 +23,6 @@
 #include <fcntl.h>
 #include <ftw.h>
 #include <gtest/gtest.h>
-#include <hidlmemory/mapping.h>
 #include <unistd.h>
 
 #include <cstdio>
@@ -34,7 +33,6 @@
 
 #include "Callbacks.h"
 #include "GeneratedTestHarness.h"
-#include "MemoryUtils.h"
 #include "TestHarness.h"
 #include "Utils.h"
 #include "VtsHalNeuralnetworks.h"
@@ -223,10 +221,17 @@ class CompilationCachingTestBase : public testing::Test {
     void SetUp() override {
         testing::Test::SetUp();
         ASSERT_NE(kDevice.get(), nullptr);
+        const bool deviceIsResponsive =
+                ndk::ScopedAStatus::fromStatus(AIBinder_ping(kDevice->asBinder().get())).isOk();
+        ASSERT_TRUE(deviceIsResponsive);
 
         // Create cache directory. The cache directory and a temporary cache file is always created
         // to test the behavior of prepareModelFromCache, even when caching is not supported.
+#ifdef __ANDROID__
         char cacheDirTemp[] = "/data/local/tmp/TestCompilationCachingXXXXXX";
+#else   // __ANDROID__
+        char cacheDirTemp[] = "/tmp/TestCompilationCachingXXXXXX";
+#endif  // __ANDROID__
         char* cacheDir = mkdtemp(cacheDirTemp);
         ASSERT_NE(cacheDir, nullptr);
         mCacheDir = cacheDir;

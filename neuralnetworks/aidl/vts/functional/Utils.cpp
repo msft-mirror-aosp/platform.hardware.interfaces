@@ -21,17 +21,19 @@
 #include <aidl/android/hardware/neuralnetworks/OperandType.h>
 #include <android-base/logging.h>
 #include <android/binder_status.h>
-#include <android/hardware_buffer.h>
 
 #include <sys/mman.h>
 #include <iostream>
 #include <limits>
 #include <numeric>
 
-#include <MemoryUtils.h>
 #include <nnapi/SharedMemory.h>
 #include <nnapi/hal/aidl/Conversions.h>
 #include <nnapi/hal/aidl/Utils.h>
+
+#ifdef __ANDROID__
+#include <android/hardware_buffer.h>
+#endif  // __ANDROID__
 
 namespace aidl::android::hardware::neuralnetworks {
 
@@ -140,7 +142,8 @@ std::unique_ptr<TestBlobAHWB> TestBlobAHWB::create(uint32_t size) {
     return ahwb->mIsValid ? std::move(ahwb) : nullptr;
 }
 
-void TestBlobAHWB::initialize(uint32_t size) {
+void TestBlobAHWB::initialize([[maybe_unused]] uint32_t size) {
+#ifdef __ANDROID__
     mIsValid = false;
     ASSERT_GT(size, 0);
     const auto usage = AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN;
@@ -153,24 +156,20 @@ void TestBlobAHWB::initialize(uint32_t size) {
             .stride = size,
     };
 
-    ASSERT_EQ(AHardwareBuffer_allocate(&desc, &mAhwb), 0);
-    ASSERT_NE(mAhwb, nullptr);
+    AHardwareBuffer* ahwb = nullptr;
+    ASSERT_EQ(AHardwareBuffer_allocate(&desc, &ahwb), 0);
+    ASSERT_NE(ahwb, nullptr);
 
-    const auto sharedMemory =
-            nn::createSharedMemoryFromAHWB(mAhwb, /*takeOwnership=*/false).value();
-    mMapping = nn::map(sharedMemory).value();
+    mMemory = nn::createSharedMemoryFromAHWB(ahwb, /*takeOwnership=*/true).value();
+    mMapping = nn::map(mMemory).value();
     mPtr = static_cast<uint8_t*>(std::get<void*>(mMapping.pointer));
     CHECK_NE(mPtr, nullptr);
-    mAidlMemory = utils::convert(sharedMemory).value();
+    mAidlMemory = utils::convert(mMemory).value();
 
     mIsValid = true;
-}
-
-TestBlobAHWB::~TestBlobAHWB() {
-    if (mAhwb) {
-        AHardwareBuffer_unlock(mAhwb, nullptr);
-        AHardwareBuffer_release(mAhwb);
-    }
+#else   // __ANDROID__
+    LOG(FATAL) << "TestBlobAHWB::initialize not supported on host";
+#endif  // __ANDROID__
 }
 
 std::string gtestCompliantName(std::string name) {
@@ -182,6 +181,17 @@ std::string gtestCompliantName(std::string name) {
 
 ::std::ostream& operator<<(::std::ostream& os, ErrorStatus errorStatus) {
     return os << toString(errorStatus);
+}
+
+std::string toString(MemoryType type) {
+    switch (type) {
+        case MemoryType::ASHMEM:
+            return "ASHMEM";
+        case MemoryType::BLOB_AHWB:
+            return "BLOB_AHWB";
+        case MemoryType::DEVICE:
+            return "DEVICE";
+    }
 }
 
 Request ExecutionContext::createRequest(const TestModel& testModel, MemoryType memoryType) {

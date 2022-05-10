@@ -17,7 +17,7 @@
 #include "AudioPrimaryHidlHalTest.h"
 
 #if MAJOR_VERSION >= 7
-#include <android_audio_policy_configuration_V7_0.h>
+#include PATH(APM_XSD_H_FILENAME)
 #include <xsdc/XsdcSupport.h>
 
 using android::xsdc_enum_range;
@@ -28,17 +28,36 @@ TEST_P(AudioHidlTest, OpenPrimaryDeviceUsingGetDevice) {
     if (getDeviceName() != DeviceManager::kPrimaryDevice) {
         GTEST_SKIP() << "No primary device on this factory";  // returns
     }
+    EXPECT_TRUE(DeviceManager::getInstance().resetPrimary(getFactoryName()));
 
-    {  // Scope for device SPs
-        sp<IDevice> baseDevice =
-                DeviceManager::getInstance().get(getFactoryName(), DeviceManager::kPrimaryDevice);
-        ASSERT_TRUE(baseDevice != nullptr);
-        Return<sp<IPrimaryDevice>> primaryDevice = IPrimaryDevice::castFrom(baseDevice);
+    // Must use IDevicesFactory directly because DeviceManager always uses
+    // the latest interfaces version and corresponding methods for opening
+    // them. However, in minor package uprevs IPrimaryDevice does not inherit
+    // IDevice from the same package and thus IDevice can not be upcasted
+    // (see the interfaces in V7.1).
+    auto factory = DevicesFactoryManager::getInstance().get(getFactoryName());
+    ASSERT_TRUE(factory != nullptr);
+    sp<::android::hardware::audio::CORE_TYPES_CPP_VERSION::IDevice> baseDevice;
+    Result result;
+    auto ret = factory->openDevice(DeviceManager::kPrimaryDevice, returnIn(result, baseDevice));
+    ASSERT_TRUE(ret.isOk()) << ret.description();
+    ASSERT_EQ(Result::OK, result);
+    ASSERT_TRUE(baseDevice != nullptr);
+    {
+        Return<sp<::android::hardware::audio::CORE_TYPES_CPP_VERSION::IPrimaryDevice>>
+                primaryDevice = ::android::hardware::audio::CORE_TYPES_CPP_VERSION::IPrimaryDevice::
+                        castFrom(baseDevice);
         EXPECT_TRUE(primaryDevice.isOk());
-        EXPECT_TRUE(sp<IPrimaryDevice>(primaryDevice) != nullptr);
+        EXPECT_TRUE(sp<::android::hardware::audio::CORE_TYPES_CPP_VERSION::IPrimaryDevice>(
+                            primaryDevice) != nullptr);
     }
-    EXPECT_TRUE(
-            DeviceManager::getInstance().reset(getFactoryName(), DeviceManager::kPrimaryDevice));
+#if MAJOR_VERSION < 6
+    baseDevice.clear();
+    DeviceManager::waitForInstanceDestruction();
+#else
+    auto closeRet = baseDevice->close();
+    EXPECT_TRUE(closeRet.isOk());
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -53,6 +72,11 @@ TEST_P(AudioHidlDeviceTest, GetMicrophonesTest) {
         GTEST_SKIP() << "getMicrophones is not supported";  // returns
     }
     ASSERT_OK(res);
+
+#if MAJOR_VERSION <= 6
+    // In V7, 'getActiveMicrophones' is tested by the 'MicrophoneInfoInputStream'
+    // test which uses the actual configuration of the device.
+
     if (microphones.size() > 0) {
         // When there is microphone on the phone, try to open an input stream
         // and query for the active microphones.
@@ -60,30 +84,13 @@ TEST_P(AudioHidlDeviceTest, GetMicrophonesTest) {
             "Make sure getMicrophones always succeeds"
             "and getActiveMicrophones always succeeds when recording from these microphones.");
         AudioConfig config{};
-#if MAJOR_VERSION <= 6
         config.channelMask = mkEnumBitfield(AudioChannelMask::IN_MONO);
         config.sampleRateHz = 8000;
         config.format = AudioFormat::PCM_16_BIT;
         auto flags = hidl_bitfield<AudioInputFlag>(AudioInputFlag::NONE);
         const SinkMetadata initMetadata = {{{.source = AudioSource::MIC, .gain = 1}}};
-#elif MAJOR_VERSION >= 7
-        config.base.channelMask = toString(xsd::AudioChannelMask::AUDIO_CHANNEL_IN_MONO);
-        config.base.sampleRateHz = 8000;
-        config.base.format = toString(xsd::AudioFormat::AUDIO_FORMAT_PCM_16_BIT);
-        hidl_vec<hidl_string> flags;
-        const SinkMetadata initMetadata = {
-                {{.source = toString(xsd::AudioSource::AUDIO_SOURCE_MIC),
-                  .gain = 1,
-                  .tags = {},
-                  .channelMask = toString(xsd::AudioChannelMask::AUDIO_CHANNEL_IN_MONO)}}};
-#endif
         for (auto microphone : microphones) {
-#if MAJOR_VERSION <= 6
             if (microphone.deviceAddress.device != AudioDevice::IN_BUILTIN_MIC) {
-#elif MAJOR_VERSION >= 7
-            if (xsd::stringToAudioDevice(microphone.deviceAddress.deviceType) !=
-                xsd::AudioDevice::AUDIO_DEVICE_IN_BUILTIN_MIC) {
-#endif
                 continue;
             }
             sp<IStreamIn> stream;
@@ -106,6 +113,7 @@ TEST_P(AudioHidlDeviceTest, GetMicrophonesTest) {
             EXPECT_NE(0U, activeMicrophones.size());
         }
     }
+#endif  // MAJOR_VERSION <= 6
 }
 
 TEST_P(AudioHidlDeviceTest, SetConnectedState) {
@@ -194,7 +202,7 @@ TEST_IO_STREAM(SetDevices, "Check that the stream can be rerouted to SPEAKER or 
                areAudioPatchesSupported() ? doc::partialTest("Audio patches are supported")
                                           : testSetDevices(stream.get(), address))
 
-static void checkGetHwAVSync(IDevice* device) {
+static void checkGetHwAVSync(::android::hardware::audio::CPP_VERSION::IDevice* device) {
     Result res;
     AudioHwSync sync;
     ASSERT_OK(device->getHwAvSync(returnIn(res, sync)));
@@ -226,7 +234,7 @@ TEST_P(InputStreamTest, updateSinkMetadata) {
     ASSERT_OK(stream->updateSinkMetadata(initMetadata));
 
 #elif MAJOR_VERSION >= 7
-    xsdc_enum_range<android::audio::policy::configuration::V7_0::AudioSource> range;
+    xsdc_enum_range<android::audio::policy::configuration::CPP_VERSION::AudioSource> range;
     // Test all possible track configuration
     for (auto source : range) {
         for (float volume : {0.0, 0.5, 1.0}) {
@@ -283,8 +291,9 @@ TEST_P(OutputStreamTest, updateSourceMetadata) {
     // Restore initial
     ASSERT_OK(stream->updateSourceMetadata(initMetadata));
 #elif MAJOR_VERSION >= 7
-    xsdc_enum_range<android::audio::policy::configuration::V7_0::AudioUsage> usageRange;
-    xsdc_enum_range<android::audio::policy::configuration::V7_0::AudioContentType> contentRange;
+    xsdc_enum_range<android::audio::policy::configuration::CPP_VERSION::AudioUsage> usageRange;
+    xsdc_enum_range<android::audio::policy::configuration::CPP_VERSION::AudioContentType>
+            contentRange;
     // Test all possible track configuration
     for (auto usage : usageRange) {
         for (auto content : contentRange) {
@@ -343,18 +352,21 @@ TEST_P(AudioPrimaryHidlTest, setMode) {
 #endif
 
     for (int mode : {-2, -1, maxMode + 1}) {
-        ASSERT_RESULT(Result::INVALID_ARGUMENTS, getDevice()->setMode(AudioMode(mode)))
+        EXPECT_RESULT(Result::INVALID_ARGUMENTS, getDevice()->setMode(AudioMode(mode)))
                 << "mode=" << mode;
     }
-    // Test valid values
-    for (AudioMode mode : {AudioMode::IN_CALL, AudioMode::IN_COMMUNICATION, AudioMode::RINGTONE,
-                           AudioMode::NORMAL /* Make sure to leave the test in normal mode */}) {
-        ASSERT_OK(getDevice()->setMode(mode)) << "mode=" << toString(mode);
-    }
+
     // AudioMode::CALL_SCREEN as support is optional
 #if MAJOR_VERSION >= 6
-    ASSERT_RESULT(okOrNotSupportedOrInvalidArgs, getDevice()->setMode(AudioMode::CALL_SCREEN));
+    EXPECT_RESULT(okOrNotSupportedOrInvalidArgs, getDevice()->setMode(AudioMode::CALL_SCREEN));
 #endif
+    // Test valid values
+    for (AudioMode mode : {AudioMode::IN_CALL, AudioMode::IN_COMMUNICATION, AudioMode::RINGTONE,
+                           AudioMode::NORMAL}) {
+        EXPECT_OK(getDevice()->setMode(mode)) << "mode=" << toString(mode);
+    }
+    // Make sure to leave the test in normal mode
+    getDevice()->setMode(AudioMode::NORMAL);
 }
 
 TEST_P(AudioPrimaryHidlTest, setBtHfpSampleRate) {

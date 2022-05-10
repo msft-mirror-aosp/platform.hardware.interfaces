@@ -1251,16 +1251,32 @@ TEST_P(RadioHidlTest_v1_5, sendCdmaSmsExpectMore) {
  * Test IRadio.getBarringInfo() for the response returned.
  */
 TEST_P(RadioHidlTest_v1_5, getBarringInfo) {
+    // If the previous setRadioPower_1_5_emergencyCall_cancelled test has just finished.
+    // Due to radio restarting, modem may need a little more time to acquire network service
+    // and barring infos. If voice status is in-service, waiting 3s to get barring infos ready.
+    // Or waiting 10s if voice status is not in-service.
     serial = GetRandomSerialNumber();
+    radio_v1_5->getVoiceRegistrationState_1_5(serial);
+    EXPECT_EQ(std::cv_status::no_timeout, wait());
+    if (isVoiceInService(radioRsp_v1_5->voiceRegResp.regState)) {
+        sleep(BARRING_INFO_MAX_WAIT_TIME_SECONDS);
+    } else {
+        sleep(VOICE_SERVICE_MAX_WAIT_TIME_SECONDS);
+    }
 
+    serial = GetRandomSerialNumber();
     Return<void> res = radio_v1_5->getBarringInfo(serial);
     EXPECT_EQ(std::cv_status::no_timeout, wait());
     EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_v1_5->rspInfo.type);
     EXPECT_EQ(serial, radioRsp_v1_5->rspInfo.serial);
 
     int32_t firstApiLevel = android::base::GetIntProperty<int32_t>("ro.product.first_api_level", 0);
+    int32_t boardApiLevel = android::base::GetIntProperty<int32_t>("ro.board.first_api_level", 0);
     // Allow devices shipping with Radio::1_5 and Android 11 to not support barring info.
-    if (firstApiLevel > 0 && firstApiLevel <= 30) {
+    // b/212384410 Some GRF targets lauched with S release but with vendor R release
+    // do not support getBarringInfo API. Allow these devices to not support barring info.
+    if ((firstApiLevel > 0 && firstApiLevel <= 30) ||
+        (boardApiLevel > 0 && boardApiLevel <= 30)) {
         ASSERT_TRUE(CheckAnyOfErrors(radioRsp_v1_5->rspInfo.error,
                                      {RadioError::NONE, RadioError::REQUEST_NOT_SUPPORTED}));
         // Early exit for devices that don't support barring info.

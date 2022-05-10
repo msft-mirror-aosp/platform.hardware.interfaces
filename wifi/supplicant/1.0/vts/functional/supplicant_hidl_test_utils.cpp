@@ -48,37 +48,26 @@ using ::android::wifi_system::InterfaceTool;
 using ::android::wifi_system::SupplicantManager;
 
 namespace {
-
-// Helper function to initialize the driver and firmware to STA mode
-// using the vendor HAL HIDL interface.
-void initilializeDriverAndFirmware(const std::string& wifi_instance_name) {
-    // Skip if wifi instance is not set.
-    if (wifi_instance_name == "") {
-        return;
+bool waitForSupplicantState(bool is_running) {
+    SupplicantManager supplicant_manager;
+    int count = 50; /* wait at most 5 seconds for completion */
+    while (count-- > 0) {
+        if (supplicant_manager.IsSupplicantRunning() == is_running) {
+            return true;
+        }
+        usleep(100000);
     }
-    if (getWifi(wifi_instance_name) != nullptr) {
-        sp<IWifiChip> wifi_chip = getWifiChip(wifi_instance_name);
-        ChipModeId mode_id;
-        EXPECT_TRUE(configureChipToSupportIfaceType(
-            wifi_chip, ::android::hardware::wifi::V1_0::IfaceType::STA, &mode_id));
-    } else {
-        LOG(WARNING) << __func__ << ": Vendor HAL not supported";
-    }
+    LOG(ERROR) << "Supplicant not " << is_running ? "running" : "stopped";
+    return false;
 }
 
-// Helper function to deinitialize the driver and firmware
-// using the vendor HAL HIDL interface.
-void deInitilializeDriverAndFirmware(const std::string& wifi_instance_name) {
-    // Skip if wifi instance is not set.
-    if (wifi_instance_name == "") {
-        return;
-    }
-    if (getWifi(wifi_instance_name) != nullptr) {
-        stopWifi(wifi_instance_name);
-    } else {
-        LOG(WARNING) << __func__ << ": Vendor HAL not supported";
-    }
-}
+// Helper function to wait for supplicant to be started by framework on wifi
+// enable.
+bool waitForSupplicantStart() { return waitForSupplicantState(true); }
+
+// Helper function to wait for supplicant to be stopped by framework on wifi
+// disable.
+bool waitForSupplicantStop() { return waitForSupplicantState(false); }
 
 // Helper function to find any iface of the desired type exposed.
 bool findIfaceOfType(sp<ISupplicant> supplicant, IfaceType desired_type,
@@ -118,20 +107,64 @@ std::string getP2pIfaceName() {
 }
 }  // namespace
 
+bool startWifiFramework() {
+    std::system("svc wifi enable");
+    std::system("cmd wifi set-scan-always-available enabled");
+    return waitForSupplicantStart();  // wait for wifi to start.
+}
+
+bool stopWifiFramework() {
+    std::system("svc wifi disable");
+    std::system("cmd wifi set-scan-always-available disabled");
+    return waitForSupplicantStop();  // wait for wifi to shutdown.
+}
+
 void stopSupplicant() { stopSupplicant(""); }
 
 void stopSupplicant(const std::string& wifi_instance_name) {
     SupplicantManager supplicant_manager;
 
     ASSERT_TRUE(supplicant_manager.StopSupplicant());
-    deInitilializeDriverAndFirmware(wifi_instance_name);
+    deInitializeDriverAndFirmware(wifi_instance_name);
     ASSERT_FALSE(supplicant_manager.IsSupplicantRunning());
+}
+
+// Helper function to initialize the driver and firmware to STA mode
+// using the vendor HAL HIDL interface.
+void initializeDriverAndFirmware(const std::string& wifi_instance_name) {
+    // Skip if wifi instance is not set.
+    if (wifi_instance_name == "") {
+        return;
+    }
+    if (getWifi(wifi_instance_name) != nullptr) {
+        sp<IWifiChip> wifi_chip = getWifiChip(wifi_instance_name);
+        ChipModeId mode_id;
+        EXPECT_TRUE(configureChipToSupportIfaceType(
+            wifi_chip, ::android::hardware::wifi::V1_0::IfaceType::STA,
+            &mode_id));
+    } else {
+        LOG(WARNING) << __func__ << ": Vendor HAL not supported";
+    }
+}
+
+// Helper function to deinitialize the driver and firmware
+// using the vendor HAL HIDL interface.
+void deInitializeDriverAndFirmware(const std::string& wifi_instance_name) {
+    // Skip if wifi instance is not set.
+    if (wifi_instance_name == "") {
+        return;
+    }
+    if (getWifi(wifi_instance_name) != nullptr) {
+        stopWifi(wifi_instance_name);
+    } else {
+        LOG(WARNING) << __func__ << ": Vendor HAL not supported";
+    }
 }
 
 void startSupplicantAndWaitForHidlService(
     const std::string& wifi_instance_name,
     const std::string& supplicant_instance_name) {
-    initilializeDriverAndFirmware(wifi_instance_name);
+    initializeDriverAndFirmware(wifi_instance_name);
 
     SupplicantManager supplicant_manager;
     ASSERT_TRUE(supplicant_manager.StartSupplicant());
@@ -285,7 +318,7 @@ bool turnOnExcessiveLogging(const sp<ISupplicant>& supplicant) {
 }
 
 bool waitForFrameworkReady() {
-    int waitCount = 10;
+    int waitCount = 15;
     do {
         // Check whether package service is ready or not.
         if (!testing::checkSubstringInCommandOutput(

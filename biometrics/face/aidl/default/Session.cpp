@@ -63,7 +63,8 @@ ndk::ScopedAStatus Session::getEnrollmentConfig(EnrollmentType /*enrollmentType*
 
 ndk::ScopedAStatus Session::enroll(
         const keymaster::HardwareAuthToken& /*hat*/, EnrollmentType /*enrollmentType*/,
-        const std::vector<Feature>& /*features*/, const NativeHandle& /*previewSurface*/,
+        const std::vector<Feature>& /*features*/,
+        const std::optional<NativeHandle>& /*previewSurface*/,
         std::shared_ptr<biometrics::common::ICancellationSignal>* /*return_val*/) {
     LOG(INFO) << "enroll";
     if (cb_) {
@@ -107,7 +108,8 @@ ndk::ScopedAStatus Session::removeEnrollments(const std::vector<int32_t>& /*enro
 ndk::ScopedAStatus Session::getFeatures() {
     LOG(INFO) << "getFeatures";
     if (cb_) {
-        cb_->onFeaturesRetrieved({});
+        // Must error out with UNABLE_TO_PROCESS when no faces are enrolled.
+        cb_->onError(Error::UNABLE_TO_PROCESS, 0 /* vendorCode */);
     }
     return ndk::ScopedAStatus::ok();
 }
@@ -146,6 +148,31 @@ ndk::ScopedAStatus Session::close() {
     if (cb_) {
         cb_->onSessionClosed();
     }
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus Session::authenticateWithContext(
+        int64_t operationId, const common::OperationContext& /*context*/,
+        std::shared_ptr<common::ICancellationSignal>* out) {
+    return authenticate(operationId, out);
+}
+
+ndk::ScopedAStatus Session::enrollWithContext(const keymaster::HardwareAuthToken& hat,
+                                              EnrollmentType enrollmentType,
+                                              const std::vector<Feature>& features,
+                                              const std::optional<NativeHandle>& previewSurface,
+                                              const common::OperationContext& /*context*/,
+                                              std::shared_ptr<common::ICancellationSignal>* out) {
+    return enroll(hat, enrollmentType, features, previewSurface, out);
+}
+
+ndk::ScopedAStatus Session::detectInteractionWithContext(
+        const common::OperationContext& /*context*/,
+        std::shared_ptr<common::ICancellationSignal>* out) {
+    return detectInteraction(out);
+}
+
+ndk::ScopedAStatus Session::onContextChanged(const common::OperationContext& /*context*/) {
     return ndk::ScopedAStatus::ok();
 }
 
