@@ -29,9 +29,11 @@
 
 #include "wifi_hidl_test_utils.h"
 
+// Used to start the android wifi framework after every test.
+bool startWifiFramework();
+
 // Used to stop the android wifi framework before every test.
-void stopWifiFramework(const std::string& wifi_instance_name);
-void startWifiFramework(const std::string& wifi_instance_name);
+bool stopWifiFramework();
 
 void stopSupplicant(const std::string& wifi_instance_name);
 // Used to configure the chip, driver and start wpa_supplicant before every
@@ -39,6 +41,11 @@ void stopSupplicant(const std::string& wifi_instance_name);
 void startSupplicantAndWaitForHidlService(
     const std::string& wifi_instance_name,
     const std::string& supplicant_instance_name);
+
+// Used to initialize/deinitialize the driver and firmware at the
+// beginning and end of each test.
+void initializeDriverAndFirmware(const std::string& wifi_instance_name);
+void deInitializeDriverAndFirmware(const std::string& wifi_instance_name);
 
 // Helper functions to obtain references to the various HIDL interface objects.
 // Note: We only have a single instance of each of these objects currently.
@@ -70,16 +77,16 @@ class SupplicantHidlTestBase
     : public ::testing::TestWithParam<std::tuple<std::string, std::string>> {
    public:
     virtual void SetUp() override {
+        // Stop Wi-Fi
+        ASSERT_TRUE(stopWifiFramework());  // stop & wait for wifi to shutdown.
+
         // should always be v1.0 wifi
         wifi_v1_0_instance_name_ = std::get<0>(GetParam());
         supplicant_instance_name_ = std::get<1>(GetParam());
         std::system("/system/bin/start");
         ASSERT_TRUE(waitForFrameworkReady());
-
         isP2pOn_ =
             testing::deviceSupportsFeature("android.hardware.wifi.direct");
-        // Stop Framework
-        std::system("/system/bin/stop");
         stopSupplicant(wifi_v1_0_instance_name_);
         startSupplicantAndWaitForHidlService(wifi_v1_0_instance_name_,
                                              supplicant_instance_name_);
@@ -88,8 +95,8 @@ class SupplicantHidlTestBase
 
     virtual void TearDown() override {
         stopSupplicant(wifi_v1_0_instance_name_);
-        // Start Framework
-        std::system("/system/bin/start");
+        // Start Wi-Fi
+        startWifiFramework();
     }
 
    protected:

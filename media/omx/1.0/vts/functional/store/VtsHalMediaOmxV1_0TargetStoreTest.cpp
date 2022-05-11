@@ -20,8 +20,11 @@
 #endif
 
 #include <android-base/logging.h>
+#include <android-base/properties.h>
 #include <android-base/strings.h>
+#include <android/api-level.h>
 
+#include <VtsCoreUtil.h>
 #include <android/hardware/media/omx/1.0/IOmx.h>
 #include <android/hardware/media/omx/1.0/IOmxNode.h>
 #include <android/hardware/media/omx/1.0/IOmxObserver.h>
@@ -264,11 +267,13 @@ TEST_P(StoreHidlTest, ListRoles) {
 
         // Make sure role name follows expected format based on type and
         // isEncoder
-        const std::string role_name(
-                ::android::GetComponentRole(role.isEncoder, role.type.c_str()));
-        EXPECT_EQ(role_name, role.role) << "Role \"" << role.role << "\" does not match "
-                                        << (role.isEncoder ? "an encoder " : "a decoder ")
-                                        << "for mime type \"" << role.type << ".";
+        const char* role_name = ::android::GetComponentRole(role.isEncoder, role.type.c_str());
+        if (role_name != nullptr) {
+            EXPECT_EQ(std::string(role_name), role.role)
+                    << "Role \"" << role.role << "\" does not match "
+                    << (role.isEncoder ? "an encoder " : "a decoder ") << "for media type \""
+                    << role.type << ".";
+        }
 
         // Check the nodes for this role
         std::set<const std::string> nodeKeys;
@@ -365,6 +370,47 @@ TEST_P(StoreHidlTest, ListRoles) {
             EXPECT_NE(node.first.rfind(prefix, 0), std::string::npos)
                     << "Node \"" << node.first << "\" does not start with prefix \"" << prefix
                     << "\".";
+        }
+    }
+}
+
+static int getFirstApiLevel() {
+    int boardApiLevel = android::base::GetIntProperty("ro.board.first_api_level", 0);
+    if (boardApiLevel != 0) {
+        return boardApiLevel;
+    }
+
+    return android::base::GetIntProperty("ro.product.first_api_level", __ANDROID_API_T__);
+}
+
+static bool isTV() {
+    return testing::deviceSupportsFeature("android.software.leanback");
+}
+
+// list components and roles.
+TEST_P(StoreHidlTest, OmxCodecAllowedTest) {
+    hidl_vec<IOmx::ComponentInfo> componentInfos = getComponentInfoList(omx);
+    for (IOmx::ComponentInfo info : componentInfos) {
+        for (std::string role : info.mRoles) {
+            if (role.find("video_decoder") != std::string::npos ||
+                role.find("video_encoder") != std::string::npos) {
+                // Codec2 is not mandatory on Android TV devices that launched with Android S
+                if (isTV()) {
+                    ASSERT_LT(getFirstApiLevel(), __ANDROID_API_T__)
+                            << " Component: " << info.mName.c_str() << " Role: " << role.c_str()
+                            << " not allowed for devices launching with Android T and above";
+                } else {
+                    ASSERT_LT(getFirstApiLevel(), __ANDROID_API_S__)
+                            << " Component: " << info.mName.c_str() << " Role: " << role.c_str()
+                            << " not allowed for devices launching with Android S and above";
+                }
+            }
+            if (role.find("audio_decoder") != std::string::npos ||
+                role.find("audio_encoder") != std::string::npos) {
+                ASSERT_LT(getFirstApiLevel(), __ANDROID_API_T__)
+                        << " Component: " << info.mName.c_str() << " Role: " << role.c_str()
+                        << " not allowed for devices launching with Android T and above";
+            }
         }
     }
 }

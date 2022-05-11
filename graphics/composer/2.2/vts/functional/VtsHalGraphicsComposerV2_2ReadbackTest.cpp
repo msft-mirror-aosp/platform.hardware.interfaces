@@ -97,7 +97,6 @@ class GraphicsCompositionTestBase : public ::testing::Test {
         renderengine::DisplaySettings clientCompositionDisplay;
         clientCompositionDisplay.physicalDisplay = Rect(mDisplayWidth, mDisplayHeight);
         clientCompositionDisplay.clip = clientCompositionDisplay.physicalDisplay;
-        clientCompositionDisplay.clearRegion = Region(clientCompositionDisplay.physicalDisplay);
 
         mTestRenderEngine->initGraphicBuffer(
                 static_cast<uint32_t>(mDisplayWidth), static_cast<uint32_t>(mDisplayHeight), 1,
@@ -458,6 +457,7 @@ TEST_P(GraphicsCompositionTest, ClientComposition) {
                           << " pixel format: PixelFormat::RGBA_8888 dataspace: "
                           << ReadbackHelper::getDataspaceString(clientDataspace)
                           << " unsupported for display" << std::endl;
+                mReader->mCompositionChanges.clear();
                 continue;
             }
 
