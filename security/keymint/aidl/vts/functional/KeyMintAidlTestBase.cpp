@@ -17,6 +17,7 @@
 #include "KeyMintAidlTestBase.h"
 
 #include <chrono>
+#include <fstream>
 #include <unordered_set>
 #include <vector>
 
@@ -205,6 +206,14 @@ uint32_t KeyMintAidlTestBase::boot_patch_level(
 
 uint32_t KeyMintAidlTestBase::boot_patch_level() {
     return boot_patch_level(key_characteristics_);
+}
+
+/**
+ * An API to determine device IDs attestation is required or not,
+ * which is mandatory for KeyMint version 2 or first_api_level 33 or greater.
+ */
+bool KeyMintAidlTestBase::isDeviceIdAttestationRequired() {
+    return AidlVersion() >= 2 || property_get_int32("ro.vendor.api_level", 0) >= 33;
 }
 
 bool KeyMintAidlTestBase::Curve25519Supported() {
@@ -1450,6 +1459,11 @@ void verify_subject(const X509* cert,       //
 
     OPENSSL_free(cert_subj);
     OPENSSL_free(cert_issuer);
+}
+
+bool is_gsi_image() {
+    std::ifstream ifs("/system/system_ext/etc/init/init.gsi.rc");
+    return ifs.good();
 }
 
 vector<uint8_t> build_serial_blob(const uint64_t serial_int) {

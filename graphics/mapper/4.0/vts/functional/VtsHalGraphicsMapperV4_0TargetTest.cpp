@@ -999,10 +999,13 @@ TEST_P(GraphicsMapperHidlTest, Lock_YCBCR_P010) {
     auto info = mDummyDescriptorInfo;
     info.format = PixelFormat::YCBCR_P010;
 
-    const native_handle_t* bufferHandle;
     uint32_t stride;
-    ASSERT_NO_FATAL_FAILURE(
-            bufferHandle = mGralloc->allocate(info, true, Tolerance::kToleranceStrict, &stride));
+    const native_handle_t* bufferHandle =
+            mGralloc->allocate(info, true, Tolerance::kToleranceStrict, &stride);
+
+    if (::testing::Test::IsSkipped()) {
+        GTEST_SKIP();
+    }
 
     const IMapper::Rect region{0, 0, static_cast<int32_t>(info.width),
                                static_cast<int32_t>(info.height)};
@@ -2209,6 +2212,11 @@ TEST_P(GraphicsMapperHidlTest, SetBadMetadata) {
               mGralloc->set(bufferHandle, gralloc4::MetadataType_Dataspace, vec));
     ASSERT_EQ(Error::UNSUPPORTED,
               mGralloc->set(bufferHandle, gralloc4::MetadataType_BlendMode, vec));
+
+    // Keep optional metadata types below and populate the encoded metadata vec
+    // with some arbitrary different metadata because the common gralloc4::decode*()
+    // functions do not distinguish between an empty vec and bad value.
+    ASSERT_EQ(NO_ERROR, gralloc4::encodeDataspace(Dataspace::SRGB_LINEAR, &vec));
     ASSERT_EQ(Error::UNSUPPORTED,
               mGralloc->set(bufferHandle, gralloc4::MetadataType_Smpte2086, vec));
     ASSERT_EQ(Error::UNSUPPORTED,

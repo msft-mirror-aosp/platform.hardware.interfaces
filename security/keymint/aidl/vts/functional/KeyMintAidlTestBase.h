@@ -79,6 +79,7 @@ class KeyMintAidlTestBase : public ::testing::TestWithParam<string> {
     uint32_t vendor_patch_level() { return vendor_patch_level_; }
     uint32_t boot_patch_level(const vector<KeyCharacteristics>& key_characteristics);
     uint32_t boot_patch_level();
+    bool isDeviceIdAttestationRequired();
 
     bool Curve25519Supported();
 
@@ -352,6 +353,9 @@ void add_tag_from_prop(AuthorizationSetBuilder* tags, TypedTag<TagType::BYTES, t
         tags->Authorization(ttag, prop_value.data(), prop_value.size());
     }
 }
+
+// Indicate whether the test is running on a GSI image.
+bool is_gsi_image();
 
 vector<uint8_t> build_serial_blob(const uint64_t serial_int);
 void verify_subject(const X509* cert, const string& subject, bool self_signed);

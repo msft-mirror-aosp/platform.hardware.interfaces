@@ -1949,6 +1949,11 @@ TEST_P(NewKeyGenerationTest, EcdsaAttestationTags) {
  * attestation extension.
  */
 TEST_P(NewKeyGenerationTest, EcdsaAttestationIdTags) {
+    if (is_gsi_image()) {
+        // GSI sets up a standard set of device identifiers that may not match
+        // the device identifiers held by the device.
+        GTEST_SKIP() << "Test not applicable under GSI";
+    }
     auto challenge = "hello";
     auto app_id = "foo";
     auto subject = "cert subj 2";
@@ -1986,8 +1991,8 @@ TEST_P(NewKeyGenerationTest, EcdsaAttestationIdTags) {
         if (SecLevel() == SecurityLevel::STRONGBOX) {
             if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) return;
         }
-        if (result == ErrorCode::CANNOT_ATTEST_IDS) {
-            // Device ID attestation is optional; KeyMint may not support it at all.
+        if (result == ErrorCode::CANNOT_ATTEST_IDS && !isDeviceIdAttestationRequired()) {
+            // ID attestation was optional till api level 32, from api level 33 it is mandatory.
             continue;
         }
         ASSERT_EQ(result, ErrorCode::OK);
@@ -5481,16 +5486,43 @@ TEST_P(EncryptionOperationsTest, AesEcbPkcs7PaddingCorrupted) {
 
         EXPECT_EQ(ErrorCode::OK, Begin(KeyPurpose::DECRYPT, params));
         string plaintext;
-        ErrorCode error = Finish(message, &plaintext);
-        if (error == ErrorCode::INVALID_INPUT_LENGTH) {
+        ErrorCode error = Finish(ciphertext, &plaintext);
+        if (error == ErrorCode::INVALID_ARGUMENT) {
             // This is the expected error, we can exit the test now.
             return;
         } else {
             // Very small chance we got valid decryption, so try again.
-            ASSERT_EQ(error, ErrorCode::OK);
+            ASSERT_EQ(error, ErrorCode::OK)
+                    << "Expected INVALID_ARGUMENT or (rarely) OK, got " << error;
         }
     }
     FAIL() << "Corrupt ciphertext should have failed to decrypt by now.";
+}
+
+/*
+ * EncryptionOperationsTest.AesEcbPkcs7CiphertextTooShort
+ *
+ * Verifies that AES decryption fails in the correct way when the padding is corrupted.
+ */
+TEST_P(EncryptionOperationsTest, AesEcbPkcs7CiphertextTooShort) {
+    ASSERT_EQ(ErrorCode::OK, GenerateKey(AuthorizationSetBuilder()
+                                                 .Authorization(TAG_NO_AUTH_REQUIRED)
+                                                 .AesEncryptionKey(128)
+                                                 .Authorization(TAG_BLOCK_MODE, BlockMode::ECB)
+                                                 .Padding(PaddingMode::PKCS7)));
+
+    auto params = AuthorizationSetBuilder().BlockMode(BlockMode::ECB).Padding(PaddingMode::PKCS7);
+
+    string message = "a";
+    string ciphertext = EncryptMessage(message, params);
+    EXPECT_EQ(16U, ciphertext.size());
+    EXPECT_NE(ciphertext, message);
+
+    // Shorten the ciphertext.
+    ciphertext.resize(ciphertext.size() - 1);
+    EXPECT_EQ(ErrorCode::OK, Begin(KeyPurpose::DECRYPT, params));
+    string plaintext;
+    EXPECT_EQ(ErrorCode::INVALID_INPUT_LENGTH, Finish(ciphertext, &plaintext));
 }
 
 vector<uint8_t> CopyIv(const AuthorizationSet& set) {
@@ -7493,7 +7525,6 @@ class KeyAgreementTest : public KeyMintAidlTestBase {
             uint8_t privKeyData[32];
             uint8_t pubKeyData[32];
             X25519_keypair(pubKeyData, privKeyData);
-            *localPublicKey = vector<uint8_t>(pubKeyData, pubKeyData + 32);
             *localPrivKey = EVP_PKEY_Ptr(EVP_PKEY_new_raw_private_key(
                     EVP_PKEY_X25519, nullptr, privKeyData, sizeof(privKeyData)));
         } else {
@@ -7505,16 +7536,15 @@ class KeyAgreementTest : public KeyMintAidlTestBase {
             ASSERT_EQ(EC_KEY_generate_key(ecKey.get()), 1);
             *localPrivKey = EVP_PKEY_Ptr(EVP_PKEY_new());
             ASSERT_EQ(EVP_PKEY_set1_EC_KEY(localPrivKey->get(), ecKey.get()), 1);
-
-            // Get encoded form of the public part of the locally generated key...
-            unsigned char* p = nullptr;
-            int localPublicKeySize = i2d_PUBKEY(localPrivKey->get(), &p);
-            ASSERT_GT(localPublicKeySize, 0);
-            *localPublicKey =
-                    vector<uint8_t>(reinterpret_cast<const uint8_t*>(p),
-                                    reinterpret_cast<const uint8_t*>(p + localPublicKeySize));
-            OPENSSL_free(p);
         }
+
+        // Get encoded form of the public part of the locally generated key...
+        unsigned char* p = nullptr;
+        int localPublicKeySize = i2d_PUBKEY(localPrivKey->get(), &p);
+        ASSERT_GT(localPublicKeySize, 0);
+        *localPublicKey = vector<uint8_t>(reinterpret_cast<const uint8_t*>(p),
+                                          reinterpret_cast<const uint8_t*>(p + localPublicKeySize));
+        OPENSSL_free(p);
     }
 
     void GenerateKeyMintEcKey(EcCurve curve, EVP_PKEY_Ptr* kmPubKey) {
@@ -7609,6 +7639,9 @@ TEST_P(KeyAgreementTest, Ecdh) {
     //
     for (auto curve : ValidCurves()) {
         for (auto localCurve : ValidCurves()) {
+            SCOPED_TRACE(testing::Message()
+                         << "local-curve-" << localCurve << "-keymint-curve-" << curve);
+
             // Generate EC key locally (with access to private key material)
             EVP_PKEY_Ptr localPrivKey;
             vector<uint8_t> localPublicKey;
