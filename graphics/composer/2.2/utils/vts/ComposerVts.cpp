@@ -182,13 +182,9 @@ std::array<float, 16> ComposerClient::getDataspaceSaturationMatrix(Dataspace dat
 Gralloc::Gralloc() {
     [this] {
         ALOGD("Attempting to initialize gralloc4");
-        ASSERT_NO_FATAL_FAILURE(mGralloc4 = std::make_shared<Gralloc4>(
-                                        /*aidlAllocatorServiceName*/ IAllocator::descriptor +
-                                                std::string("/default"),
-                                        /*hidlAllocatorServiceName*/ "default",
-                                        /*mapperServiceName*/ "default",
-                                        /*errOnFailure=*/false));
-        if (mGralloc4->getMapper() == nullptr || !mGralloc4->hasAllocator()) {
+        ASSERT_NO_FATAL_FAILURE(mGralloc4 = std::make_shared<Gralloc4>("default", "default",
+                                                                       /*errOnFailure=*/false));
+        if (mGralloc4->getMapper() == nullptr || mGralloc4->getAllocator() == nullptr) {
             mGralloc4 = nullptr;
             ALOGD("Failed to initialize gralloc4, initializing gralloc3");
             ASSERT_NO_FATAL_FAILURE(mGralloc3 = std::make_shared<Gralloc3>("default", "default",

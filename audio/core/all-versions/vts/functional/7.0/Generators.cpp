@@ -20,20 +20,20 @@
 #include "7.0/PolicyConfig.h"
 
 // clang-format off
-#include PATH(android/hardware/audio/CORE_TYPES_FILE_VERSION/types.h)
-#include PATH(android/hardware/audio/common/COMMON_TYPES_FILE_VERSION/types.h)
+#include PATH(android/hardware/audio/FILE_VERSION/types.h)
+#include PATH(android/hardware/audio/common/FILE_VERSION/types.h)
 // clang-format on
 
-#include PATH(APM_XSD_ENUMS_H_FILENAME)
-#include PATH(APM_XSD_H_FILENAME)
+#include <android_audio_policy_configuration_V7_0-enums.h>
+#include <android_audio_policy_configuration_V7_0.h>
 
 // Forward declaration for functions that are substituted
 // in generator unit tests.
 const PolicyConfig& getCachedPolicyConfig();
 const std::vector<DeviceParameter>& getDeviceParameters();
 
-using namespace ::android::hardware::audio::common::COMMON_TYPES_CPP_VERSION;
-using namespace ::android::hardware::audio::CORE_TYPES_CPP_VERSION;
+using namespace ::android::hardware::audio::common::CPP_VERSION;
+using namespace ::android::hardware::audio::CPP_VERSION;
 namespace xsd {
 using namespace ::android::audio::policy::configuration::CPP_VERSION;
 }
@@ -95,21 +95,13 @@ static AudioOffloadInfo generateOffloadInfo(const AudioConfigBase& base) {
 std::vector<DeviceConfigParameter> generateOutputDeviceConfigParameters(bool oneProfilePerDevice) {
     std::vector<DeviceConfigParameter> result;
     for (const auto& device : getDeviceParameters()) {
-        const std::string moduleName = std::get<PARAM_DEVICE_NAME>(device);
-        auto module = getCachedPolicyConfig().getModuleFromName(moduleName);
+        auto module =
+                getCachedPolicyConfig().getModuleFromName(std::get<PARAM_DEVICE_NAME>(device));
         if (!module || !module->getFirstMixPorts()) break;
         for (const auto& mixPort : module->getFirstMixPorts()->getMixPort()) {
             if (mixPort.getRole() != xsd::Role::source) continue;  // not an output profile
-            if (getCachedPolicyConfig()
-                        .getAttachedSinkDeviceForMixPort(moduleName, mixPort.getName())
-                        .empty()) {
-                continue;  // no attached device
-            }
             auto [flags, isOffload] = generateOutFlags(mixPort);
             for (const auto& profile : mixPort.getProfile()) {
-                if (!profile.hasFormat() || !profile.hasSamplingRates() ||
-                    !profile.hasChannelMasks())
-                    continue;
                 auto configs = combineAudioConfig(profile.getChannelMasks(),
                                                   profile.getSamplingRates(), profile.getFormat());
                 for (auto& config : configs) {
@@ -228,25 +220,17 @@ const std::vector<DeviceConfigParameter>& getOutputDeviceInvalidConfigParameters
 std::vector<DeviceConfigParameter> generateInputDeviceConfigParameters(bool oneProfilePerDevice) {
     std::vector<DeviceConfigParameter> result;
     for (const auto& device : getDeviceParameters()) {
-        const std::string moduleName = std::get<PARAM_DEVICE_NAME>(device);
-        auto module = getCachedPolicyConfig().getModuleFromName(moduleName);
+        auto module =
+                getCachedPolicyConfig().getModuleFromName(std::get<PARAM_DEVICE_NAME>(device));
         if (!module || !module->getFirstMixPorts()) break;
         for (const auto& mixPort : module->getFirstMixPorts()->getMixPort()) {
             if (mixPort.getRole() != xsd::Role::sink) continue;  // not an input profile
-            if (getCachedPolicyConfig()
-                        .getAttachedSourceDeviceForMixPort(moduleName, mixPort.getName())
-                        .empty()) {
-                continue;  // no attached device
-            }
             std::vector<AudioInOutFlag> flags;
             if (mixPort.hasFlags()) {
                 std::transform(mixPort.getFlags().begin(), mixPort.getFlags().end(),
                                std::back_inserter(flags), [](auto flag) { return toString(flag); });
             }
             for (const auto& profile : mixPort.getProfile()) {
-                if (!profile.hasFormat() || !profile.hasSamplingRates() ||
-                    !profile.hasChannelMasks())
-                    continue;
                 auto configs = combineAudioConfig(profile.getChannelMasks(),
                                                   profile.getSamplingRates(), profile.getFormat());
                 for (const auto& config : configs) {

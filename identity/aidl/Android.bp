@@ -15,7 +15,6 @@ aidl_interface {
     ],
     imports: [
         "android.hardware.keymaster",
-        "android.hardware.security.keymint",
     ],
     stability: "vintf",
     backend: {
@@ -26,39 +25,11 @@ aidl_interface {
             vndk: {
                 enabled: true,
             },
-            apps_enabled: false,
         },
     },
-    versions_with_info: [
-        {
-            version: "1",
-            imports: [
-                "android.hardware.keymaster-V3",
-                "android.hardware.security.keymint-V1",
-            ],
-        },
-        {
-            version: "2",
-            imports: [
-                "android.hardware.keymaster-V3",
-                "android.hardware.security.keymint-V1",
-            ],
-        },
-        {
-            version: "3",
-            imports: [
-                "android.hardware.keymaster-V3",
-                "android.hardware.security.keymint-V1",
-            ],
-        },
-        {
-            version: "4",
-            imports: [
-                "android.hardware.keymaster-V3",
-                "android.hardware.security.keymint-V2",
-            ],
-        },
-
+    versions: [
+        "1",
+        "2",
+        "3",
     ],
-
 }
