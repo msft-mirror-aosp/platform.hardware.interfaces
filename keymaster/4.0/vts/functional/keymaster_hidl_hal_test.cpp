@@ -27,6 +27,7 @@
 #include <openssl/mem.h>
 #include <openssl/x509.h>
 
+#include <android-base/properties.h>
 #include <cutils/properties.h>
 
 #include <keymasterV4_0/attestation_record.h>
@@ -384,6 +385,31 @@ std::string make_string(const uint8_t (&a)[N]) {
 bool avb_verification_enabled() {
     char value[PROPERTY_VALUE_MAX];
     return property_get("ro.boot.vbmeta.device_state", value, "") != 0;
+}
+
+int get_vsr_api_level() {
+    int vendor_api_level = ::android::base::GetIntProperty("ro.vendor.api_level", -1);
+    if (vendor_api_level != -1) {
+        return vendor_api_level;
+    }
+
+    // Android S and older devices do not define ro.vendor.api_level
+    vendor_api_level = ::android::base::GetIntProperty("ro.board.api_level", -1);
+    if (vendor_api_level == -1) {
+        vendor_api_level = ::android::base::GetIntProperty("ro.board.first_api_level", -1);
+    }
+
+    int product_api_level = ::android::base::GetIntProperty("ro.product.first_api_level", -1);
+    if (product_api_level == -1) {
+        product_api_level = ::android::base::GetIntProperty("ro.build.version.sdk", -1);
+        EXPECT_NE(product_api_level, -1) << "Could not find ro.build.version.sdk";
+    }
+
+    // VSR API level is the minimum of vendor_api_level and product_api_level.
+    if (vendor_api_level == -1 || vendor_api_level > product_api_level) {
+        return product_api_level;
+    }
+    return vendor_api_level;
 }
 
 bool is_gsi() {
@@ -4832,6 +4858,18 @@ TEST_P(TransportLimitTest, LargeFinishInput) {
 }
 
 INSTANTIATE_KEYMASTER_HIDL_TEST(TransportLimitTest);
+
+using VsrRequirementTest = KeymasterHidlTest;
+
+TEST_P(VsrRequirementTest, Vsr13Test) {
+    int vsr_api_level = get_vsr_api_level();
+    if (vsr_api_level < 33) {
+        GTEST_SKIP() << "Applies only to VSR API level 33, this device is: " << vsr_api_level;
+    }
+    FAIL() << "VSR 13+ requires KeyMint version 2";
+}
+
+INSTANTIATE_KEYMASTER_HIDL_TEST(VsrRequirementTest);
 
 }  // namespace test
 }  // namespace V4_0
