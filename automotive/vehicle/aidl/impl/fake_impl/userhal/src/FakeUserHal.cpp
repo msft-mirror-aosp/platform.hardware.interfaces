@@ -51,20 +51,24 @@ constexpr int32_t REMOVE_USER = toInt(VehicleProperty::REMOVE_USER);
 constexpr int32_t USER_IDENTIFICATION_ASSOCIATION =
         toInt(VehicleProperty::USER_IDENTIFICATION_ASSOCIATION);
 
-Result<int32_t> getRequestId(const VehiclePropValue& value) {
+VhalResult<int32_t> getRequestId(const VehiclePropValue& value) {
     if (value.value.int32Values.size() < 1) {
-        return Error(toInt(StatusCode::INVALID_ARG))
+        return StatusError(StatusCode::INVALID_ARG)
                << "no int32Values on property: " << value.toString();
     }
     return value.value.int32Values[0];
 }
 
-Result<SwitchUserMessageType> getSwitchUserMessageType(const VehiclePropValue& value) {
+VhalResult<SwitchUserMessageType> getSwitchUserMessageType(const VehiclePropValue& value) {
     if (value.value.int32Values.size() < 2) {
-        return Error(toInt(StatusCode::INVALID_ARG))
+        return StatusError(StatusCode::INVALID_ARG)
                << "missing switch user message type on property: " << value.toString();
     }
-    return user_hal_helper::verifyAndCast<SwitchUserMessageType>(value.value.int32Values[1]);
+    auto result = user_hal_helper::verifyAndCast<SwitchUserMessageType>(value.value.int32Values[1]);
+    if (!result.ok()) {
+        return StatusError(StatusCode::INVALID_ARG) << result.error().message();
+    }
+    return result.value();
 }
 
 }  // namespace
@@ -82,8 +86,7 @@ bool FakeUserHal::isSupported(int32_t prop) {
     }
 }
 
-Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onSetProperty(
-        const VehiclePropValue& value) {
+FakeUserHal::ValueResultType FakeUserHal::onSetProperty(const VehiclePropValue& value) {
     ALOGV("onSetProperty(): %s", value.toString().c_str());
 
     switch (value.prop) {
@@ -99,13 +102,12 @@ Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onSetProperty(
         case USER_IDENTIFICATION_ASSOCIATION:
             return onSetUserIdentificationAssociation(value);
         default:
-            return Error(toInt(StatusCode::INVALID_ARG))
+            return StatusError(StatusCode::INVALID_ARG)
                    << "Unsupported property: " << value.toString();
     }
 }
 
-Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onGetProperty(
-        const VehiclePropValue& value) const {
+FakeUserHal::ValueResultType FakeUserHal::onGetProperty(const VehiclePropValue& value) const {
     ALOGV("onGetProperty(%s)", value.toString().c_str());
     switch (value.prop) {
         case INITIAL_USER_INFO:
@@ -113,16 +115,16 @@ Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onGetProperty(
         case CREATE_USER:
         case REMOVE_USER:
             ALOGE("onGetProperty(): %d is only supported on SET", value.prop);
-            return Error(toInt(StatusCode::INVALID_ARG)) << "only supported on SET";
+            return StatusError(StatusCode::INVALID_ARG) << "only supported on SET";
         case USER_IDENTIFICATION_ASSOCIATION:
             return onGetUserIdentificationAssociation(value);
         default:
             ALOGE("onGetProperty(): %d is not supported", value.prop);
-            return Error(toInt(StatusCode::INVALID_ARG)) << "not supported by User HAL";
+            return StatusError(StatusCode::INVALID_ARG) << "not supported by User HAL";
     }
 }
 
-Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onGetUserIdentificationAssociation(
+FakeUserHal::ValueResultType FakeUserHal::onGetUserIdentificationAssociation(
         const VehiclePropValue& value) const {
     std::scoped_lock<std::mutex> lockGuard(mLock);
 
@@ -143,7 +145,7 @@ Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onGetUserIdentificatio
     return newValue;
 }
 
-Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onSetInitialUserInfoResponse(
+FakeUserHal::ValueResultType FakeUserHal::onSetInitialUserInfoResponse(
         const VehiclePropValue& value) {
     std::scoped_lock<std::mutex> lockGuard(mLock);
 
@@ -178,8 +180,7 @@ Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onSetInitialUserInfoRe
     return updatedValue;
 }
 
-Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onSetSwitchUserResponse(
-        const VehiclePropValue& value) {
+FakeUserHal::ValueResultType FakeUserHal::onSetSwitchUserResponse(const VehiclePropValue& value) {
     std::scoped_lock<std::mutex> lockGuard(mLock);
 
     auto requestId = getRequestId(value);
@@ -234,8 +235,7 @@ Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onSetSwitchUserRespons
     return updatedValue;
 }
 
-Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onSetCreateUserResponse(
-        const VehiclePropValue& value) {
+FakeUserHal::ValueResultType FakeUserHal::onSetCreateUserResponse(const VehiclePropValue& value) {
     std::scoped_lock<std::mutex> lockGuard(mLock);
 
     auto requestId = getRequestId(value);
@@ -268,7 +268,7 @@ Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onSetCreateUserRespons
     return updatedValue;
 }
 
-Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onSetUserIdentificationAssociation(
+FakeUserHal::ValueResultType FakeUserHal::onSetUserIdentificationAssociation(
         const VehiclePropValue& value) {
     std::scoped_lock<std::mutex> lockGuard(mLock);
 
@@ -298,14 +298,14 @@ Result<VehiclePropValuePool::RecyclableType> FakeUserHal::onSetUserIdentificatio
     return defaultUserIdentificationAssociation(value);
 }
 
-Result<VehiclePropValuePool::RecyclableType> FakeUserHal::defaultUserIdentificationAssociation(
+FakeUserHal::ValueResultType FakeUserHal::defaultUserIdentificationAssociation(
         const VehiclePropValue& request) {
     // TODO(b/159498909): return a response with NOT_ASSOCIATED_ANY_USER for all requested types
     ALOGE("no lshal response for %s; replying with NOT_AVAILABLE", request.toString().c_str());
-    return Error(toInt(StatusCode::NOT_AVAILABLE)) << "not set by lshal";
+    return StatusError(StatusCode::NOT_AVAILABLE) << "not set by lshal";
 }
 
-Result<VehiclePropValuePool::RecyclableType> FakeUserHal::sendUserHalResponse(
+FakeUserHal::ValueResultType FakeUserHal::sendUserHalResponse(
         VehiclePropValuePool::RecyclableType response, int32_t requestId) {
     switch (response->areaId) {
         case 1:
@@ -319,12 +319,12 @@ Result<VehiclePropValuePool::RecyclableType> FakeUserHal::sendUserHalResponse(
         case 3:
             ALOGD("not generating a property change event because of lshal prop: %s",
                   response->toString().c_str());
-            return Error(toInt(StatusCode::NOT_AVAILABLE))
+            return StatusError(StatusCode::NOT_AVAILABLE)
                    << "not generating a property change event because of lshal prop: "
                    << response->toString();
         default:
             ALOGE("invalid action on lshal response: %s", response->toString().c_str());
-            return Error(toInt(StatusCode::INTERNAL_ERROR))
+            return StatusError(StatusCode::INTERNAL_ERROR)
                    << "invalid action on lshal response: " << response->toString();
     }
 

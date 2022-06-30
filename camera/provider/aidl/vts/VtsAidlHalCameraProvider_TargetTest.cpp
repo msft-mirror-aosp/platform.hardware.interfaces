@@ -39,7 +39,7 @@ using ::aidl::android::hardware::camera::device::ICameraDevice;
 using ::aidl::android::hardware::camera::metadata::RequestAvailableDynamicRangeProfilesMap;
 using ::aidl::android::hardware::camera::metadata::SensorPixelMode;
 using ::aidl::android::hardware::camera::provider::CameraIdAndStreamCombination;
-using ::aidl::android::hardware::camera::provider::ICameraProviderCallbackDefault;
+using ::aidl::android::hardware::camera::provider::BnCameraProviderCallback;
 
 using ::ndk::ScopedAStatus;
 
@@ -50,7 +50,7 @@ const uint32_t kMaxStillHeight = 1536;
 
 const int64_t kEmptyFlushTimeoutMSec = 200;
 
-const static std::vector<int32_t> kMandatoryUseCases = {
+const static std::vector<int64_t> kMandatoryUseCases = {
         ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT,
         ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_PREVIEW,
         ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_STILL_CAPTURE,
@@ -86,7 +86,7 @@ TEST_P(CameraAidlTest, getVendorTags) {
 
 // Test if ICameraProvider::setCallback returns Status::OK
 TEST_P(CameraAidlTest, setCallback) {
-    struct ProviderCb : public ICameraProviderCallbackDefault {
+    struct ProviderCb : public BnCameraProviderCallback {
         ScopedAStatus cameraDeviceStatusChange(const std::string& cameraDeviceName,
                                                CameraDeviceStatus newStatus) override {
             ALOGI("camera device status callback name %s, status %d", cameraDeviceName.c_str(),
@@ -109,11 +109,11 @@ TEST_P(CameraAidlTest, setCallback) {
         }
     };
 
-    std::shared_ptr<ProviderCb> cb = ProviderCb::make<ProviderCb>();
+    std::shared_ptr<ProviderCb> cb = ndk::SharedRefBase::make<ProviderCb>();
     ScopedAStatus ret = mProvider->setCallback(cb);
     ASSERT_TRUE(ret.isOk());
     ret = mProvider->setCallback(nullptr);
-    ASSERT_TRUE(ret.isOk());
+    ASSERT_EQ(static_cast<int32_t>(Status::ILLEGAL_ARGUMENT), ret.getServiceSpecificError());
 }
 
 // Test if ICameraProvider::getCameraDeviceInterface returns Status::OK and non-null device
@@ -163,7 +163,7 @@ TEST_P(CameraAidlTest, systemCameraTest) {
     std::map<std::string, std::vector<SystemCameraKind>> hiddenPhysicalIdToLogicalMap;
     for (const auto& name : cameraDeviceNames) {
         std::shared_ptr<ICameraDevice> device;
-        ALOGI("getCameraCharacteristics: Testing camera device %s", name.c_str());
+        ALOGI("systemCameraTest: Testing camera device %s", name.c_str());
         ndk::ScopedAStatus ret = mProvider->getCameraDeviceInterface(name, &device);
         ASSERT_TRUE(ret.isOk());
         ASSERT_NE(device, nullptr);
@@ -196,13 +196,14 @@ TEST_P(CameraAidlTest, systemCameraTest) {
                     break;
                 }
             }
+
             // For hidden physical cameras, collect their associated logical cameras
             // and store the system camera kind.
             if (!isPublicId) {
                 auto it = hiddenPhysicalIdToLogicalMap.find(physicalId);
                 if (it == hiddenPhysicalIdToLogicalMap.end()) {
                     hiddenPhysicalIdToLogicalMap.insert(std::make_pair(
-                            physicalId, std::vector<SystemCameraKind>(systemCameraKind)));
+                            physicalId, std::vector<SystemCameraKind>({systemCameraKind})));
                 } else {
                     it->second.push_back(systemCameraKind);
                 }
@@ -398,9 +399,6 @@ TEST_P(CameraAidlTest, setTorchMode) {
             }
         }
     }
-
-    ret = mProvider->setCallback(nullptr);
-    ASSERT_TRUE(ret.isOk());
 }
 
 // Check dump functionality.
@@ -1450,6 +1448,7 @@ TEST_P(CameraAidlTest, processMultiCaptureRequestPreview) {
 
     for (const auto& name : cameraDeviceNames) {
         std::string version, deviceId;
+        ALOGI("processMultiCaptureRequestPreview: Test device %s", name.c_str());
         ASSERT_TRUE(matchDeviceName(name, mProviderType, &version, &deviceId));
         CameraMetadata metadata;
 
@@ -1466,6 +1465,7 @@ TEST_P(CameraAidlTest, processMultiCaptureRequestPreview) {
             ASSERT_TRUE(ret.isOk());
             continue;
         }
+        ASSERT_EQ(Status::OK, rc);
 
         std::unordered_set<std::string> physicalIds;
         rc = getPhysicalCameraIds(staticMeta, &physicalIds);
@@ -1521,10 +1521,14 @@ TEST_P(CameraAidlTest, processMultiCaptureRequestPreview) {
         Stream previewStream;
         std::shared_ptr<DeviceCb> cb;
 
-        configurePreviewStreams(name, mProvider, &previewThreshold, physicalIds, &mSession,
-                                &previewStream, &halStreams /*out*/,
-                                &supportsPartialResults /*out*/, &partialResultCount /*out*/,
-                                &useHalBufManager /*out*/, &cb /*out*/, 0 /*streamConfigCounter*/);
+        configurePreviewStreams(
+                name, mProvider, &previewThreshold, physicalIds, &mSession, &previewStream,
+                &halStreams /*out*/, &supportsPartialResults /*out*/, &partialResultCount /*out*/,
+                &useHalBufManager /*out*/, &cb /*out*/, 0 /*streamConfigCounter*/, true);
+        if (mSession == nullptr) {
+            // stream combination not supported by HAL, skip test for device
+            continue;
+        }
 
         ::aidl::android::hardware::common::fmq::MQDescriptor<
                 int8_t, aidl::android::hardware::common::fmq::SynchronizedReadWrite>
@@ -1547,7 +1551,7 @@ TEST_P(CameraAidlTest, processMultiCaptureRequestPreview) {
         CaptureRequest& request = requests[0];
         request.frameNumber = frameNumber;
         request.fmqSettingsSize = 0;
-        request.settings.metadata = settings;
+        request.settings = settingsMetadata;
 
         std::vector<StreamBuffer>& outputBuffers = request.outputBuffers;
 
@@ -2974,16 +2978,16 @@ TEST_P(CameraAidlTest, configureStreamsUseCases) {
         ASSERT_NE(0u, outputPreviewStreams.size());
 
         // Combine valid and invalid stream use cases
-        std::vector<int32_t> useCases(kMandatoryUseCases);
+        std::vector<int64_t> useCases(kMandatoryUseCases);
         useCases.push_back(ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_VIDEO_CALL + 1);
 
-        std::vector<int32_t> supportedUseCases;
+        std::vector<int64_t> supportedUseCases;
         camera_metadata_ro_entry entry;
         auto retcode = find_camera_metadata_ro_entry(
                 staticMeta, ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES, &entry);
         if ((0 == retcode) && (entry.count > 0)) {
-            supportedUseCases.insert(supportedUseCases.end(), entry.data.i32,
-                                     entry.data.i32 + entry.count);
+            supportedUseCases.insert(supportedUseCases.end(), entry.data.i64,
+                                     entry.data.i64 + entry.count);
         } else {
             supportedUseCases.push_back(ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT);
         }
@@ -3013,7 +3017,7 @@ TEST_P(CameraAidlTest, configureStreamsUseCases) {
         ASSERT_TRUE(ret.isOk());
         config.sessionParams = req;
 
-        for (int32_t useCase : useCases) {
+        for (int64_t useCase : useCases) {
             bool useCaseSupported = std::find(supportedUseCases.begin(), supportedUseCases.end(),
                                               useCase) != supportedUseCases.end();
 
@@ -3027,12 +3031,13 @@ TEST_P(CameraAidlTest, configureStreamsUseCases) {
 
             bool combSupported;
             ret = cameraDevice->isStreamCombinationSupported(config, &combSupported);
-            ASSERT_TRUE((ret.isOk()) || (static_cast<int32_t>(Status::OPERATION_NOT_SUPPORTED) ==
-                                         ret.getServiceSpecificError()));
-            if (ret.isOk()) {
-                ASSERT_EQ(combSupported, useCaseSupported);
+            if (static_cast<int32_t>(Status::OPERATION_NOT_SUPPORTED) ==
+                ret.getServiceSpecificError()) {
+                continue;
             }
+
             ASSERT_TRUE(ret.isOk());
+            ASSERT_EQ(combSupported, useCaseSupported);
 
             std::vector<HalStream> halStreams;
             ret = mSession->configureStreams(config, &halStreams);

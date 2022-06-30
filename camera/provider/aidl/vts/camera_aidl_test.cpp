@@ -55,26 +55,6 @@ using ::ndk::ScopedAStatus;
 using ::ndk::SpAIBinder;
 
 namespace {
-bool matchDeviceName(const std::string& deviceName, const std::string& providerType,
-                     std::string* deviceVersion, std::string* cameraId) {
-    // expected format: device@<major>.<minor>/<type>/<id>
-    std::stringstream pattern;
-    pattern << "device@[0-9]+\\.[0-9]+/" << providerType << "/(.+)";
-    std::regex e(pattern.str());
-
-    std::smatch sm;
-    if (std::regex_match(deviceName, sm, e)) {
-        if (deviceVersion != nullptr) {
-            *deviceVersion = sm[1];
-        }
-        if (cameraId != nullptr) {
-            *cameraId = sm[2];
-        }
-        return true;
-    }
-    return false;
-}
-
 bool parseProviderName(const std::string& serviceDescriptor, std::string* type /*out*/,
                        uint32_t* id /*out*/) {
     if (!type || !id) {
@@ -120,7 +100,7 @@ bool parseProviderName(const std::string& serviceDescriptor, std::string* type /
     return true;
 }
 
-const std::vector<int32_t> kMandatoryUseCases = {
+const std::vector<int64_t> kMandatoryUseCases = {
         ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT,
         ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_PREVIEW,
         ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_STILL_CAPTURE,
@@ -328,19 +308,19 @@ void CameraAidlTest::verifyStreamUseCaseCharacteristics(const camera_metadata_t*
     if ((0 == retcode) && (entry.count > 0)) {
         supportMandatoryUseCases = true;
         for (size_t i = 0; i < kMandatoryUseCases.size(); i++) {
-            if (std::find(entry.data.i32, entry.data.i32 + entry.count, kMandatoryUseCases[i]) ==
-                entry.data.i32 + entry.count) {
+            if (std::find(entry.data.i64, entry.data.i64 + entry.count, kMandatoryUseCases[i]) ==
+                entry.data.i64 + entry.count) {
                 supportMandatoryUseCases = false;
                 break;
             }
         }
         bool supportDefaultUseCase = false;
         for (size_t i = 0; i < entry.count; i++) {
-            if (entry.data.i32[i] == ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT) {
+            if (entry.data.i64[i] == ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT) {
                 supportDefaultUseCase = true;
             }
-            ASSERT_TRUE(entry.data.i32[i] <= ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_VIDEO_CALL ||
-                        entry.data.i32[i] >=
+            ASSERT_TRUE(entry.data.i64[i] <= ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_VIDEO_CALL ||
+                        entry.data.i64[i] >=
                                 ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_VENDOR_START);
         }
         ASSERT_TRUE(supportDefaultUseCase);
@@ -498,13 +478,11 @@ void CameraAidlTest::allocateGraphicBuffer(uint32_t width, uint32_t height, uint
 
 bool CameraAidlTest::matchDeviceName(const std::string& deviceName, const std::string& providerType,
                                      std::string* deviceVersion, std::string* cameraId) {
-    // "device@<version>/legacy/<id>"
-    std::string pattern;
-    pattern.append("device@([0-9]+\\.[0-9]+)/");
-    pattern.append(providerType);
-    pattern.append("/(.+)");
+    // expected format: device@<major>.<minor>/<type>/<id>
+    std::stringstream pattern;
+    pattern << "device@([0-9]+\\.[0-9]+)/" << providerType << "/(.+)";
+    std::regex e(pattern.str());
 
-    std::regex e(pattern);
     std::smatch sm;
     if (std::regex_match(deviceName, sm, e)) {
         if (deviceVersion != nullptr) {
@@ -1160,7 +1138,7 @@ void CameraAidlTest::verifyLogicalOrUltraHighResCameraMetadata(
     }
 
     std::string version, cameraId;
-    ASSERT_TRUE(::matchDeviceName(cameraName, mProviderType, &version, &cameraId));
+    ASSERT_TRUE(matchDeviceName(cameraName, mProviderType, &version, &cameraId));
     std::unordered_set<std::string> physicalIds;
     rc = getPhysicalCameraIds(metadata, &physicalIds);
     ASSERT_TRUE(isUltraHighResCamera || Status::OK == rc);
@@ -1192,7 +1170,7 @@ void CameraAidlTest::verifyLogicalOrUltraHighResCameraMetadata(
         SystemCameraKind physSystemCameraKind = SystemCameraKind::PUBLIC;
         for (auto& deviceName : deviceNames) {
             std::string publicVersion, publicId;
-            ASSERT_TRUE(::matchDeviceName(deviceName, mProviderType, &publicVersion, &publicId));
+            ASSERT_TRUE(matchDeviceName(deviceName, mProviderType, &publicVersion, &publicId));
             if (physicalId == publicId) {
                 isPublicId = true;
                 fullPublicId = deviceName;
@@ -1564,6 +1542,7 @@ void CameraAidlTest::openEmptyDeviceSession(const std::string& name,
     ASSERT_NE(*session, nullptr);
 
     ret = (*device)->getCameraCharacteristics(staticMeta);
+    ASSERT_TRUE(ret.isOk());
 }
 
 void CameraAidlTest::openEmptyInjectionSession(const std::string& name,
@@ -2474,7 +2453,7 @@ void CameraAidlTest::configurePreviewStreams(
         std::shared_ptr<ICameraDeviceSession>* session, Stream* previewStream,
         std::vector<HalStream>* halStreams, bool* supportsPartialResults,
         int32_t* partialResultCount, bool* useHalBufManager, std::shared_ptr<DeviceCb>* cb,
-        int32_t streamConfigCounter) {
+        int32_t streamConfigCounter, bool allowUnsupport) {
     ASSERT_NE(nullptr, session);
     ASSERT_NE(nullptr, halStreams);
     ASSERT_NE(nullptr, previewStream);
@@ -2561,6 +2540,14 @@ void CameraAidlTest::configurePreviewStreams(
     bool supported = false;
     ret = device->isStreamCombinationSupported(config, &supported);
     ASSERT_TRUE(ret.isOk());
+    if (allowUnsupport && !supported) {
+        // stream combination not supported. return null session
+        ret = (*session)->close();
+        ASSERT_TRUE(ret.isOk());
+        *session = nullptr;
+        return;
+    }
+    ASSERT_TRUE(supported) << "Stream combination must be supported.";
 
     config.streamConfigCounter = streamConfigCounter;
     std::vector<HalStream> halConfigs;

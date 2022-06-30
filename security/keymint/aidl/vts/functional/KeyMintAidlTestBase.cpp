@@ -17,6 +17,7 @@
 #include "KeyMintAidlTestBase.h"
 
 #include <chrono>
+#include <fstream>
 #include <unordered_set>
 #include <vector>
 
@@ -30,7 +31,6 @@
 #include <remote_prov/remote_prov_utils.h>
 
 #include <keymaster/cppcose/cppcose.h>
-#include <keymint_support/attestation_record.h>
 #include <keymint_support/key_param_output.h>
 #include <keymint_support/keymint_utils.h>
 #include <keymint_support/openssl_utils.h>
@@ -207,6 +207,14 @@ uint32_t KeyMintAidlTestBase::boot_patch_level() {
     return boot_patch_level(key_characteristics_);
 }
 
+/**
+ * An API to determine device IDs attestation is required or not,
+ * which is mandatory for KeyMint version 2 or first_api_level 33 or greater.
+ */
+bool KeyMintAidlTestBase::isDeviceIdAttestationRequired() {
+    return AidlVersion() >= 2 || property_get_int32("ro.vendor.api_level", 0) >= 33;
+}
+
 bool KeyMintAidlTestBase::Curve25519Supported() {
     // Strongbox never supports curve 25519.
     if (SecLevel() == SecurityLevel::STRONGBOX) {
@@ -310,6 +318,30 @@ ErrorCode KeyMintAidlTestBase::GenerateKey(const AuthorizationSet& key_desc,
 ErrorCode KeyMintAidlTestBase::GenerateKey(const AuthorizationSet& key_desc,
                                            const optional<AttestationKey>& attest_key) {
     return GenerateKey(key_desc, attest_key, &key_blob_, &key_characteristics_, &cert_chain_);
+}
+
+ErrorCode KeyMintAidlTestBase::GenerateKeyWithSelfSignedAttestKey(
+        const AuthorizationSet& attest_key_desc, const AuthorizationSet& key_desc,
+        vector<uint8_t>* key_blob, vector<KeyCharacteristics>* key_characteristics,
+        vector<Certificate>* cert_chain) {
+    AttestationKey attest_key;
+    vector<Certificate> attest_cert_chain;
+    vector<KeyCharacteristics> attest_key_characteristics;
+    // Generate a key with self signed attestation.
+    auto error = GenerateKey(attest_key_desc, std::nullopt, &attest_key.keyBlob,
+                             &attest_key_characteristics, &attest_cert_chain);
+    if (error != ErrorCode::OK) {
+        return error;
+    }
+
+    attest_key.issuerSubjectName = make_name_from_str("Android Keystore Key");
+    // Generate a key, by passing the above self signed attestation key as attest key.
+    error = GenerateKey(key_desc, attest_key, key_blob, key_characteristics, cert_chain);
+    if (error == ErrorCode::OK) {
+        // Append the attest_cert_chain to the attested cert_chain to yield a valid cert chain.
+        cert_chain->push_back(attest_cert_chain[0]);
+    }
+    return error;
 }
 
 ErrorCode KeyMintAidlTestBase::ImportKey(const AuthorizationSet& key_desc, KeyFormat format,
@@ -663,6 +695,81 @@ string KeyMintAidlTestBase::MacMessage(const string& message, Digest digest, siz
     return SignMessage(
             key_blob_, message,
             AuthorizationSetBuilder().Digest(digest).Authorization(TAG_MAC_LENGTH, mac_length));
+}
+
+void KeyMintAidlTestBase::CheckAesIncrementalEncryptOperation(BlockMode block_mode,
+                                                              int message_size) {
+    auto builder = AuthorizationSetBuilder()
+                           .Authorization(TAG_NO_AUTH_REQUIRED)
+                           .AesEncryptionKey(128)
+                           .BlockMode(block_mode)
+                           .Padding(PaddingMode::NONE);
+    if (block_mode == BlockMode::GCM) {
+        builder.Authorization(TAG_MIN_MAC_LENGTH, 128);
+    }
+    ASSERT_EQ(ErrorCode::OK, GenerateKey(builder));
+
+    for (int increment = 1; increment <= message_size; ++increment) {
+        string message(message_size, 'a');
+        auto params = AuthorizationSetBuilder().BlockMode(block_mode).Padding(PaddingMode::NONE);
+        if (block_mode == BlockMode::GCM) {
+            params.Authorization(TAG_MAC_LENGTH, 128) /* for GCM */;
+        }
+
+        AuthorizationSet output_params;
+        EXPECT_EQ(ErrorCode::OK, Begin(KeyPurpose::ENCRYPT, params, &output_params));
+
+        string ciphertext;
+        string to_send;
+        for (size_t i = 0; i < message.size(); i += increment) {
+            EXPECT_EQ(ErrorCode::OK, Update(message.substr(i, increment), &ciphertext));
+        }
+        EXPECT_EQ(ErrorCode::OK, Finish(to_send, &ciphertext))
+                << "Error sending " << to_send << " with block mode " << block_mode;
+
+        switch (block_mode) {
+            case BlockMode::GCM:
+                EXPECT_EQ(message.size() + 16, ciphertext.size());
+                break;
+            case BlockMode::CTR:
+                EXPECT_EQ(message.size(), ciphertext.size());
+                break;
+            case BlockMode::CBC:
+            case BlockMode::ECB:
+                EXPECT_EQ(message.size() + message.size() % 16, ciphertext.size());
+                break;
+        }
+
+        auto iv = output_params.GetTagValue(TAG_NONCE);
+        switch (block_mode) {
+            case BlockMode::CBC:
+            case BlockMode::GCM:
+            case BlockMode::CTR:
+                ASSERT_TRUE(iv) << "No IV for block mode " << block_mode;
+                EXPECT_EQ(block_mode == BlockMode::GCM ? 12U : 16U, iv->get().size());
+                params.push_back(TAG_NONCE, iv->get());
+                break;
+
+            case BlockMode::ECB:
+                EXPECT_FALSE(iv) << "ECB mode should not generate IV";
+                break;
+        }
+
+        EXPECT_EQ(ErrorCode::OK, Begin(KeyPurpose::DECRYPT, params))
+                << "Decrypt begin() failed for block mode " << block_mode;
+
+        string plaintext;
+        for (size_t i = 0; i < ciphertext.size(); i += increment) {
+            EXPECT_EQ(ErrorCode::OK, Update(ciphertext.substr(i, increment), &plaintext));
+        }
+        ErrorCode error = Finish(to_send, &plaintext);
+        ASSERT_EQ(ErrorCode::OK, error) << "Decryption failed for block mode " << block_mode
+                                        << " and increment " << increment;
+        if (error == ErrorCode::OK) {
+            ASSERT_EQ(message, plaintext) << "Decryption didn't match for block mode " << block_mode
+                                          << " and increment " << increment;
+        }
+    }
 }
 
 void KeyMintAidlTestBase::CheckHmacTestVector(const string& key, const string& message,
@@ -1353,6 +1460,36 @@ void verify_subject(const X509* cert,       //
     OPENSSL_free(cert_issuer);
 }
 
+int get_vsr_api_level() {
+    int vendor_api_level = ::android::base::GetIntProperty("ro.vendor.api_level", -1);
+    if (vendor_api_level != -1) {
+        return vendor_api_level;
+    }
+
+    // Android S and older devices do not define ro.vendor.api_level
+    vendor_api_level = ::android::base::GetIntProperty("ro.board.api_level", -1);
+    if (vendor_api_level == -1) {
+        vendor_api_level = ::android::base::GetIntProperty("ro.board.first_api_level", -1);
+    }
+
+    int product_api_level = ::android::base::GetIntProperty("ro.product.first_api_level", -1);
+    if (product_api_level == -1) {
+        product_api_level = ::android::base::GetIntProperty("ro.build.version.sdk", -1);
+        EXPECT_NE(product_api_level, -1) << "Could not find ro.build.version.sdk";
+    }
+
+    // VSR API level is the minimum of vendor_api_level and product_api_level.
+    if (vendor_api_level == -1 || vendor_api_level > product_api_level) {
+        return product_api_level;
+    }
+    return vendor_api_level;
+}
+
+bool is_gsi_image() {
+    std::ifstream ifs("/system/system_ext/etc/init/init.gsi.rc");
+    return ifs.good();
+}
+
 vector<uint8_t> build_serial_blob(const uint64_t serial_int) {
     BIGNUM_Ptr serial(BN_new());
     EXPECT_TRUE(BN_set_u64(serial.get(), serial_int));
@@ -1382,6 +1519,60 @@ void verify_subject_and_serial(const Certificate& certificate,  //
 
     verify_serial(cert.get(), expected_serial);
     verify_subject(cert.get(), subject, self_signed);
+}
+
+void verify_root_of_trust(const vector<uint8_t>& verified_boot_key, bool device_locked,
+                          VerifiedBoot verified_boot_state,
+                          const vector<uint8_t>& verified_boot_hash) {
+    char property_value[PROPERTY_VALUE_MAX] = {};
+
+    if (avb_verification_enabled()) {
+        EXPECT_NE(property_get("ro.boot.vbmeta.digest", property_value, ""), 0);
+        string prop_string(property_value);
+        EXPECT_EQ(prop_string.size(), 64);
+        EXPECT_EQ(prop_string, bin2hex(verified_boot_hash));
+
+        EXPECT_NE(property_get("ro.boot.vbmeta.device_state", property_value, ""), 0);
+        if (!strcmp(property_value, "unlocked")) {
+            EXPECT_FALSE(device_locked);
+        } else {
+            EXPECT_TRUE(device_locked);
+        }
+
+        // Check that the device is locked if not debuggable, e.g., user build
+        // images in CTS. For VTS, debuggable images are used to allow adb root
+        // and the device is unlocked.
+        if (!property_get_bool("ro.debuggable", false)) {
+            EXPECT_TRUE(device_locked);
+        } else {
+            EXPECT_FALSE(device_locked);
+        }
+    }
+
+    // Verified boot key should be all 0's if the boot state is not verified or self signed
+    std::string empty_boot_key(32, '\0');
+    std::string verified_boot_key_str((const char*)verified_boot_key.data(),
+                                      verified_boot_key.size());
+    EXPECT_NE(property_get("ro.boot.verifiedbootstate", property_value, ""), 0);
+    if (!strcmp(property_value, "green")) {
+        EXPECT_EQ(verified_boot_state, VerifiedBoot::VERIFIED);
+        EXPECT_NE(0, memcmp(verified_boot_key.data(), empty_boot_key.data(),
+                            verified_boot_key.size()));
+    } else if (!strcmp(property_value, "yellow")) {
+        EXPECT_EQ(verified_boot_state, VerifiedBoot::SELF_SIGNED);
+        EXPECT_NE(0, memcmp(verified_boot_key.data(), empty_boot_key.data(),
+                            verified_boot_key.size()));
+    } else if (!strcmp(property_value, "orange")) {
+        EXPECT_EQ(verified_boot_state, VerifiedBoot::UNVERIFIED);
+        EXPECT_EQ(0, memcmp(verified_boot_key.data(), empty_boot_key.data(),
+                            verified_boot_key.size()));
+    } else if (!strcmp(property_value, "red")) {
+        EXPECT_EQ(verified_boot_state, VerifiedBoot::FAILED);
+    } else {
+        EXPECT_EQ(verified_boot_state, VerifiedBoot::UNVERIFIED);
+        EXPECT_EQ(0, memcmp(verified_boot_key.data(), empty_boot_key.data(),
+                            verified_boot_key.size()));
+    }
 }
 
 bool verify_attestation_record(int32_t aidl_version,                   //
@@ -1438,8 +1629,6 @@ bool verify_attestation_record(int32_t aidl_version,                   //
     EXPECT_EQ(security_level, att_keymint_security_level);
     EXPECT_EQ(security_level, att_attestation_security_level);
 
-
-    char property_value[PROPERTY_VALUE_MAX] = {};
     // TODO(b/136282179): When running under VTS-on-GSI the TEE-backed
     // keymint implementation will report YYYYMM dates instead of YYYYMMDD
     // for the BOOT_PATCH_LEVEL.
@@ -1499,54 +1688,7 @@ bool verify_attestation_record(int32_t aidl_version,                   //
     error = parse_root_of_trust(attest_rec->data, attest_rec->length, &verified_boot_key,
                                 &verified_boot_state, &device_locked, &verified_boot_hash);
     EXPECT_EQ(ErrorCode::OK, error);
-
-    if (avb_verification_enabled()) {
-        EXPECT_NE(property_get("ro.boot.vbmeta.digest", property_value, ""), 0);
-        string prop_string(property_value);
-        EXPECT_EQ(prop_string.size(), 64);
-        EXPECT_EQ(prop_string, bin2hex(verified_boot_hash));
-
-        EXPECT_NE(property_get("ro.boot.vbmeta.device_state", property_value, ""), 0);
-        if (!strcmp(property_value, "unlocked")) {
-            EXPECT_FALSE(device_locked);
-        } else {
-            EXPECT_TRUE(device_locked);
-        }
-
-        // Check that the device is locked if not debuggable, e.g., user build
-        // images in CTS. For VTS, debuggable images are used to allow adb root
-        // and the device is unlocked.
-        if (!property_get_bool("ro.debuggable", false)) {
-            EXPECT_TRUE(device_locked);
-        } else {
-            EXPECT_FALSE(device_locked);
-        }
-    }
-
-    // Verified boot key should be all 0's if the boot state is not verified or self signed
-    std::string empty_boot_key(32, '\0');
-    std::string verified_boot_key_str((const char*)verified_boot_key.data(),
-                                      verified_boot_key.size());
-    EXPECT_NE(property_get("ro.boot.verifiedbootstate", property_value, ""), 0);
-    if (!strcmp(property_value, "green")) {
-        EXPECT_EQ(verified_boot_state, VerifiedBoot::VERIFIED);
-        EXPECT_NE(0, memcmp(verified_boot_key.data(), empty_boot_key.data(),
-                            verified_boot_key.size()));
-    } else if (!strcmp(property_value, "yellow")) {
-        EXPECT_EQ(verified_boot_state, VerifiedBoot::SELF_SIGNED);
-        EXPECT_NE(0, memcmp(verified_boot_key.data(), empty_boot_key.data(),
-                            verified_boot_key.size()));
-    } else if (!strcmp(property_value, "orange")) {
-        EXPECT_EQ(verified_boot_state, VerifiedBoot::UNVERIFIED);
-        EXPECT_EQ(0, memcmp(verified_boot_key.data(), empty_boot_key.data(),
-                            verified_boot_key.size()));
-    } else if (!strcmp(property_value, "red")) {
-        EXPECT_EQ(verified_boot_state, VerifiedBoot::FAILED);
-    } else {
-        EXPECT_EQ(verified_boot_state, VerifiedBoot::UNVERIFIED);
-        EXPECT_NE(0, memcmp(verified_boot_key.data(), empty_boot_key.data(),
-                            verified_boot_key.size()));
-    }
+    verify_root_of_trust(verified_boot_key, device_locked, verified_boot_state, verified_boot_hash);
 
     att_sw_enforced.Sort();
     expected_sw_enforced.Sort();

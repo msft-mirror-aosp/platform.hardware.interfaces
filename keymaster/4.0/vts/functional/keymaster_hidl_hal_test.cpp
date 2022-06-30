@@ -27,6 +27,7 @@
 #include <openssl/mem.h>
 #include <openssl/x509.h>
 
+#include <android-base/properties.h>
 #include <cutils/properties.h>
 
 #include <keymasterV4_0/attestation_record.h>
@@ -384,6 +385,31 @@ std::string make_string(const uint8_t (&a)[N]) {
 bool avb_verification_enabled() {
     char value[PROPERTY_VALUE_MAX];
     return property_get("ro.boot.vbmeta.device_state", value, "") != 0;
+}
+
+int get_vsr_api_level() {
+    int vendor_api_level = ::android::base::GetIntProperty("ro.vendor.api_level", -1);
+    if (vendor_api_level != -1) {
+        return vendor_api_level;
+    }
+
+    // Android S and older devices do not define ro.vendor.api_level
+    vendor_api_level = ::android::base::GetIntProperty("ro.board.api_level", -1);
+    if (vendor_api_level == -1) {
+        vendor_api_level = ::android::base::GetIntProperty("ro.board.first_api_level", -1);
+    }
+
+    int product_api_level = ::android::base::GetIntProperty("ro.product.first_api_level", -1);
+    if (product_api_level == -1) {
+        product_api_level = ::android::base::GetIntProperty("ro.build.version.sdk", -1);
+        EXPECT_NE(product_api_level, -1) << "Could not find ro.build.version.sdk";
+    }
+
+    // VSR API level is the minimum of vendor_api_level and product_api_level.
+    if (vendor_api_level == -1 || vendor_api_level > product_api_level) {
+        return product_api_level;
+    }
+    return vendor_api_level;
 }
 
 bool is_gsi() {
@@ -2866,8 +2892,8 @@ TEST_P(EncryptionOperationsTest, AesEcbPkcs7PaddingCorrupted) {
 
         EXPECT_EQ(ErrorCode::OK, Begin(KeyPurpose::DECRYPT, params));
         string plaintext;
-        ErrorCode error = Finish(message, &plaintext);
-        if (error == ErrorCode::INVALID_INPUT_LENGTH) {
+        ErrorCode error = Finish(ciphertext, &plaintext);
+        if (error == ErrorCode::INVALID_ARGUMENT) {
             // This is the expected error, we can exit the test now.
             return;
         } else {
@@ -2932,105 +2958,39 @@ TEST_P(EncryptionOperationsTest, AesCtrRoundTripSuccess) {
 }
 
 /*
- * EncryptionOperationsTest.AesIncremental
+ * EncryptionOperationsTest.AesEcbIncremental
  *
- * Verifies that AES works, all modes, when provided data in various size increments.
+ * Verifies that AES works for ECB block mode, when provided data in various size increments.
  */
-TEST_P(EncryptionOperationsTest, AesIncremental) {
-    auto block_modes = {
-        BlockMode::ECB, BlockMode::CBC, BlockMode::CTR, BlockMode::GCM,
-    };
+TEST_P(EncryptionOperationsTest, AesEcbIncremental) {
+    CheckAesIncrementalEncryptOperation(BlockMode::ECB, 240);
+}
 
-    ASSERT_EQ(ErrorCode::OK, GenerateKey(AuthorizationSetBuilder()
-                                             .Authorization(TAG_NO_AUTH_REQUIRED)
-                                             .AesEncryptionKey(128)
-                                             .BlockMode(block_modes)
-                                             .Padding(PaddingMode::NONE)
-                                             .Authorization(TAG_MIN_MAC_LENGTH, 128)));
+/*
+ * EncryptionOperationsTest.AesCbcIncremental
+ *
+ * Verifies that AES works for CBC block mode, when provided data in various size increments.
+ */
+TEST_P(EncryptionOperationsTest, AesCbcIncremental) {
+    CheckAesIncrementalEncryptOperation(BlockMode::CBC, 240);
+}
 
-    for (int increment = 1; increment <= 240; ++increment) {
-        for (auto block_mode : block_modes) {
-            string message(240, 'a');
-            auto params = AuthorizationSetBuilder()
-                              .BlockMode(block_mode)
-                              .Padding(PaddingMode::NONE)
-                              .Authorization(TAG_MAC_LENGTH, 128) /* for GCM */;
+/*
+ * EncryptionOperationsTest.AesCtrIncremental
+ *
+ * Verifies that AES works for CTR block mode, when provided data in various size increments.
+ */
+TEST_P(EncryptionOperationsTest, AesCtrIncremental) {
+    CheckAesIncrementalEncryptOperation(BlockMode::CTR, 240);
+}
 
-            AuthorizationSet output_params;
-            EXPECT_EQ(ErrorCode::OK, Begin(KeyPurpose::ENCRYPT, params, &output_params));
-
-            string ciphertext;
-            size_t input_consumed;
-            string to_send;
-            for (size_t i = 0; i < message.size(); i += increment) {
-                to_send.append(message.substr(i, increment));
-                EXPECT_EQ(ErrorCode::OK, Update(to_send, &ciphertext, &input_consumed));
-                EXPECT_EQ(to_send.length(), input_consumed);
-                to_send = to_send.substr(input_consumed);
-                EXPECT_EQ(0U, to_send.length());
-
-                switch (block_mode) {
-                    case BlockMode::ECB:
-                    case BlockMode::CBC:
-                        // Implementations must take as many blocks as possible, leaving less than
-                        // a block.
-                        EXPECT_LE(to_send.length(), 16U);
-                        break;
-                    case BlockMode::GCM:
-                    case BlockMode::CTR:
-                        // Implementations must always take all the data.
-                        EXPECT_EQ(0U, to_send.length());
-                        break;
-                }
-            }
-            EXPECT_EQ(ErrorCode::OK, Finish(to_send, &ciphertext)) << "Error sending " << to_send;
-
-            switch (block_mode) {
-                case BlockMode::GCM:
-                    EXPECT_EQ(message.size() + 16, ciphertext.size());
-                    break;
-                case BlockMode::CTR:
-                    EXPECT_EQ(message.size(), ciphertext.size());
-                    break;
-                case BlockMode::CBC:
-                case BlockMode::ECB:
-                    EXPECT_EQ(message.size() + message.size() % 16, ciphertext.size());
-                    break;
-            }
-
-            auto iv = output_params.GetTagValue(TAG_NONCE);
-            switch (block_mode) {
-                case BlockMode::CBC:
-                case BlockMode::GCM:
-                case BlockMode::CTR:
-                    ASSERT_TRUE(iv.isOk()) << "No IV for block mode " << block_mode;
-                    EXPECT_EQ(block_mode == BlockMode::GCM ? 12U : 16U, iv.value().size());
-                    params.push_back(TAG_NONCE, iv.value());
-                    break;
-
-                case BlockMode::ECB:
-                    EXPECT_FALSE(iv.isOk()) << "ECB mode should not generate IV";
-                    break;
-            }
-
-            EXPECT_EQ(ErrorCode::OK, Begin(KeyPurpose::DECRYPT, params))
-                << "Decrypt begin() failed for block mode " << block_mode;
-
-            string plaintext;
-            for (size_t i = 0; i < ciphertext.size(); i += increment) {
-                to_send.append(ciphertext.substr(i, increment));
-                EXPECT_EQ(ErrorCode::OK, Update(to_send, &plaintext, &input_consumed));
-                to_send = to_send.substr(input_consumed);
-            }
-            ErrorCode error = Finish(to_send, &plaintext);
-            ASSERT_EQ(ErrorCode::OK, error) << "Decryption failed for block mode " << block_mode
-                                            << " and increment " << increment;
-            if (error == ErrorCode::OK) {
-                ASSERT_EQ(message, plaintext) << "Decryption didn't match for block mode "
-                                              << block_mode << " and increment " << increment;
-            }
-        }
-    }
+/*
+ * EncryptionOperationsTest.AesGcmIncremental
+ *
+ * Verifies that AES works for GCM block mode, when provided data in various size increments.
+ */
+TEST_P(EncryptionOperationsTest, AesGcmIncremental) {
+    CheckAesIncrementalEncryptOperation(BlockMode::GCM, 240);
 }
 
 struct AesCtrSp80038aTestVector {
@@ -4898,6 +4858,18 @@ TEST_P(TransportLimitTest, LargeFinishInput) {
 }
 
 INSTANTIATE_KEYMASTER_HIDL_TEST(TransportLimitTest);
+
+using VsrRequirementTest = KeymasterHidlTest;
+
+TEST_P(VsrRequirementTest, Vsr13Test) {
+    int vsr_api_level = get_vsr_api_level();
+    if (vsr_api_level < 33) {
+        GTEST_SKIP() << "Applies only to VSR API level 33, this device is: " << vsr_api_level;
+    }
+    FAIL() << "VSR 13+ requires KeyMint version 2";
+}
+
+INSTANTIATE_KEYMASTER_HIDL_TEST(VsrRequirementTest);
 
 }  // namespace test
 }  // namespace V4_0

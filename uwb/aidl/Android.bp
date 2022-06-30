@@ -14,6 +14,7 @@ aidl_interface {
     vendor_available: true,
     srcs: ["android/hardware/uwb/*.aidl"],
     stability: "vintf",
+    host_supported: true,
     backend: {
         java: {
             sdk_version: "module_Tiramisu",
@@ -38,10 +39,18 @@ aidl_interface {
             min_sdk_version: "Tiramisu",
         },
     },
+    versions_with_info: [
+        {
+            version: "1",
+            imports: [],
+        },
+    ],
+
 }
 
 aidl_interface {
     name: "android.hardware.uwb.fira_android",
+    owner: "google",
     vendor_available: true,
     srcs: ["android/hardware/uwb/fira_android/*.aidl"],
     stability: "vintf",
@@ -61,4 +70,11 @@ aidl_interface {
             min_sdk_version: "Tiramisu",
         },
     },
+    versions_with_info: [
+        {
+            version: "1",
+            imports: [],
+        },
+    ],
+
 }

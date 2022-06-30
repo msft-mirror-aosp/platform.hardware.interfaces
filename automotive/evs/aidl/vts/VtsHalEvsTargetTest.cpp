@@ -19,9 +19,11 @@
 
 #include <aidl/Gtest.h>
 #include <aidl/Vintf.h>
+#include <aidl/android/hardware/automotive/evs/BnEvsEnumeratorStatusCallback.h>
 #include <aidl/android/hardware/automotive/evs/BufferDesc.h>
 #include <aidl/android/hardware/automotive/evs/CameraDesc.h>
 #include <aidl/android/hardware/automotive/evs/CameraParam.h>
+#include <aidl/android/hardware/automotive/evs/DeviceStatus.h>
 #include <aidl/android/hardware/automotive/evs/DisplayDesc.h>
 #include <aidl/android/hardware/automotive/evs/DisplayState.h>
 #include <aidl/android/hardware/automotive/evs/EvsEventDesc.h>
@@ -30,6 +32,7 @@
 #include <aidl/android/hardware/automotive/evs/IEvsCamera.h>
 #include <aidl/android/hardware/automotive/evs/IEvsDisplay.h>
 #include <aidl/android/hardware/automotive/evs/IEvsEnumerator.h>
+#include <aidl/android/hardware/automotive/evs/IEvsEnumeratorStatusCallback.h>
 #include <aidl/android/hardware/automotive/evs/IEvsUltrasonicsArray.h>
 #include <aidl/android/hardware/automotive/evs/ParameterRange.h>
 #include <aidl/android/hardware/automotive/evs/Stream.h>
@@ -77,11 +80,11 @@ typedef struct {
 } RawStreamConfig;
 constexpr size_t kStreamCfgSz = sizeof(RawStreamConfig) / sizeof(int32_t);
 
-}  // namespace
-
+using ::aidl::android::hardware::automotive::evs::BnEvsEnumeratorStatusCallback;
 using ::aidl::android::hardware::automotive::evs::BufferDesc;
 using ::aidl::android::hardware::automotive::evs::CameraDesc;
 using ::aidl::android::hardware::automotive::evs::CameraParam;
+using ::aidl::android::hardware::automotive::evs::DeviceStatus;
 using ::aidl::android::hardware::automotive::evs::DisplayDesc;
 using ::aidl::android::hardware::automotive::evs::DisplayState;
 using ::aidl::android::hardware::automotive::evs::EvsEventDesc;
@@ -90,6 +93,7 @@ using ::aidl::android::hardware::automotive::evs::EvsResult;
 using ::aidl::android::hardware::automotive::evs::IEvsCamera;
 using ::aidl::android::hardware::automotive::evs::IEvsDisplay;
 using ::aidl::android::hardware::automotive::evs::IEvsEnumerator;
+using ::aidl::android::hardware::automotive::evs::IEvsEnumeratorStatusCallback;
 using ::aidl::android::hardware::automotive::evs::IEvsUltrasonicsArray;
 using ::aidl::android::hardware::automotive::evs::ParameterRange;
 using ::aidl::android::hardware::automotive::evs::Stream;
@@ -98,6 +102,8 @@ using ::aidl::android::hardware::graphics::common::BufferUsage;
 using ::aidl::android::hardware::graphics::common::HardwareBufferDescription;
 using ::aidl::android::hardware::graphics::common::PixelFormat;
 using std::chrono_literals::operator""s;
+
+}  // namespace
 
 // The main test class for EVS
 class EvsAidlTest : public ::testing::TestWithParam<std::string> {
@@ -139,7 +145,12 @@ class EvsAidlTest : public ::testing::TestWithParam<std::string> {
         ASSERT_NE(mEnumerator, nullptr);
 
         // Get the ultrasonics array list
-        ASSERT_TRUE(mEnumerator->getUltrasonicsArrayList(&mUltrasonicsArraysInfo).isOk())
+        auto result = mEnumerator->getUltrasonicsArrayList(&mUltrasonicsArraysInfo);
+        ASSERT_TRUE(result.isOk() ||
+                // TODO(b/149874793): Remove below conditions when
+                // getUltrasonicsArrayList() is implemented.
+                (!result.isOk() && result.getServiceSpecificError() ==
+                        static_cast<int32_t>(EvsResult::NOT_IMPLEMENTED)))
                 << "Failed to get a list of available ultrasonics arrays";
         LOG(INFO) << "We have " << mCameraInfo.size() << " ultrasonics arrays.";
     }
@@ -233,6 +244,13 @@ class EvsAidlTest : public ::testing::TestWithParam<std::string> {
 
         return targetCfg;
     }
+
+    class DeviceStatusCallback : public BnEvsEnumeratorStatusCallback {
+        ndk::ScopedAStatus deviceStatusChanged(const std::vector<DeviceStatus>&) override {
+            // This empty implementation returns always ok().
+            return ndk::ScopedAStatus::ok();
+        }
+    };
 
     // Every test needs access to the service
     std::shared_ptr<IEvsEnumerator> mEnumerator;
@@ -430,8 +448,8 @@ TEST_P(EvsAidlTest, CameraStreamPerformance) {
         mActiveCameras.push_back(pCam);
 
         // Set up a frame receiver object which will fire up its own thread
-        std::shared_ptr<FrameHandler> frameHandler =
-                std::make_shared<FrameHandler>(pCam, cam, nullptr, FrameHandler::eAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandler = ndk::SharedRefBase::make<FrameHandler>(
+                pCam, cam, nullptr, FrameHandler::eAutoReturn);
         EXPECT_NE(frameHandler, nullptr);
 
         // Start the camera's video stream
@@ -521,7 +539,7 @@ TEST_P(EvsAidlTest, CameraStreamBuffering) {
         mActiveCameras.push_back(pCam);
 
         // Ask for a very large number of buffers in flight to ensure it errors correctly
-        auto badResult = pCam->setMaxFramesInFlight(0xFFFFFFFF);
+        auto badResult = pCam->setMaxFramesInFlight(std::numeric_limits<int32_t>::max());
         EXPECT_TRUE(!badResult.isOk() && badResult.getServiceSpecificError() ==
                                                  static_cast<int>(EvsResult::BUFFER_NOT_AVAILABLE));
 
@@ -529,8 +547,8 @@ TEST_P(EvsAidlTest, CameraStreamBuffering) {
         ASSERT_TRUE(pCam->setMaxFramesInFlight(kBuffersToHold).isOk());
 
         // Set up a frame receiver object which will fire up its own thread.
-        std::shared_ptr<FrameHandler> frameHandler =
-                std::make_shared<FrameHandler>(pCam, cam, nullptr, FrameHandler::eNoAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandler = ndk::SharedRefBase::make<FrameHandler>(
+                pCam, cam, nullptr, FrameHandler::eNoAutoReturn);
         EXPECT_NE(frameHandler, nullptr);
 
         // Start the camera's video stream
@@ -587,7 +605,7 @@ TEST_P(EvsAidlTest, CameraToDisplayRoundTrip) {
     std::shared_ptr<IEvsDisplay> pDisplay;
     ASSERT_TRUE(mEnumerator->openDisplay(targetDisplayId, &pDisplay).isOk());
     EXPECT_NE(pDisplay, nullptr);
-    LOG(INFO) << "Display " << targetDisplayId << " is in use.";
+    LOG(INFO) << "Display " << static_cast<int>(targetDisplayId) << " is in use.";
 
     // Get the display descriptor
     DisplayDesc displayDesc;
@@ -619,8 +637,8 @@ TEST_P(EvsAidlTest, CameraToDisplayRoundTrip) {
         mActiveCameras.push_back(pCam);
 
         // Set up a frame receiver object which will fire up its own thread.
-        std::shared_ptr<FrameHandler> frameHandler =
-                std::make_shared<FrameHandler>(pCam, cam, pDisplay, FrameHandler::eAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandler = ndk::SharedRefBase::make<FrameHandler>(
+                pCam, cam, pDisplay, FrameHandler::eAutoReturn);
         EXPECT_NE(frameHandler, nullptr);
 
         // Activate the display
@@ -697,10 +715,10 @@ TEST_P(EvsAidlTest, MultiCameraStream) {
         mActiveCameras.push_back(pCam1);
 
         // Set up per-client frame receiver objects which will fire up its own thread
-        std::shared_ptr<FrameHandler> frameHandler0 =
-                std::make_shared<FrameHandler>(pCam0, cam, nullptr, FrameHandler::eAutoReturn);
-        std::shared_ptr<FrameHandler> frameHandler1 =
-                std::make_shared<FrameHandler>(pCam1, cam, nullptr, FrameHandler::eAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandler0 = ndk::SharedRefBase::make<FrameHandler>(
+                pCam0, cam, nullptr, FrameHandler::eAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandler1 = ndk::SharedRefBase::make<FrameHandler>(
+                pCam1, cam, nullptr, FrameHandler::eAutoReturn);
         EXPECT_NE(frameHandler0, nullptr);
         EXPECT_NE(frameHandler1, nullptr);
 
@@ -803,8 +821,8 @@ TEST_P(EvsAidlTest, CameraParameter) {
         }
 
         // Set up per-client frame receiver objects which will fire up its own thread
-        std::shared_ptr<FrameHandler> frameHandler =
-                std::make_shared<FrameHandler>(pCam, cam, nullptr, FrameHandler::eAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandler = ndk::SharedRefBase::make<FrameHandler>(
+                pCam, cam, nullptr, FrameHandler::eAutoReturn);
         EXPECT_NE(frameHandler, nullptr);
 
         // Start the camera's video stream
@@ -903,10 +921,11 @@ TEST_P(EvsAidlTest, CameraPrimaryClientRelease) {
         mActiveCameras.push_back(pSecondaryCam);
 
         // Set up per-client frame receiver objects which will fire up its own thread
-        std::shared_ptr<FrameHandler> frameHandlerPrimary = std::make_shared<FrameHandler>(
+        std::shared_ptr<FrameHandler> frameHandlerPrimary = ndk::SharedRefBase::make<FrameHandler>(
                 pPrimaryCam, cam, nullptr, FrameHandler::eAutoReturn);
-        std::shared_ptr<FrameHandler> frameHandlerSecondary = std::make_shared<FrameHandler>(
-                pSecondaryCam, cam, nullptr, FrameHandler::eAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandlerSecondary =
+                ndk::SharedRefBase::make<FrameHandler>(pSecondaryCam, cam, nullptr,
+                                                       FrameHandler::eAutoReturn);
         EXPECT_NE(frameHandlerPrimary, nullptr);
         EXPECT_NE(frameHandlerSecondary, nullptr);
 
@@ -1075,10 +1094,11 @@ TEST_P(EvsAidlTest, MultiCameraParameter) {
         }
 
         // Set up per-client frame receiver objects which will fire up its own thread
-        std::shared_ptr<FrameHandler> frameHandlerPrimary = std::make_shared<FrameHandler>(
+        std::shared_ptr<FrameHandler> frameHandlerPrimary = ndk::SharedRefBase::make<FrameHandler>(
                 pPrimaryCam, cam, nullptr, FrameHandler::eAutoReturn);
-        std::shared_ptr<FrameHandler> frameHandlerSecondary = std::make_shared<FrameHandler>(
-                pSecondaryCam, cam, nullptr, FrameHandler::eAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandlerSecondary =
+                ndk::SharedRefBase::make<FrameHandler>(pSecondaryCam, cam, nullptr,
+                                                       FrameHandler::eAutoReturn);
         EXPECT_NE(frameHandlerPrimary, nullptr);
         EXPECT_NE(frameHandlerSecondary, nullptr);
 
@@ -1135,8 +1155,8 @@ TEST_P(EvsAidlTest, MultiCameraParameter) {
 
                 EvsEventDesc aTargetEvent;
                 aTargetEvent.aType = EvsEventType::PARAMETER_CHANGED;
-                aTargetEvent.payload[0] = static_cast<uint32_t>(cmd);
-                aTargetEvent.payload[1] = val0;
+                aTargetEvent.payload.push_back(static_cast<int32_t>(cmd));
+                aTargetEvent.payload.push_back(val0);
                 if (!frameHandlerPrimary->waitForEvent(aTargetEvent, aNotification0)) {
                     LOG(WARNING) << "A timer is expired before a target event is fired.";
                 }
@@ -1150,8 +1170,8 @@ TEST_P(EvsAidlTest, MultiCameraParameter) {
 
                 EvsEventDesc aTargetEvent;
                 aTargetEvent.aType = EvsEventType::PARAMETER_CHANGED;
-                aTargetEvent.payload[0] = static_cast<uint32_t>(cmd);
-                aTargetEvent.payload[1] = val0;
+                aTargetEvent.payload.push_back(static_cast<int32_t>(cmd));
+                aTargetEvent.payload.push_back(val0);
                 if (!frameHandlerSecondary->waitForEvent(aTargetEvent, aNotification1)) {
                     LOG(WARNING) << "A timer is expired before a target event is fired.";
                 }
@@ -1186,11 +1206,13 @@ TEST_P(EvsAidlTest, MultiCameraParameter) {
                       static_cast<EvsEventType>(aNotification0.aType));
             ASSERT_EQ(EvsEventType::PARAMETER_CHANGED,
                       static_cast<EvsEventType>(aNotification1.aType));
+            ASSERT_GE(aNotification0.payload.size(), 2);
+            ASSERT_GE(aNotification1.payload.size(), 2);
             ASSERT_EQ(cmd, static_cast<CameraParam>(aNotification0.payload[0]));
             ASSERT_EQ(cmd, static_cast<CameraParam>(aNotification1.payload[0]));
             for (auto&& v : values) {
-                ASSERT_EQ(v, static_cast<int32_t>(aNotification0.payload[1]));
-                ASSERT_EQ(v, static_cast<int32_t>(aNotification1.payload[1]));
+                ASSERT_EQ(v, aNotification0.payload[1]);
+                ASSERT_EQ(v, aNotification1.payload[1]);
             }
 
             // Clients expects to receive a parameter change notification
@@ -1279,8 +1301,8 @@ TEST_P(EvsAidlTest, MultiCameraParameter) {
 
                 EvsEventDesc aTargetEvent;
                 aTargetEvent.aType = EvsEventType::PARAMETER_CHANGED;
-                aTargetEvent.payload[0] = static_cast<uint32_t>(cmd);
-                aTargetEvent.payload[1] = val0;
+                aTargetEvent.payload.push_back(static_cast<int32_t>(cmd));
+                aTargetEvent.payload.push_back(val0);
                 if (!frameHandlerPrimary->waitForEvent(aTargetEvent, aNotification0)) {
                     LOG(WARNING) << "A timer is expired before a target event is fired.";
                 }
@@ -1293,8 +1315,8 @@ TEST_P(EvsAidlTest, MultiCameraParameter) {
 
                 EvsEventDesc aTargetEvent;
                 aTargetEvent.aType = EvsEventType::PARAMETER_CHANGED;
-                aTargetEvent.payload[0] = static_cast<uint32_t>(cmd);
-                aTargetEvent.payload[1] = val0;
+                aTargetEvent.payload.push_back(static_cast<int32_t>(cmd));
+                aTargetEvent.payload.push_back(val0);
                 if (!frameHandlerSecondary->waitForEvent(aTargetEvent, aNotification1)) {
                     LOG(WARNING) << "A timer is expired before a target event is fired.";
                 }
@@ -1334,11 +1356,13 @@ TEST_P(EvsAidlTest, MultiCameraParameter) {
                       static_cast<EvsEventType>(aNotification0.aType));
             ASSERT_EQ(EvsEventType::PARAMETER_CHANGED,
                       static_cast<EvsEventType>(aNotification1.aType));
+            ASSERT_GE(aNotification0.payload.size(), 2);
+            ASSERT_GE(aNotification1.payload.size(), 2);
             ASSERT_EQ(cmd, static_cast<CameraParam>(aNotification0.payload[0]));
             ASSERT_EQ(cmd, static_cast<CameraParam>(aNotification1.payload[0]));
             for (auto&& v : values) {
-                ASSERT_EQ(v, static_cast<int32_t>(aNotification0.payload[1]));
-                ASSERT_EQ(v, static_cast<int32_t>(aNotification1.payload[1]));
+                ASSERT_EQ(v, aNotification0.payload[1]);
+                ASSERT_EQ(v, aNotification1.payload[1]);
             }
         }
 
@@ -1418,10 +1442,10 @@ TEST_P(EvsAidlTest, HighPriorityCameraClient) {
         }
 
         // Set up a frame receiver object which will fire up its own thread.
-        std::shared_ptr<FrameHandler> frameHandler0 =
-                std::make_shared<FrameHandler>(pCam0, cam, nullptr, FrameHandler::eAutoReturn);
-        std::shared_ptr<FrameHandler> frameHandler1 =
-                std::make_shared<FrameHandler>(pCam1, cam, nullptr, FrameHandler::eAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandler0 = ndk::SharedRefBase::make<FrameHandler>(
+                pCam0, cam, nullptr, FrameHandler::eAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandler1 = ndk::SharedRefBase::make<FrameHandler>(
+                pCam1, cam, nullptr, FrameHandler::eAutoReturn);
         EXPECT_NE(frameHandler0, nullptr);
         EXPECT_NE(frameHandler1, nullptr);
 
@@ -1459,8 +1483,9 @@ TEST_P(EvsAidlTest, HighPriorityCameraClient) {
 
                         EvsEventDesc aTargetEvent;
                         aTargetEvent.aType = EvsEventType::PARAMETER_CHANGED;
-                        aTargetEvent.payload[0] = static_cast<uint32_t>(CameraParam::AUTO_FOCUS);
-                        aTargetEvent.payload[1] = 0;
+                        aTargetEvent.payload.push_back(
+                                static_cast<int32_t>(CameraParam::AUTO_FOCUS));
+                        aTargetEvent.payload.push_back(0);
                         if (!frameHandler0->waitForEvent(aTargetEvent, aNotification)) {
                             LOG(WARNING) << "A timer is expired before a target event is fired.";
                         }
@@ -1502,8 +1527,8 @@ TEST_P(EvsAidlTest, HighPriorityCameraClient) {
 
                     EvsEventDesc aTargetEvent;
                     aTargetEvent.aType = EvsEventType::PARAMETER_CHANGED;
-                    aTargetEvent.payload[0] = static_cast<uint32_t>(cam1Cmds[0]);
-                    aTargetEvent.payload[1] = val0;
+                    aTargetEvent.payload.push_back(static_cast<int32_t>(cam1Cmds[0]));
+                    aTargetEvent.payload.push_back(val0);
                     if (!frameHandler1->waitForEvent(aTargetEvent, aNotification)) {
                         LOG(WARNING) << "A timer is expired before a target event is fired.";
                     }
@@ -1531,9 +1556,10 @@ TEST_P(EvsAidlTest, HighPriorityCameraClient) {
 
         // Verify a change notification
         ASSERT_EQ(static_cast<EvsEventType>(aNotification.aType), EvsEventType::PARAMETER_CHANGED);
+        ASSERT_GE(aNotification.payload.size(), 2);
         ASSERT_EQ(static_cast<CameraParam>(aNotification.payload[0]), cam1Cmds[0]);
         for (auto&& v : values) {
-            ASSERT_EQ(v, static_cast<int32_t>(aNotification.payload[1]));
+            ASSERT_EQ(v, aNotification.payload[1]);
         }
 
         listener = std::thread([&frameHandler1, &aNotification, &listening, &eventCond] {
@@ -1580,8 +1606,9 @@ TEST_P(EvsAidlTest, HighPriorityCameraClient) {
 
                         EvsEventDesc aTargetEvent;
                         aTargetEvent.aType = EvsEventType::PARAMETER_CHANGED;
-                        aTargetEvent.payload[0] = static_cast<uint32_t>(CameraParam::AUTO_FOCUS);
-                        aTargetEvent.payload[1] = 0;
+                        aTargetEvent.payload.push_back(
+                                static_cast<int32_t>(CameraParam::AUTO_FOCUS));
+                        aTargetEvent.payload.push_back(0);
                         if (!frameHandler1->waitForEvent(aTargetEvent, aNotification)) {
                             LOG(WARNING) << "A timer is expired before a target event is fired.";
                         }
@@ -1619,8 +1646,8 @@ TEST_P(EvsAidlTest, HighPriorityCameraClient) {
 
                     EvsEventDesc aTargetEvent;
                     aTargetEvent.aType = EvsEventType::PARAMETER_CHANGED;
-                    aTargetEvent.payload[0] = static_cast<uint32_t>(cam0Cmds[0]);
-                    aTargetEvent.payload[1] = val0;
+                    aTargetEvent.payload.push_back(static_cast<int32_t>(cam0Cmds[0]));
+                    aTargetEvent.payload.push_back(val0);
                     if (!frameHandler0->waitForEvent(aTargetEvent, aNotification)) {
                         LOG(WARNING) << "A timer is expired before a target event is fired.";
                     }
@@ -1644,9 +1671,10 @@ TEST_P(EvsAidlTest, HighPriorityCameraClient) {
         }
         // Verify a change notification
         ASSERT_EQ(static_cast<EvsEventType>(aNotification.aType), EvsEventType::PARAMETER_CHANGED);
+        ASSERT_GE(aNotification.payload.size(), 2);
         ASSERT_EQ(static_cast<CameraParam>(aNotification.payload[0]), cam0Cmds[0]);
         for (auto&& v : values) {
-            ASSERT_EQ(v, static_cast<int32_t>(aNotification.payload[1]));
+            ASSERT_EQ(v, aNotification.payload[1]);
         }
 
         // Turn off the display (yes, before the stream stops -- it should be handled)
@@ -1733,8 +1761,8 @@ TEST_P(EvsAidlTest, CameraUseStreamConfigToDisplay) {
         mActiveCameras.push_back(pCam);
 
         // Set up a frame receiver object which will fire up its own thread.
-        std::shared_ptr<FrameHandler> frameHandler =
-                std::make_shared<FrameHandler>(pCam, cam, pDisplay, FrameHandler::eAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandler = ndk::SharedRefBase::make<FrameHandler>(
+                pCam, cam, pDisplay, FrameHandler::eAutoReturn);
         EXPECT_NE(frameHandler, nullptr);
 
         // Activate the display
@@ -1843,10 +1871,10 @@ TEST_P(EvsAidlTest, MultiCameraStreamUseConfig) {
         EXPECT_NE(pCam1, nullptr);
 
         // Set up per-client frame receiver objects which will fire up its own thread
-        std::shared_ptr<FrameHandler> frameHandler0 =
-                std::make_shared<FrameHandler>(pCam0, cam, nullptr, FrameHandler::eAutoReturn);
-        std::shared_ptr<FrameHandler> frameHandler1 =
-                std::make_shared<FrameHandler>(pCam1, cam, nullptr, FrameHandler::eAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandler0 = ndk::SharedRefBase::make<FrameHandler>(
+                pCam0, cam, nullptr, FrameHandler::eAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandler1 = ndk::SharedRefBase::make<FrameHandler>(
+                pCam1, cam, nullptr, FrameHandler::eAutoReturn);
         EXPECT_NE(frameHandler0, nullptr);
         EXPECT_NE(frameHandler1, nullptr);
 
@@ -2008,8 +2036,8 @@ TEST_P(EvsAidlTest, CameraStreamExternalBuffering) {
         EXPECT_GE(delta, kBuffersToHold);
 
         // Set up a frame receiver object which will fire up its own thread.
-        std::shared_ptr<FrameHandler> frameHandler =
-                std::make_shared<FrameHandler>(pCam, cam, nullptr, FrameHandler::eNoAutoReturn);
+        std::shared_ptr<FrameHandler> frameHandler = ndk::SharedRefBase::make<FrameHandler>(
+                pCam, cam, nullptr, FrameHandler::eNoAutoReturn);
         EXPECT_NE(frameHandler, nullptr);
 
         // Start the camera's video stream
@@ -2046,6 +2074,20 @@ TEST_P(EvsAidlTest, CameraStreamExternalBuffering) {
             alloc.free(::android::dupFromAidl(b.buffer.handle));
         }
         buffers.resize(0);
+    }
+}
+
+TEST_P(EvsAidlTest, DeviceStatusCallbackRegistration) {
+    std::shared_ptr<IEvsEnumeratorStatusCallback> cb =
+            ndk::SharedRefBase::make<DeviceStatusCallback>();
+    ndk::ScopedAStatus status = mEnumerator->registerStatusCallback(cb);
+    if (mIsHwModule) {
+        ASSERT_TRUE(status.isOk());
+    } else {
+        // A callback registration may fail if a HIDL EVS HAL implementation is
+        // running.
+        ASSERT_TRUE(status.isOk() ||
+                    status.getServiceSpecificError() == static_cast<int>(EvsResult::NOT_SUPPORTED));
     }
 }
 
@@ -2101,7 +2143,7 @@ TEST_P(EvsAidlTest, UltrasonicsVerifyStreamData) {
         EXPECT_NE(pUltrasonicsArray, nullptr);
 
         std::shared_ptr<FrameHandlerUltrasonics> frameHandler =
-                std::make_shared<FrameHandlerUltrasonics>(pUltrasonicsArray);
+                ndk::SharedRefBase::make<FrameHandlerUltrasonics>(pUltrasonicsArray);
         EXPECT_NE(frameHandler, nullptr);
 
         // Start stream.
@@ -2141,7 +2183,7 @@ TEST_P(EvsAidlTest, UltrasonicsSetFramesInFlight) {
         ASSERT_TRUE(pUltrasonicsArray->setMaxFramesInFlight(10).isOk());
 
         std::shared_ptr<FrameHandlerUltrasonics> frameHandler =
-                std::make_shared<FrameHandlerUltrasonics>(pUltrasonicsArray);
+                ndk::SharedRefBase::make<FrameHandlerUltrasonics>(pUltrasonicsArray);
         EXPECT_NE(frameHandler, nullptr);
 
         // Start stream.

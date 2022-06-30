@@ -17,11 +17,13 @@
 #ifndef android_hardware_automotive_vehicle_aidl_impl_vhal_include_DefaultVehicleHal_H_
 #define android_hardware_automotive_vehicle_aidl_impl_vhal_include_DefaultVehicleHal_H_
 
-#include "ConnectedClient.h"
-#include "ParcelableUtils.h"
-#include "PendingRequestPool.h"
-#include "SubscriptionManager.h"
+#include <ConnectedClient.h>
+#include <ParcelableUtils.h>
+#include <PendingRequestPool.h>
+#include <RecurrentTimer.h>
+#include <SubscriptionManager.h>
 
+#include <ConcurrentQueue.h>
 #include <IVehicleHardware.h>
 #include <VehicleUtils.h>
 #include <aidl/android/hardware/automotive/vehicle/BnVehicle.h>
@@ -31,6 +33,7 @@
 
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -104,6 +107,8 @@ class DefaultVehicleHal final : public aidl::android::hardware::automotive::vehi
       public:
         SubscriptionClients(std::shared_ptr<PendingRequestPool> pool) : mPendingRequestPool(pool) {}
 
+        std::shared_ptr<SubscriptionClient> maybeAddClient(const CallbackType& callback);
+
         std::shared_ptr<SubscriptionClient> getClient(const CallbackType& callback);
 
         void removeClient(const AIBinder* clientId);
@@ -118,20 +123,24 @@ class DefaultVehicleHal final : public aidl::android::hardware::automotive::vehi
         std::shared_ptr<PendingRequestPool> mPendingRequestPool;
     };
 
-    // A wrapper for linkToDeath to enable stubbing for test.
-    class ILinkToDeath {
+    // A wrapper for binder operations to enable stubbing for test.
+    class IBinder {
       public:
-        virtual ~ILinkToDeath() = default;
+        virtual ~IBinder() = default;
 
         virtual binder_status_t linkToDeath(AIBinder* binder, AIBinder_DeathRecipient* recipient,
                                             void* cookie) = 0;
+
+        virtual bool isAlive(const AIBinder* binder) = 0;
     };
 
-    // A real implementation for ILinkToDeath.
-    class AIBinderLinkToDeathImpl final : public ILinkToDeath {
+    // A real implementation for IBinder.
+    class AIBinderImpl final : public IBinder {
       public:
         binder_status_t linkToDeath(AIBinder* binder, AIBinder_DeathRecipient* recipient,
                                     void* cookie) override;
+
+        bool isAlive(const AIBinder* binder) override;
     };
 
     // OnBinderDiedContext is a type used as a cookie passed deathRecipient. The deathRecipient's
@@ -142,13 +151,20 @@ class DefaultVehicleHal final : public aidl::android::hardware::automotive::vehi
         const AIBinder* clientId;
     };
 
+    // BinderDiedUnlinkedEvent represents either an onBinderDied or an onBinderUnlinked event.
+    struct BinderDiedUnlinkedEvent {
+        // true for onBinderDied, false for onBinderUnlinked.
+        bool onBinderDied;
+        const AIBinder* clientId;
+    };
+
     // The default timeout of get or set value requests is 30s.
     // TODO(b/214605968): define TIMEOUT_IN_NANO in IVehicle and allow getValues/setValues/subscribe
     // to specify custom timeouts.
     static constexpr int64_t TIMEOUT_IN_NANO = 30'000'000'000;
     // heart beat event interval: 3s
     static constexpr int64_t HEART_BEAT_INTERVAL_IN_NANO = 3'000'000'000;
-    const std::shared_ptr<IVehicleHardware> mVehicleHardware;
+    std::unique_ptr<IVehicleHardware> mVehicleHardware;
 
     // mConfigsByPropId and mConfigFile are only modified during initialization, so no need to
     // lock guard them.
@@ -170,13 +186,21 @@ class DefaultVehicleHal final : public aidl::android::hardware::automotive::vehi
             GUARDED_BY(mLock);
     // SubscriptionClients is thread-safe.
     std::shared_ptr<SubscriptionClients> mSubscriptionClients;
-    // mLinkToDeathImpl is only going to be changed in test.
-    std::unique_ptr<ILinkToDeath> mLinkToDeathImpl;
+    // mBinderImpl is only going to be changed in test.
+    std::unique_ptr<IBinder> mBinderImpl;
 
+    // Only initialized once.
+    std::shared_ptr<std::function<void()>> mRecurrentAction;
     // RecurrentTimer is thread-safe.
     RecurrentTimer mRecurrentTimer;
 
     ndk::ScopedAIBinder_DeathRecipient mDeathRecipient;
+
+    // ConcurrentQueue is thread-safe.
+    ConcurrentQueue<BinderDiedUnlinkedEvent> mBinderEvents;
+
+    // A thread to handle onBinderDied or onBinderUnlinked event.
+    std::thread mOnBinderDiedUnlinkedHandlerThread;
 
     android::base::Result<void> checkProperty(
             const aidl::android::hardware::automotive::vehicle::VehiclePropValue& propValue);
@@ -189,14 +213,14 @@ class DefaultVehicleHal final : public aidl::android::hardware::automotive::vehi
             const std::vector<aidl::android::hardware::automotive::vehicle::SetValueRequest>&
                     requests);
 
-    android::base::Result<void> checkSubscribeOptions(
+    VhalResult<void> checkSubscribeOptions(
             const std::vector<aidl::android::hardware::automotive::vehicle::SubscribeOptions>&
                     options);
 
-    android::base::Result<void> checkReadPermission(
+    VhalResult<void> checkReadPermission(
             const aidl::android::hardware::automotive::vehicle::VehiclePropValue& value) const;
 
-    android::base::Result<void> checkWritePermission(
+    VhalResult<void> checkWritePermission(
             const aidl::android::hardware::automotive::vehicle::VehiclePropValue& value) const;
 
     android::base::Result<const aidl::android::hardware::automotive::vehicle::VehiclePropConfig*>
@@ -206,27 +230,28 @@ class DefaultVehicleHal final : public aidl::android::hardware::automotive::vehi
 
     void onBinderUnlinkedWithContext(const AIBinder* clientId);
 
-    void monitorBinderLifeCycle(const CallbackType& callback);
+    // Registers a onBinderDied callback for the client if not already registered.
+    // Returns true if the client Binder is alive, false otherwise.
+    bool monitorBinderLifeCycleLocked(const AIBinder* clientId) REQUIRES(mLock);
 
     bool checkDumpPermission();
 
+    // The looping handler function to process all onBinderDied or onBinderUnlinked events in
+    // mBinderEvents.
+    void onBinderDiedUnlinkedHandler();
+
+    // Gets or creates a {@code T} object for the client to or from {@code clients}.
     template <class T>
     static std::shared_ptr<T> getOrCreateClient(
             std::unordered_map<const AIBinder*, std::shared_ptr<T>>* clients,
             const CallbackType& callback, std::shared_ptr<PendingRequestPool> pendingRequestPool);
-
-    static void getValueFromHardwareCallCallback(
-            std::weak_ptr<IVehicleHardware> vehicleHardware,
-            std::shared_ptr<SubscribeIdByClient> subscribeIdByClient,
-            std::shared_ptr<SubscriptionClients> subscriptionClients, const CallbackType& callback,
-            const aidl::android::hardware::automotive::vehicle::VehiclePropValue& value);
 
     static void onPropertyChangeEvent(
             std::weak_ptr<SubscriptionManager> subscriptionManager,
             const std::vector<aidl::android::hardware::automotive::vehicle::VehiclePropValue>&
                     updatedValues);
 
-    static void checkHealth(std::weak_ptr<IVehicleHardware> hardware,
+    static void checkHealth(IVehicleHardware* hardware,
                             std::weak_ptr<SubscriptionManager> subscriptionManager);
 
     static void onBinderDied(void* cookie);
@@ -238,7 +263,7 @@ class DefaultVehicleHal final : public aidl::android::hardware::automotive::vehi
     void setTimeout(int64_t timeoutInNano);
 
     // Test-only
-    void setLinkToDeathImpl(std::unique_ptr<ILinkToDeath> impl);
+    void setBinderImpl(std::unique_ptr<IBinder> impl);
 };
 
 }  // namespace vehicle
