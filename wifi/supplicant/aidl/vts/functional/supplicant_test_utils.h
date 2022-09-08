@@ -78,7 +78,7 @@ void startSupplicant() {
 void stopSupplicantService() { stopSupplicant(getWifiInstanceName()); }
 
 void initializeService() {
-    ASSERT_TRUE(stopWifiFramework(getWifiInstanceName()));
+    ASSERT_TRUE(stopWifiFramework());
     std::system("/system/bin/start");
     ASSERT_TRUE(waitForFrameworkReady());
     stopSupplicantService();
