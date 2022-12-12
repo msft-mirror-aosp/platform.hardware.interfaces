@@ -139,6 +139,11 @@ enum UwbVendorCapabilityTlvTypes {
     /** Int value for indicating supported ran multiplier */
     CCC_SUPPORTED_RAN_MULTIPLIER = 0xA7,
 
+    /**
+     * Int value to indicate supported max number of ccc ranging sessions
+     */
+    CCC_SUPPORTED_MAX_RANGING_SESSION_NUMBER = 0xA8,
+
     /*********************************************
      * FIRA specific
      ********************************************/
@@ -179,4 +184,14 @@ enum UwbVendorCapabilityTlvTypes {
      *  0 - Feature not supported.
      */
     SUPPORTED_DIAGNOSTICS = 0xE7,
+
+    /**
+     * 4 byte value to indicate supported min slot duration in ms.
+     */
+    SUPPORTED_MIN_SLOT_DURATION = 0xE8,
+
+    /**
+     * Int value to indicate supported max number of fira ranging sessions
+     */
+    SUPPORTED_MAX_RANGING_SESSION_NUMBER = 0xE9,
 }
