@@ -366,6 +366,14 @@ void onAsyncChreNanRttState(chre_nan_rtt_state state) {
     }
 }
 
+// Callback to report cached scan results
+std::function<void(wifi_cached_scan_report*)> on_cached_scan_results_internal_callback;
+void onSyncCachedScanResults(wifi_cached_scan_report* cache_report) {
+    if (on_cached_scan_results_internal_callback) {
+        on_cached_scan_results_internal_callback(cache_report);
+    }
+}
+
 // End of the free-standing "C" style callbacks.
 
 WifiLegacyHal::WifiLegacyHal(const std::weak_ptr<wifi_system::InterfaceTool> iface_tool,
@@ -555,7 +563,7 @@ std::pair<wifi_error, std::vector<uint8_t>> WifiLegacyHal::readApfPacketFilterDa
 
     status = global_func_table_.wifi_read_packet_filter(
             getIfaceHandle(iface_name), /*src_offset=*/0, buffer.data(), buffer.size());
-    return {status, move(buffer)};
+    return {status, std::move(buffer)};
 }
 
 std::pair<wifi_error, wifi_gscan_capabilities> WifiLegacyHal::getGscanCapabilities(
@@ -1587,6 +1595,17 @@ wifi_error WifiLegacyHal::chreRegisterHandler(const std::string& iface_name,
 
 wifi_error WifiLegacyHal::enableWifiTxPowerLimits(const std::string& iface_name, bool enable) {
     return global_func_table_.wifi_enable_tx_power_limits(getIfaceHandle(iface_name), enable);
+}
+
+wifi_error WifiLegacyHal::getWifiCachedScanResults(
+        const std::string& iface_name, const CachedScanResultsCallbackHandlers& handler) {
+    on_cached_scan_results_internal_callback = handler.on_cached_scan_results;
+
+    wifi_error status = global_func_table_.wifi_get_cached_scan_results(getIfaceHandle(iface_name),
+                                                                        {onSyncCachedScanResults});
+
+    on_cached_scan_results_internal_callback = nullptr;
+    return status;
 }
 
 void WifiLegacyHal::invalidate() {

@@ -55,6 +55,7 @@ enum Capability {
      * For this capability to be worthwhile the device implementation of
      * presentDisplay should fail as fast as possible in the case a
      * validateDisplay step is needed.
+     * @deprecated - enabled by default.
      */
     SKIP_VALIDATE = 4,
 
@@ -66,4 +67,12 @@ enum Capability {
      * @see IComposerClient.getPreferredBootDisplayConfig
      */
     BOOT_DISPLAY_CONFIG = 5,
+
+    /**
+     * Specifies that the device supports HDR output conversion.
+     *
+     * @see IComposerClient.getHdrConversionCapabilities
+     * @see IComposerClient.setHdrConversionStrategy
+     */
+    HDR_OUTPUT_CONVERSION_CONFIG = 6,
 }

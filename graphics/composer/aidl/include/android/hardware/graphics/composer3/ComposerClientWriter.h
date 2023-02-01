@@ -19,8 +19,6 @@
 #include <algorithm>
 #include <limits>
 #include <memory>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include <inttypes.h>
@@ -59,13 +57,18 @@ using aidl::android::hardware::common::NativeHandle;
 
 namespace aidl::android::hardware::graphics::composer3 {
 
-class ComposerClientWriter {
+class ComposerClientWriter final {
   public:
     static constexpr std::optional<ClockMonotonicTimestamp> kNoTimestamp = std::nullopt;
 
-    ComposerClientWriter() { reset(); }
+    explicit ComposerClientWriter(int64_t display) : mDisplay(display) { reset(); }
 
-    virtual ~ComposerClientWriter() { reset(); }
+    ~ComposerClientWriter() { reset(); }
+
+    ComposerClientWriter(ComposerClientWriter&&) = default;
+
+    ComposerClientWriter(const ComposerClientWriter&) = delete;
+    ComposerClientWriter& operator=(const ComposerClientWriter&) = delete;
 
     void reset() {
         mDisplayCommand.reset();
@@ -88,7 +91,7 @@ class ComposerClientWriter {
     void setClientTarget(int64_t display, uint32_t slot, const native_handle_t* target,
                          int acquireFence, Dataspace dataspace, const std::vector<Rect>& damage) {
         ClientTarget clientTargetCommand;
-        clientTargetCommand.buffer = getBuffer(slot, target, acquireFence);
+        clientTargetCommand.buffer = getBufferCommand(slot, target, acquireFence);
         clientTargetCommand.dataspace = dataspace;
         clientTargetCommand.damage.assign(damage.begin(), damage.end());
         getDisplayCommand(display).clientTarget.emplace(std::move(clientTargetCommand));
@@ -97,7 +100,7 @@ class ComposerClientWriter {
     void setOutputBuffer(int64_t display, uint32_t slot, const native_handle_t* buffer,
                          int releaseFence) {
         getDisplayCommand(display).virtualDisplayOutputBuffer.emplace(
-                getBuffer(slot, buffer, releaseFence));
+                getBufferCommand(slot, buffer, releaseFence));
     }
 
     void validateDisplay(int64_t display,
@@ -129,7 +132,22 @@ class ComposerClientWriter {
 
     void setLayerBuffer(int64_t display, int64_t layer, uint32_t slot,
                         const native_handle_t* buffer, int acquireFence) {
-        getLayerCommand(display, layer).buffer = getBuffer(slot, buffer, acquireFence);
+        getLayerCommand(display, layer).buffer = getBufferCommand(slot, buffer, acquireFence);
+    }
+
+    void setLayerBufferWithNewCommand(int64_t display, int64_t layer, uint32_t slot,
+                                      const native_handle_t* buffer, int acquireFence) {
+        flushLayerCommand();
+        getLayerCommand(display, layer).buffer = getBufferCommand(slot, buffer, acquireFence);
+        flushLayerCommand();
+    }
+
+    void setLayerBufferSlotsToClear(int64_t display, int64_t layer,
+                                    const std::vector<uint32_t>& slotsToClear) {
+        LayerCommand& layerCommand = getLayerCommand(display, layer);
+        for (auto slot : slotsToClear) {
+            layerCommand.bufferSlotsToClear.emplace(static_cast<int32_t>(slot));
+        }
     }
 
     void setLayerSurfaceDamage(int64_t display, int64_t layer, const std::vector<Rect>& damage) {
@@ -229,8 +247,9 @@ class ComposerClientWriter {
     std::optional<DisplayCommand> mDisplayCommand;
     std::optional<LayerCommand> mLayerCommand;
     std::vector<DisplayCommand> mCommands;
+    const int64_t mDisplay;
 
-    Buffer getBuffer(uint32_t slot, const native_handle_t* bufferHandle, int fence) {
+    Buffer getBufferCommand(uint32_t slot, const native_handle_t* bufferHandle, int fence) {
         Buffer bufferCommand;
         bufferCommand.slot = static_cast<int32_t>(slot);
         if (bufferHandle) bufferCommand.handle.emplace(::android::dupToAidl(bufferHandle));
@@ -254,6 +273,7 @@ class ComposerClientWriter {
 
     DisplayCommand& getDisplayCommand(int64_t display) {
         if (!mDisplayCommand.has_value() || mDisplayCommand->display != display) {
+            LOG_ALWAYS_FATAL_IF(display != mDisplay);
             flushLayerCommand();
             flushDisplayCommand();
             mDisplayCommand.emplace();

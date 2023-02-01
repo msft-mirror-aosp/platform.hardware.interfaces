@@ -18,6 +18,7 @@ package android.hardware.gnss;
 
 import android.hardware.gnss.GnssConstellationType;
 import android.hardware.gnss.GnssLocation;
+import android.hardware.gnss.GnssSignalType;
 import android.hardware.gnss.IGnssConfiguration;
 import android.hardware.gnss.IGnssPsds;
 
@@ -80,6 +81,9 @@ interface IGnssCallback {
 
     /** Capability bit mask indicating that GNSS supports measurement corrections for driving */
     const int CAPABILITY_MEASUREMENT_CORRECTIONS_FOR_DRIVING = 1 << 14;
+
+    /** Capability bit mask indicating that GNSS supports accumulated delta range */
+    const int CAPABILITY_ACCUMULATED_DELTA_RANGE = 1 << 15;
 
     /**
      * Callback to inform framework of the GNSS HAL implementation's capabilities.
@@ -308,4 +312,18 @@ interface IGnssCallback {
      *        during-call to E911, or up to 5 minutes after end-of-call or text to E911).
      */
     void gnssRequestLocationCb(in boolean independentFromGnss, in boolean isUserEmergency);
+
+    /**
+     * Callback to inform the framework of the list of GnssSignalTypes the GNSS HAL implementation
+     * supports.
+     *
+     * These capabilities are static at runtime, i.e., they represent the signal types the
+     * GNSS implementation supports without considering the temporary disabled signal types such as
+     * the blocklisted satellites/constellations or the constellations disabled by regional
+     * restrictions.
+     *
+     * @param gnssSignalTypes a list of GnssSignalTypes specifying the constellations, carrier
+     *     frequencies, and the code types the GNSS HAL implementation supports.
+     */
+    void gnssSetSignalTypeCapabilitiesCb(in GnssSignalType[] gnssSignalTypes);
 }

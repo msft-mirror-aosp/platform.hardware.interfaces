@@ -28,10 +28,10 @@ namespace hardware {
 namespace tv {
 namespace tuner {
 
-Frontend::Frontend(FrontendType type, int32_t id, std::shared_ptr<Tuner> tuner) {
+Frontend::Frontend(FrontendType type, int32_t id) {
     mType = type;
     mId = id;
-    mTuner = tuner;
+    mTuner = nullptr;
     // Init callback to nullptr
     mCallback = nullptr;
 
@@ -170,14 +170,22 @@ Frontend::Frontend(FrontendType type, int32_t id, std::shared_ptr<Tuner> tuner) 
     }
 }
 
-Frontend::~Frontend() {}
+Frontend::~Frontend() {
+    ALOGV("%s", __FUNCTION__);
+    mCallback = nullptr;
+    mIsLocked = false;
+    mTuner = nullptr;
+}
 
 ::ndk::ScopedAStatus Frontend::close() {
     ALOGV("%s", __FUNCTION__);
     // Reset callback
     mCallback = nullptr;
     mIsLocked = false;
-    mTuner->removeFrontend(mId);
+    if (mTuner != nullptr) {
+        mTuner->removeFrontend(mId);
+    }
+    mTuner = nullptr;
 
     return ::ndk::ScopedAStatus::ok();
 }
@@ -231,6 +239,10 @@ Frontend::~Frontend() {}
     mScanThread = std::thread(&Frontend::scanThreadLoop, this);
 
     return ::ndk::ScopedAStatus::ok();
+}
+
+void Frontend::setTunerService(std::shared_ptr<Tuner> tuner) {
+    mTuner = tuner;
 }
 
 void Frontend::scanThreadLoop() {
@@ -861,6 +873,26 @@ void Frontend::scanThreadLoop() {
                 info3.bLlsFlag = false;
                 vector<FrontendScanAtsc3PlpInfo> infos = {info1, info2, info3};
                 status.set<FrontendStatus::allPlpInfo>(infos);
+                break;
+            }
+            case FrontendStatusType::IPTV_CONTENT_URL: {
+                status.set<FrontendStatus::iptvContentUrl>("");
+                break;
+            }
+            case FrontendStatusType::IPTV_PACKETS_LOST: {
+                status.set<FrontendStatus::iptvPacketsLost>(5);
+                break;
+            }
+            case FrontendStatusType::IPTV_PACKETS_RECEIVED: {
+                status.set<FrontendStatus::iptvPacketsReceived>(5);
+                break;
+            }
+            case FrontendStatusType::IPTV_WORST_JITTER_MS: {
+                status.set<FrontendStatus::iptvWorstJitterMs>(5);
+                break;
+            }
+            case FrontendStatusType::IPTV_AVERAGE_JITTER_MS: {
+                status.set<FrontendStatus::iptvAverageJitterMs>(5);
                 break;
             }
             default: {

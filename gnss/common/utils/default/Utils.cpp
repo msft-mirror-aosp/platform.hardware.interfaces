@@ -147,7 +147,7 @@ GnssDataV2_0 Utils::getMockMeasurementV2_0() {
     return gnssData;
 }
 
-GnssData Utils::getMockMeasurement(const bool enableCorrVecOutputs) {
+GnssData Utils::getMockMeasurement(const bool enableCorrVecOutputs, const bool enableFullTracking) {
     aidl::android::hardware::gnss::GnssSignalType signalType = {
             .constellation = GnssConstellationType::GLONASS,
             .carrierFrequencyHz = 1.59975e+09,
@@ -170,7 +170,7 @@ GnssData Utils::getMockMeasurement(const bool enableCorrVecOutputs) {
             .agcLevelDb = 2.3,
             .pseudorangeRateMps = -484.13739013671875,
             .pseudorangeRateUncertaintyMps = 1.0379999876022339,
-            .accumulatedDeltaRangeState = GnssMeasurement::ADR_STATE_UNKNOWN,
+            .accumulatedDeltaRangeState = GnssMeasurement::ADR_STATE_VALID,
             .accumulatedDeltaRangeM = 1.52,
             .accumulatedDeltaRangeUncertaintyM = 2.43,
             .multipathIndicator = aidl::android::hardware::gnss::GnssMultipathIndicator::UNKNOWN,
@@ -258,7 +258,8 @@ GnssData Utils::getMockMeasurement(const bool enableCorrVecOutputs) {
     GnssData gnssData = {.measurements = {measurement},
                          .clock = clock,
                          .elapsedRealtime = timestamp,
-                         .gnssAgcs = std::vector({gnssAgc1, gnssAgc2})};
+                         .gnssAgcs = std::vector({gnssAgc1, gnssAgc2}),
+                         .isFullTracking = enableFullTracking};
     return gnssData;
 }
 

@@ -50,4 +50,8 @@ parcelable PortStatus {
   android.hardware.usb.UsbDataStatus[] usbDataStatus;
   boolean powerTransferLimited;
   android.hardware.usb.PowerBrickStatus powerBrickStatus;
+  boolean supportsComplianceWarnings = false;
+  android.hardware.usb.ComplianceWarning[] complianceWarnings = {};
+  android.hardware.usb.PlugOrientation plugOrientation = android.hardware.usb.PlugOrientation.UNKNOWN;
+  android.hardware.usb.AltModeData[] supportedAltModes = {};
 }

@@ -75,6 +75,9 @@ interface IComposerClient {
   void setReadbackBuffer(long display, in android.hardware.common.NativeHandle buffer, in @nullable ParcelFileDescriptor releaseFence);
   void setVsyncEnabled(long display, boolean enabled);
   void setIdleTimerEnabled(long display, int timeoutMs);
+  android.hardware.graphics.composer3.OverlayProperties getOverlaySupport();
+  android.hardware.graphics.common.HdrConversionCapability[] getHdrConversionCapabilities();
+  void setHdrConversionStrategy(in android.hardware.graphics.common.HdrConversionStrategy conversionStrategy);
   const int EX_BAD_CONFIG = 1;
   const int EX_BAD_DISPLAY = 2;
   const int EX_BAD_LAYER = 3;
@@ -85,5 +88,5 @@ interface IComposerClient {
   const int EX_UNSUPPORTED = 8;
   const int EX_SEAMLESS_NOT_ALLOWED = 9;
   const int EX_SEAMLESS_NOT_POSSIBLE = 10;
-  const int INVALID_CONFIGURATION = 2147483647;
+  const int INVALID_CONFIGURATION = 0x7fffffff;
 }

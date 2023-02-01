@@ -64,6 +64,10 @@ class KeyMintAidlTestBase : public ::testing::TestWithParam<string> {
     static bool arm_deleteAllKeys;
     static bool dump_Attestations;
 
+    // Directory to store/retrieve keyblobs, using subdirectories named for the
+    // KeyMint instance in question (e.g. "./default/", "./strongbox/").
+    static std::string keyblob_dir;
+
     void SetUp() override;
     void TearDown() override {
         if (key_blob_.size()) {
@@ -188,6 +192,10 @@ class KeyMintAidlTestBase : public ::testing::TestWithParam<string> {
 
     void CheckAesIncrementalEncryptOperation(BlockMode block_mode, int message_size);
 
+    void AesCheckEncryptOneByteAtATime(const string& key, BlockMode block_mode,
+                                       PaddingMode padding_mode, const string& iv,
+                                       const string& plaintext, const string& exp_cipher_text);
+
     void CheckHmacTestVector(const string& key, const string& message, Digest digest,
                              const string& expected_mac);
 
@@ -202,6 +210,8 @@ class KeyMintAidlTestBase : public ::testing::TestWithParam<string> {
                        const string& signature, const AuthorizationSet& params);
     void VerifyMessage(const string& message, const string& signature,
                        const AuthorizationSet& params);
+    void LocalVerifyMessage(const vector<uint8_t>& der_cert, const string& message,
+                            const string& signature, const AuthorizationSet& params);
     void LocalVerifyMessage(const string& message, const string& signature,
                             const AuthorizationSet& params);
 
@@ -343,6 +353,11 @@ class KeyMintAidlTestBase : public ::testing::TestWithParam<string> {
     string name_;
     string author_;
     long challenge_;
+
+  private:
+    void CheckEncryptOneByteAtATime(BlockMode block_mode, const int block_size,
+                                    PaddingMode padding_mode, const string& iv,
+                                    const string& plaintext, const string& exp_cipher_text);
 };
 
 // If the given property is available, add it to the tag set under the given tag ID.
@@ -386,6 +401,8 @@ vector<uint8_t> make_name_from_str(const string& name);
 void check_maced_pubkey(const MacedPublicKey& macedPubKey, bool testMode,
                         vector<uint8_t>* payload_value);
 void p256_pub_key(const vector<uint8_t>& coseKeyData, EVP_PKEY_Ptr* signingKey);
+void device_id_attestation_vsr_check(const ErrorCode& result);
+bool check_feature(const std::string& name);
 
 AuthorizationSet HwEnforcedAuthorizations(const vector<KeyCharacteristics>& key_characteristics);
 AuthorizationSet SwEnforcedAuthorizations(const vector<KeyCharacteristics>& key_characteristics);

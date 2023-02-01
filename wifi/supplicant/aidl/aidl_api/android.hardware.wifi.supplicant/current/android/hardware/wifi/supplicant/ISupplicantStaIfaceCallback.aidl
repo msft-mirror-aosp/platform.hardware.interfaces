@@ -44,6 +44,9 @@ interface ISupplicantStaIfaceCallback {
   oneway void onDppFailure(in android.hardware.wifi.supplicant.DppFailureCode code, in String ssid, in String channelList, in char[] bandList);
   oneway void onDppProgress(in android.hardware.wifi.supplicant.DppProgressCode code);
   oneway void onDppSuccess(in android.hardware.wifi.supplicant.DppEventType event);
+  /**
+   * @deprecated This callback is deprecated from AIDL v2, newer HAL should call onDppConfigReceived.
+   */
   oneway void onDppSuccessConfigReceived(in byte[] ssid, in String password, in byte[] psk, in android.hardware.wifi.supplicant.DppAkm securityAkm, in android.hardware.wifi.supplicant.DppConnectionKeys dppConnectionKeys);
   oneway void onDppSuccessConfigSent();
   oneway void onEapFailure(in byte[] bssid, in int errorCode);
@@ -57,10 +60,24 @@ interface ISupplicantStaIfaceCallback {
   oneway void onNetworkNotFound(in byte[] ssid);
   oneway void onNetworkRemoved(in int id);
   oneway void onPmkCacheAdded(in long expirationTimeInSec, in byte[] serializedEntry);
+  /**
+   * @deprecated This callback is deprecated from AIDL v2, newer HAL should call onSupplicantStateChanged()
+   */
   oneway void onStateChanged(in android.hardware.wifi.supplicant.StaIfaceCallbackState newState, in byte[] bssid, in int id, in byte[] ssid, in boolean filsHlpSent);
   oneway void onWpsEventFail(in byte[] bssid, in android.hardware.wifi.supplicant.WpsConfigError configError, in android.hardware.wifi.supplicant.WpsErrorIndication errorInd);
   oneway void onWpsEventPbcOverlap();
   oneway void onWpsEventSuccess();
   oneway void onQosPolicyReset();
   oneway void onQosPolicyRequest(in int qosPolicyRequestId, in android.hardware.wifi.supplicant.QosPolicyData[] qosPolicyData);
+  oneway void onMloLinksInfoChanged(in android.hardware.wifi.supplicant.ISupplicantStaIfaceCallback.MloLinkInfoChangeReason reason);
+  oneway void onDppConfigReceived(in android.hardware.wifi.supplicant.DppConfigurationData configData);
+  oneway void onDppConnectionStatusResultSent(in android.hardware.wifi.supplicant.DppStatusErrorCode code);
+  oneway void onBssFrequencyChanged(in int frequencyMhz);
+  oneway void onSupplicantStateChanged(in android.hardware.wifi.supplicant.SupplicantStateChangeData stateChangeData);
+  oneway void onQosPolicyResponseForScs(in android.hardware.wifi.supplicant.QosPolicyScsResponseStatus[] qosPolicyScsResponseStatus);
+  @Backing(type="int") @VintfStability
+  enum MloLinkInfoChangeReason {
+    TID_TO_LINK_MAP = 0,
+    MULTI_LINK_RECONFIG_AP_REMOVAL = 1,
+  }
 }

@@ -11,13 +11,14 @@ aidl_interface {
     name: "android.hardware.camera.device",
     vendor_available: true,
     srcs: ["android/hardware/camera/device/*.aidl"],
+    frozen: false,
     stability: "vintf",
     imports: [
         "android.hardware.common-V2",
         "android.hardware.common.fmq-V1",
-        "android.hardware.camera.common",
-        "android.hardware.camera.metadata",
-        "android.hardware.graphics.common",
+        "android.hardware.camera.common-V1",
+        "android.hardware.camera.metadata-V2",
+        "android.hardware.graphics.common-V4",
     ],
     backend: {
         cpp: {
@@ -27,11 +28,9 @@ aidl_interface {
             sdk_version: "module_current",
             enabled: false,
         },
-        ndk: {
-            vndk: {
-                enabled: true,
-            },
-        },
+        rust: {
+            enabled: true,
+        }
     },
     versions_with_info: [
         {
@@ -41,7 +40,7 @@ aidl_interface {
                 "android.hardware.common.fmq-V1",
                 "android.hardware.camera.common-V1",
                 "android.hardware.camera.metadata-V1",
-                "android.hardware.graphics.common-V3",
+                "android.hardware.graphics.common-V4",
             ],
         },
     ],

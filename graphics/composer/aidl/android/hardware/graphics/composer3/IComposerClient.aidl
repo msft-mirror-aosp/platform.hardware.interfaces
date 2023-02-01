@@ -17,6 +17,8 @@
 package android.hardware.graphics.composer3;
 
 import android.hardware.graphics.common.DisplayDecorationSupport;
+import android.hardware.graphics.common.HdrConversionCapability;
+import android.hardware.graphics.common.HdrConversionStrategy;
 import android.hardware.graphics.common.Transform;
 import android.hardware.graphics.composer3.ClientTargetProperty;
 import android.hardware.graphics.composer3.ColorMode;
@@ -32,6 +34,7 @@ import android.hardware.graphics.composer3.DisplayIdentification;
 import android.hardware.graphics.composer3.FormatColorComponent;
 import android.hardware.graphics.composer3.HdrCapabilities;
 import android.hardware.graphics.composer3.IComposerCallback;
+import android.hardware.graphics.composer3.OverlayProperties;
 import android.hardware.graphics.composer3.PerFrameMetadataKey;
 import android.hardware.graphics.composer3.PowerMode;
 import android.hardware.graphics.composer3.ReadbackBufferAttributes;
@@ -814,4 +817,35 @@ interface IComposerClient {
      *
      */
     void setIdleTimerEnabled(long display, int timeoutMs);
+
+    /**
+     * Hardware overlays is a technique to composite different buffers directly to the screen
+     * while bypassing GPU composition.
+     *
+     * This function returns what the device's overlays support.
+     *
+     * @return the overlay properties of the device.
+     */
+    OverlayProperties getOverlaySupport();
+
+    /**
+     * Returns the array of HDR conversion capability. Each HdrConversionCapability depicts that
+     * HDR conversion is possible from sourceType to outputType. This doesn't change after
+     * initialization.
+     *
+     * @exception EX_UNSUPPORTED when not supported by the underlying HAL
+     *
+     * @see setHdrConversionStrategy
+     */
+    HdrConversionCapability[] getHdrConversionCapabilities();
+
+    /**
+     * Sets the of HDR conversion strategy.
+     *
+     *
+     * @exception EX_UNSUPPORTED when not supported by the underlying HAL
+     *
+     * @see getHdrConversionCapabilities
+     */
+    void setHdrConversionStrategy(in HdrConversionStrategy conversionStrategy);
 }

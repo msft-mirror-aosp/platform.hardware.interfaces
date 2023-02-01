@@ -356,7 +356,7 @@ TEST_P(RadioNetworkTest, setSignalStrengthReportingCriteria_Geran) {
 /*
  * Test IRadioNetwork.setSignalStrengthReportingCriteria() for UTRAN
  */
-TEST_P(RadioNetworkTest, setSignalStrengthReportingCriteria_Utran) {
+TEST_P(RadioNetworkTest, setSignalStrengthReportingCriteria_Utran_Rscp) {
     serial = GetRandomSerialNumber();
 
     SignalThresholdInfo signalThresholdInfo;
@@ -377,6 +377,33 @@ TEST_P(RadioNetworkTest, setSignalStrengthReportingCriteria_Utran) {
     ALOGI("setSignalStrengthReportingCriteria_Utran, rspInfo.error = %s\n",
           toString(radioRsp_network->rspInfo.error).c_str());
     ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error, {RadioError::NONE}));
+}
+
+/*
+ * Test IRadioNetwork.setSignalStrengthReportingCriteria() for UTRAN
+ */
+TEST_P(RadioNetworkTest, setSignalStrengthReportingCriteria_Utran_Ecno) {
+    serial = GetRandomSerialNumber();
+
+    SignalThresholdInfo signalThresholdInfo;
+    signalThresholdInfo.signalMeasurement = SignalThresholdInfo::SIGNAL_MEASUREMENT_TYPE_ECNO;
+    signalThresholdInfo.hysteresisMs = 5000;
+    signalThresholdInfo.hysteresisDb = 2;
+    signalThresholdInfo.thresholds = {-22, -18, 0};
+    signalThresholdInfo.isEnabled = true;
+    signalThresholdInfo.ran = AccessNetwork::UTRAN;
+
+    ndk::ScopedAStatus res =
+            radio_network->setSignalStrengthReportingCriteria(serial, {signalThresholdInfo});
+    ASSERT_OK(res);
+    EXPECT_EQ(std::cv_status::no_timeout, wait());
+    EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_network->rspInfo.type);
+    EXPECT_EQ(serial, radioRsp_network->rspInfo.serial);
+
+    ALOGI("setSignalStrengthReportingCriteria_Utran, rspInfo.error = %s\n",
+          toString(radioRsp_network->rspInfo.error).c_str());
+    ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error,
+                                 {RadioError::NONE, RadioError::REQUEST_NOT_SUPPORTED}));
 }
 
 /*
@@ -1499,11 +1526,12 @@ TEST_P(RadioNetworkTest, getDataRegistrationState) {
     // Check for access technology specific info
     AccessTechnologySpecificInfo info = radioRsp_network->dataRegResp.accessTechnologySpecificInfo;
     RadioTechnology rat = radioRsp_network->dataRegResp.rat;
+
     // TODO: add logic for cdmaInfo
-    if (rat == RadioTechnology::LTE || rat == RadioTechnology::LTE_CA) {
+    if (rat == RadioTechnology::LTE) {
         ASSERT_EQ(info.getTag(), AccessTechnologySpecificInfo::eutranInfo);
     } else if (rat == RadioTechnology::NR) {
-        ASSERT_EQ(info.getTag(), AccessTechnologySpecificInfo::ngranNrVopsInfo);
+        ASSERT_TRUE(info.getTag() == AccessTechnologySpecificInfo::ngranNrVopsInfo);
     }
 }
 
@@ -1832,4 +1860,169 @@ TEST_P(RadioNetworkTest, supplyNetworkDepersonalization) {
                  RadioError::PASSWORD_INCORRECT, RadioError::SIM_ABSENT, RadioError::SYSTEM_ERR}));
     }
     LOG(DEBUG) << "supplyNetworkDepersonalization finished";
+}
+
+/*
+ * Test IRadioNetwork.setEmergencyMode() for the response returned.
+ */
+TEST_P(RadioNetworkTest, setEmergencyMode) {
+    LOG(DEBUG) << "setEmergencyMode";
+    serial = GetRandomSerialNumber();
+
+    radio_network->setEmergencyMode(serial, EmergencyMode::EMERGENCY_WWAN);
+    EXPECT_EQ(std::cv_status::no_timeout, wait());
+    EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_network->rspInfo.type);
+    EXPECT_EQ(serial, radioRsp_network->rspInfo.serial);
+
+    ASSERT_TRUE(CheckAnyOfErrors(
+            radioRsp_network->rspInfo.error,
+            {RadioError::NONE, RadioError::REQUEST_NOT_SUPPORTED, RadioError::RADIO_NOT_AVAILABLE,
+             RadioError::MODEM_ERR, RadioError::INVALID_ARGUMENTS}));
+    LOG(DEBUG) << "setEmergencyMode finished";
+}
+
+/*
+ * Test IRadioNetwork.triggerEmergencyNetworkScan() for the response returned.
+ */
+TEST_P(RadioNetworkTest, triggerEmergencyNetworkScan) {
+    LOG(DEBUG) << "triggerEmergencyNetworkScan";
+    serial = GetRandomSerialNumber();
+
+    EmergencyNetworkScanTrigger scanRequest;
+    scanRequest.accessNetwork = {AccessNetwork::EUTRAN};
+    scanRequest.scanType = EmergencyScanType::NO_PREFERENCE;
+
+    radio_network->triggerEmergencyNetworkScan(serial, scanRequest);
+    EXPECT_EQ(std::cv_status::no_timeout, wait());
+    EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_network->rspInfo.type);
+    EXPECT_EQ(serial, radioRsp_network->rspInfo.serial);
+
+    ASSERT_TRUE(CheckAnyOfErrors(
+            radioRsp_network->rspInfo.error,
+            {RadioError::NONE, RadioError::REQUEST_NOT_SUPPORTED, RadioError::RADIO_NOT_AVAILABLE,
+             RadioError::MODEM_ERR, RadioError::INVALID_ARGUMENTS}));
+    LOG(DEBUG) << "triggerEmergencyNetworkScan finished";
+}
+
+/*
+ * Test IRadioNetwork.cancelEmergencyNetworkScan() for the response returned.
+ */
+TEST_P(RadioNetworkTest, cancelEmergencyNetworkScan) {
+    LOG(DEBUG) << "cancelEmergencyNetworkScan";
+    serial = GetRandomSerialNumber();
+
+    radio_network->cancelEmergencyNetworkScan(serial, true);
+    EXPECT_EQ(std::cv_status::no_timeout, wait());
+    EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_network->rspInfo.type);
+    EXPECT_EQ(serial, radioRsp_network->rspInfo.serial);
+
+    ASSERT_TRUE(CheckAnyOfErrors(
+            radioRsp_network->rspInfo.error,
+            {RadioError::NONE, RadioError::REQUEST_NOT_SUPPORTED, RadioError::RADIO_NOT_AVAILABLE,
+             RadioError::MODEM_ERR}));
+    LOG(DEBUG) << "cancelEmergencyNetworkScan finished";
+}
+
+/*
+ * Test IRadioNetwork.exitEmergencyMode() for the response returned.
+ */
+TEST_P(RadioNetworkTest, exitEmergencyMode) {
+    LOG(DEBUG) << "exitEmergencyMode";
+    serial = GetRandomSerialNumber();
+
+    radio_network->exitEmergencyMode(serial);
+    EXPECT_EQ(std::cv_status::no_timeout, wait());
+    EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_network->rspInfo.type);
+    EXPECT_EQ(serial, radioRsp_network->rspInfo.serial);
+
+    ASSERT_TRUE(CheckAnyOfErrors(
+            radioRsp_network->rspInfo.error,
+            {RadioError::NONE, RadioError::REQUEST_NOT_SUPPORTED, RadioError::RADIO_NOT_AVAILABLE,
+             RadioError::MODEM_ERR}));
+    LOG(DEBUG) << "exitEmergencyMode finished";
+}
+
+/*
+ * Test IRadioNetwork.setN1ModeEnabled() for the response returned.
+ */
+TEST_P(RadioNetworkTest, setN1ModeEnabled) {
+    serial = GetRandomSerialNumber();
+
+    ndk::ScopedAStatus res =
+            radio_network->setN1ModeEnabled(serial, false);
+    ASSERT_OK(res);
+
+    EXPECT_EQ(std::cv_status::no_timeout, wait());
+    EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_network->rspInfo.type);
+    EXPECT_EQ(serial, radioRsp_network->rspInfo.serial);
+    if (getRadioHalCapabilities()) {
+        ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error,
+                                     {RadioError::REQUEST_NOT_SUPPORTED}));
+    } else {
+        ASSERT_TRUE(CheckAnyOfErrors(
+                radioRsp_network->rspInfo.error,
+                {RadioError::RADIO_NOT_AVAILABLE, RadioError::INTERNAL_ERR,
+                 RadioError::INVALID_STATE, RadioError::REQUEST_NOT_SUPPORTED, RadioError::NONE}));
+    }
+}
+
+/*
+ * Test IRadioNetwork.isN1ModeEnabled() for the response returned.
+ */
+TEST_P(RadioNetworkTest, isN1ModeEnabled) {
+    serial = GetRandomSerialNumber();
+
+    ndk::ScopedAStatus res = radio_network->isN1ModeEnabled(serial);
+    ASSERT_OK(res);
+
+    EXPECT_EQ(std::cv_status::no_timeout, wait());
+    EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_network->rspInfo.type);
+    EXPECT_EQ(serial, radioRsp_network->rspInfo.serial);
+    if (getRadioHalCapabilities()) {
+        ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error,
+                                     {RadioError::REQUEST_NOT_SUPPORTED}));
+    } else {
+        ASSERT_TRUE(CheckAnyOfErrors(
+                radioRsp_network->rspInfo.error,
+                {RadioError::RADIO_NOT_AVAILABLE, RadioError::INTERNAL_ERR,
+                 RadioError::REQUEST_NOT_SUPPORTED, RadioError::NONE}));
+    }
+}
+
+/*
+ * Test IRadioNetwork.setNullCipherAndIntegrityEnabled() for the response returned.
+ */
+TEST_P(RadioNetworkTest, setNullCipherAndIntegrityEnabled) {
+    LOG(DEBUG) << "setNullCipherAndIntegrityEnabled";
+    serial = GetRandomSerialNumber();
+
+    radio_network->setNullCipherAndIntegrityEnabled(serial, false);
+    EXPECT_EQ(std::cv_status::no_timeout, wait());
+    EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_network->rspInfo.type);
+    EXPECT_EQ(serial, radioRsp_network->rspInfo.serial);
+
+    ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error,
+                                 {RadioError::NONE, RadioError::REQUEST_NOT_SUPPORTED,
+                                  RadioError::RADIO_NOT_AVAILABLE, RadioError::MODEM_ERR}));
+    LOG(DEBUG) << "setNullCipherAndIntegrityEnabled finished";
+}
+
+/**
+ * Test IRadioNetwork.isNullCipherAndIntegrityEnabled() for the response returned.
+ */
+TEST_P(RadioNetworkTest, isNullCipherAndIntegrityEnabled) {
+    LOG(DEBUG) << "isNullCipherAndIntegrityEnabled";
+    serial = GetRandomSerialNumber();
+
+    ndk::ScopedAStatus res = radio_network->isNullCipherAndIntegrityEnabled(serial);
+    ASSERT_OK(res);
+
+    EXPECT_EQ(std::cv_status::no_timeout, wait());
+    EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_network->rspInfo.type);
+    EXPECT_EQ(serial, radioRsp_network->rspInfo.serial);
+
+    ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error,
+                                 {RadioError::NONE, RadioError::RADIO_NOT_AVAILABLE,
+                                  RadioError::MODEM_ERR, RadioError::REQUEST_NOT_SUPPORTED}));
+    LOG(DEBUG) << "isNullCipherAndIntegrityEnabled finished";
 }

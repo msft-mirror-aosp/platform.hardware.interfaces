@@ -12,18 +12,14 @@ aidl_interface {
     vendor_available: true,
     host_supported: true,
     srcs: ["android/hardware/radio/*.aidl"],
+    frozen: false,
     stability: "vintf",
     backend: {
         cpp: {
-            enabled: false,
+            enabled: true,
         },
         java: {
             sdk_version: "module_current",
-        },
-        ndk: {
-            vndk: {
-                enabled: true,
-            },
         },
     },
     versions_with_info: [
@@ -40,19 +36,15 @@ aidl_interface {
     vendor_available: true,
     host_supported: true,
     srcs: ["android/hardware/radio/config/*.aidl"],
+    frozen: false,
     stability: "vintf",
-    imports: ["android.hardware.radio"],
+    imports: ["android.hardware.radio-V2"],
     backend: {
         cpp: {
-            enabled: false,
+            enabled: true,
         },
         java: {
             sdk_version: "module_current",
-        },
-        ndk: {
-            vndk: {
-                enabled: true,
-            },
         },
     },
     versions_with_info: [
@@ -70,18 +62,13 @@ aidl_interface {
     host_supported: true,
     srcs: ["android/hardware/radio/data/*.aidl"],
     stability: "vintf",
-    imports: ["android.hardware.radio"],
+    imports: ["android.hardware.radio-V2"],
     backend: {
         cpp: {
-            enabled: false,
+            enabled: true,
         },
         java: {
             sdk_version: "module_current",
-        },
-        ndk: {
-            vndk: {
-                enabled: true,
-            },
         },
     },
     versions_with_info: [
@@ -99,18 +86,13 @@ aidl_interface {
     host_supported: true,
     srcs: ["android/hardware/radio/messaging/*.aidl"],
     stability: "vintf",
-    imports: ["android.hardware.radio"],
+    imports: ["android.hardware.radio-V2"],
     backend: {
         cpp: {
-            enabled: false,
+            enabled: true,
         },
         java: {
             sdk_version: "module_current",
-        },
-        ndk: {
-            vndk: {
-                enabled: true,
-            },
         },
     },
     versions_with_info: [
@@ -128,18 +110,13 @@ aidl_interface {
     host_supported: true,
     srcs: ["android/hardware/radio/modem/*.aidl"],
     stability: "vintf",
-    imports: ["android.hardware.radio"],
+    imports: ["android.hardware.radio-V2"],
     backend: {
         cpp: {
-            enabled: false,
+            enabled: true,
         },
         java: {
             sdk_version: "module_current",
-        },
-        ndk: {
-            vndk: {
-                enabled: true,
-            },
         },
     },
     versions_with_info: [
@@ -157,18 +134,13 @@ aidl_interface {
     host_supported: true,
     srcs: ["android/hardware/radio/network/*.aidl"],
     stability: "vintf",
-    imports: ["android.hardware.radio"],
+    imports: ["android.hardware.radio-V2"],
     backend: {
         cpp: {
-            enabled: false,
+            enabled: true,
         },
         java: {
             sdk_version: "module_current",
-        },
-        ndk: {
-            vndk: {
-                enabled: true,
-            },
         },
     },
     versions_with_info: [
@@ -181,26 +153,43 @@ aidl_interface {
 }
 
 aidl_interface {
+    name: "android.hardware.radio.sap",
+    vendor_available: true,
+    host_supported: true,
+    srcs: ["android/hardware/radio/sap/*.aidl"],
+    stability: "vintf",
+    backend: {
+        cpp: {
+            enabled: true,
+        },
+        java: {
+            apex_available: [
+                "//apex_available:platform",
+                "com.android.btservices",
+            ],
+            sdk_version: "module_current",
+            min_sdk_version: "Tiramisu",
+        },
+    },
+
+}
+
+aidl_interface {
     name: "android.hardware.radio.sim",
     vendor_available: true,
     host_supported: true,
     srcs: ["android/hardware/radio/sim/*.aidl"],
     stability: "vintf",
     imports: [
-        "android.hardware.radio",
-        "android.hardware.radio.config",
+        "android.hardware.radio-V2",
+        "android.hardware.radio.config-V2",
     ],
     backend: {
         cpp: {
-            enabled: false,
+            enabled: true,
         },
         java: {
             sdk_version: "module_current",
-        },
-        ndk: {
-            vndk: {
-                enabled: true,
-            },
         },
     },
     versions_with_info: [
@@ -221,18 +210,13 @@ aidl_interface {
     host_supported: true,
     srcs: ["android/hardware/radio/voice/*.aidl"],
     stability: "vintf",
-    imports: ["android.hardware.radio"],
+    imports: ["android.hardware.radio-V2"],
     backend: {
         cpp: {
-            enabled: false,
+            enabled: true,
         },
         java: {
             sdk_version: "module_current",
-        },
-        ndk: {
-            vndk: {
-                enabled: true,
-            },
         },
     },
     versions_with_info: [
@@ -242,4 +226,55 @@ aidl_interface {
         },
     ],
 
+}
+
+aidl_interface {
+    name: "android.hardware.radio.ims.media",
+    vendor_available: true,
+    srcs: ["android/hardware/radio/ims/media/*.aidl"],
+    stability: "vintf",
+    imports: [
+        "android.hardware.radio-V2",
+        "android.hardware.radio.data-V2",
+    ],
+    backend: {
+        cpp: {
+            enabled: false,
+        },
+        java: {
+            sdk_version: "module_current",
+        },
+    },
+}
+
+aidl_interface {
+    name: "android.hardware.radio.ims",
+    vendor_available: true,
+    srcs: ["android/hardware/radio/ims/*.aidl"],
+    stability: "vintf",
+    imports: ["android.hardware.radio-V2"],
+    backend: {
+        cpp: {
+            enabled: false,
+        },
+        java: {
+            sdk_version: "module_current",
+        },
+    },
+}
+
+aidl_interface {
+    name: "android.hardware.radio.satellite",
+    vendor_available: true,
+    srcs: ["android/hardware/radio/satellite/*.aidl"],
+    stability: "vintf",
+    imports: ["android.hardware.radio-V2"],
+    backend: {
+        cpp: {
+            enabled: false,
+        },
+        java: {
+            sdk_version: "module_current",
+        },
+    },
 }

@@ -141,7 +141,7 @@ class DefaultVhalImplTest : public ::testing::Test {
 TEST_F(DefaultVhalImplTest, testListProperties) {
     std::vector<VehiclePropConfig> configs = mHal->listProperties();
 
-    EXPECT_EQ((size_t)121, configs.size());
+    EXPECT_EQ((size_t)124, configs.size());
 }
 
 TEST_F(DefaultVhalImplTest, testGetDefaultPropertyFloat) {
@@ -402,7 +402,7 @@ TEST_F(DefaultVhalImplTest, testDump) {
     gotValue->timestamp = 0;
 
     std::string infoMake = toString(*gotValue);
-    EXPECT_THAT(std::string(buf), HasSubstr(infoMake));
+    EXPECT_THAT(std::string(buf, sizeof(buf)), HasSubstr(infoMake));
 }
 
 TEST_F(DefaultVhalImplTest, testSetPropInvalidAreaId) {

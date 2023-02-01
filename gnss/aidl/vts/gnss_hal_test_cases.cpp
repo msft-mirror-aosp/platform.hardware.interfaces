@@ -173,6 +173,7 @@ TEST_P(GnssHalTest, InjectSeedLocation) {
  * GnssCapabilities:
  * 1. Verifies that GNSS hardware supports measurement capabilities.
  * 2. Verifies that GNSS hardware supports Scheduling capabilities.
+ * 3. Verifies that GNSS hardware supports non-empty signal type capabilities.
  */
 TEST_P(GnssHalTest, GnssCapabilites) {
     if (aidl_gnss_hal_->getInterfaceVersion() <= 1) {
@@ -182,6 +183,10 @@ TEST_P(GnssHalTest, GnssCapabilites) {
         EXPECT_TRUE(aidl_gnss_cb_->last_capabilities_ & IGnssCallback::CAPABILITY_MEASUREMENTS);
     }
     EXPECT_TRUE(aidl_gnss_cb_->last_capabilities_ & IGnssCallback::CAPABILITY_SCHEDULING);
+    if (aidl_gnss_hal_->getInterfaceVersion() <= 2) {
+        return;
+    }
+    EXPECT_FALSE(aidl_gnss_cb_->last_signal_type_capabilities.empty());
 }
 
 /*
@@ -525,6 +530,11 @@ TEST_P(GnssHalTest, TestGnssPowerIndication) {
             gnssPowerIndicationCallback->last_capabilities_, kTimeoutSec));
 
     EXPECT_EQ(gnssPowerIndicationCallback->capabilities_cbq_.calledCount(), 1);
+
+    if (gnssPowerIndicationCallback->last_capabilities_ == 0) {
+        // Skipping the test since GnssPowerIndication is not supported.
+        return;
+    }
 
     // Request and verify a GnssPowerStats is received
     gnssPowerIndicationCallback->gnss_power_stats_cbq_.reset();
@@ -1077,6 +1087,7 @@ TEST_P(GnssHalTest, TestAGnssExtension) {
  * 2. Sets AGnssRilCallback.
  * 3. Update network state to connected and then disconnected.
  * 4. Sets reference location.
+ * 5. Injects empty NI message data and verifies that it returns an error.
  */
 TEST_P(GnssHalTest, TestAGnssRilExtension) {
     if (aidl_gnss_hal_->getInterfaceVersion() <= 1) {
@@ -1120,6 +1131,9 @@ TEST_P(GnssHalTest, TestAGnssRilExtension) {
 
     status = iAGnssRil->setRefLocation(agnssReflocation);
     ASSERT_TRUE(status.isOk());
+
+    status = iAGnssRil->injectNiSuplMessageData(std::vector<uint8_t>(), 0);
+    ASSERT_FALSE(status.isOk());
 }
 
 /*
@@ -1462,7 +1476,7 @@ TEST_P(GnssHalTest, TestGnssMeasurementIntervals_LocationOnBeforeMeasurement) {
 /*
  * TestGnssMeasurementIntervals:
  * 1. start measurement with interval
- * 2. verify that the received measurement intervals have expected mean and stdev
+ * 2. verify that the received measurement intervals have expected mean and stddev
  */
 TEST_P(GnssHalTest, TestGnssMeasurementIntervals_LocationOnAfterMeasurement) {
     if (aidl_gnss_hal_->getInterfaceVersion() <= 1) {
@@ -1493,4 +1507,137 @@ TEST_P(GnssHalTest, TestGnssMeasurementIntervals_LocationOnAfterMeasurement) {
 
         assertMeanAndStdev(locationIntervalMs, deltas);
     }
+}
+
+/*
+ * TestGnssMeasurementSetCallback:
+ * This test ensures setCallback() can be called consecutively without close().
+ * 1. Start measurement with 20s interval and wait for 1 measurement.
+ * 2. Start measurement with 1s interval and wait for 5 measurements.
+ *    Verify the measurements were received at 1Hz.
+ */
+TEST_P(GnssHalTest, TestGnssMeasurementSetCallback) {
+    if (aidl_gnss_hal_->getInterfaceVersion() <= 2) {
+        return;
+    }
+    const int kFirstGnssMeasurementTimeoutSeconds = 10;
+    sp<IGnssMeasurementInterface> iGnssMeasurement;
+    auto status = aidl_gnss_hal_->getExtensionGnssMeasurement(&iGnssMeasurement);
+    ASSERT_TRUE(status.isOk());
+    ASSERT_TRUE(iGnssMeasurement != nullptr);
+
+    ALOGD("TestGnssMeasurementSetCallback");
+    auto callback = sp<GnssMeasurementCallbackAidl>::make();
+    std::vector<int> deltas;
+
+    // setCallback at 20s interval and wait for 1 measurement
+    startMeasurementWithInterval(20000, iGnssMeasurement, callback);
+    collectMeasurementIntervals(callback, /* numEvents= */ 1, kFirstGnssMeasurementTimeoutSeconds,
+                                deltas);
+
+    // setCallback at 1s interval and wait for 5 measurements
+    callback->gnss_data_cbq_.reset();
+    startMeasurementWithInterval(1000, iGnssMeasurement, callback);
+    collectMeasurementIntervals(callback, /* numEvents= */ 5, kFirstGnssMeasurementTimeoutSeconds,
+                                deltas);
+
+    // verify the measurements were received at 1Hz
+    assertMeanAndStdev(1000, deltas);
+
+    status = iGnssMeasurement->close();
+    ASSERT_TRUE(status.isOk());
+}
+
+/*
+ * TestGnssMeasurementIsFullTracking
+ * 1. Start measurement with enableFullTracking=true. Verify the received measurements have
+ *    isFullTracking=true.
+ * 2. Start measurement with enableFullTracking = false. Verify the received measurements have
+ *    isFullTracking=false.
+ * 3. Do step 1 again.
+ */
+TEST_P(GnssHalTest, TestGnssMeasurementIsFullTracking) {
+    // GnssData.isFullTracking is added in the interface version 3
+    if (aidl_gnss_hal_->getInterfaceVersion() <= 2) {
+        return;
+    }
+    const int kFirstGnssMeasurementTimeoutSeconds = 10;
+    const int kNumMeasurementEvents = 5;
+    std::vector<bool> isFullTrackingList({true, false, true});
+
+    sp<IGnssMeasurementInterface> iGnssMeasurement;
+    auto status = aidl_gnss_hal_->getExtensionGnssMeasurement(&iGnssMeasurement);
+    ASSERT_TRUE(status.isOk());
+    ASSERT_TRUE(iGnssMeasurement != nullptr);
+
+    ALOGD("TestGnssMeasurementIsFullTracking");
+    auto callback = sp<GnssMeasurementCallbackAidl>::make();
+    IGnssMeasurementInterface::Options options;
+    options.intervalMs = 1000;
+
+    for (auto isFullTracking : isFullTrackingList) {
+        options.enableFullTracking = isFullTracking;
+
+        callback->gnss_data_cbq_.reset();
+        auto status = iGnssMeasurement->setCallbackWithOptions(callback, options);
+        checkGnssDataFields(callback, kNumMeasurementEvents, kFirstGnssMeasurementTimeoutSeconds,
+                            isFullTracking);
+    }
+
+    status = iGnssMeasurement->close();
+    ASSERT_TRUE(status.isOk());
+}
+
+/*
+ * TestAccumulatedDeltaRange:
+ * 1. Gets the GnssMeasurementExtension and verifies that it returns a non-null extension.
+ * 2. Start measurement with 1s interval and wait for up to 15 measurements.
+ * 3. Verify at least one measurement has a valid AccumulatedDeltaRange state.
+ */
+TEST_P(GnssHalTest, TestAccumulatedDeltaRange) {
+    if (aidl_gnss_hal_->getInterfaceVersion() <= 2) {
+        return;
+    }
+    if ((aidl_gnss_cb_->last_capabilities_ & IGnssCallback::CAPABILITY_ACCUMULATED_DELTA_RANGE) ==
+        0) {
+        return;
+    }
+
+    ALOGD("TestAccumulatedDeltaRange");
+
+    auto callback = sp<GnssMeasurementCallbackAidl>::make();
+    sp<IGnssMeasurementInterface> iGnssMeasurement;
+    auto status = aidl_gnss_hal_->getExtensionGnssMeasurement(&iGnssMeasurement);
+    ASSERT_TRUE(status.isOk());
+    ASSERT_TRUE(iGnssMeasurement != nullptr);
+
+    IGnssMeasurementInterface::Options options;
+    options.intervalMs = 1000;
+    options.enableFullTracking = true;
+    status = iGnssMeasurement->setCallbackWithOptions(callback, options);
+    ASSERT_TRUE(status.isOk());
+
+    bool accumulatedDeltaRangeFound = false;
+    const int kNumMeasurementEvents = 15;
+
+    // setCallback at 1s interval and wait for 15 measurements
+    for (int i = 0; i < kNumMeasurementEvents; i++) {
+        GnssData lastGnssData;
+        ASSERT_TRUE(callback->gnss_data_cbq_.retrieve(lastGnssData, 10));
+        EXPECT_EQ(callback->gnss_data_cbq_.calledCount(), i + 1);
+        ASSERT_TRUE(lastGnssData.measurements.size() > 0);
+
+        // Validity check GnssData fields
+        checkGnssMeasurementClockFields(lastGnssData);
+        for (const auto& measurement : lastGnssData.measurements) {
+            if ((measurement.accumulatedDeltaRangeState & measurement.ADR_STATE_VALID) > 0) {
+                accumulatedDeltaRangeFound = true;
+                break;
+            }
+        }
+        if (accumulatedDeltaRangeFound) break;
+    }
+    ASSERT_TRUE(accumulatedDeltaRangeFound);
+    status = iGnssMeasurement->close();
+    ASSERT_TRUE(status.isOk());
 }
