@@ -166,7 +166,8 @@ class VtsComposerClient {
     std::pair<ScopedAStatus, std::vector<common::HdrConversionCapability>>
     getHdrConversionCapabilities();
 
-    ScopedAStatus setHdrConversionStrategy(const common::HdrConversionStrategy& conversionStrategy);
+    std::pair<ScopedAStatus, common::Hdr> setHdrConversionStrategy(
+            const common::HdrConversionStrategy& conversionStrategy);
 
     std::pair<ScopedAStatus, common::Transform> getDisplayPhysicalOrientation(int64_t display);
 
@@ -195,6 +196,9 @@ class VtsComposerClient {
     bool destroyAllLayers();
 
     bool verifyComposerCallbackParams();
+
+    ndk::ScopedAStatus setRefreshRateChangedCallbackDebugEnabled(int64_t /* display */,
+                                                                 bool /* enabled */);
 
     // Keep track of displays and layers. When a test fails/ends,
     // the VtsComposerClient::tearDown should be called from the

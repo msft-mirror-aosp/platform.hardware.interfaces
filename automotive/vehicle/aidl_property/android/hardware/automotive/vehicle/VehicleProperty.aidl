@@ -2092,6 +2092,46 @@ enum VehicleProperty {
     WINDOW_LOCK = 0x0BC4 + 0x10000000 + 0x03000000
             + 0x00200000, // VehiclePropertyGroup:SYSTEM,VehicleArea:WINDOW,VehiclePropertyType:BOOLEAN
     /**
+     * Windshield wipers period (milliseconds).
+     *
+     * Returns the instantaneous time period for 1 full cycle of the windshield wipers in
+     * milliseconds. A full cycle is defined as a wiper moving from and returning to its rest
+     * position.
+     *
+     * When an intermittent wiper setting is selected, this property value must be set to 0 during
+     * the "pause" period of the intermittent wiping.
+     *
+     * The maxInt32Value for each area ID must specify the longest wiper period. The minInt32Value
+     * must be set to 0 for each area ID.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     */
+    WINDSHIELD_WIPERS_PERIOD =
+            0x0BC5 + VehiclePropertyGroup.SYSTEM + VehicleArea.WINDOW + VehiclePropertyType.INT32,
+
+    /**
+     * Windshield wipers state.
+     *
+     * Returns the current state of the windshield wipers. The value of WINDSHIELD_WIPERS_STATE may
+     * not match the value of WINDSHIELD_WIPERS_SWITCH. (e.g. WINDSHIELD_WIPERS_STATE = ON and
+     * WINDSHIELD_WIPERS_SWITCH = WindshieldWipersSwitch#AUTO).
+     *
+     * If WINDSHIELD_WIPERS_STATE = ON and WINDSHIELD_WIPERS_PERIOD is implemented, then
+     * WINDSHIELD_WIPERS_PERIOD must reflect the time period of 1 full cycle of the wipers.
+     *
+     * For each supported area ID, the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states in WindshieldWipersState are supported (including OTHER, which is not
+     * recommended).
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum WindshieldWipersState
+     */
+    WINDSHIELD_WIPERS_STATE =
+            0x0BC6 + VehiclePropertyGroup.SYSTEM + VehicleArea.WINDOW + VehiclePropertyType.INT32,
+
+    /**
      * Steering wheel depth position
      *
      * All steering wheel properties' unique ids start from 0x0BE0.
@@ -2196,6 +2236,44 @@ enum VehicleProperty {
      */
     STEERING_WHEEL_EASY_ACCESS_ENABLED =
             0x0BE6 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+    /**
+     * Property that represents the current position of the glove box door.
+     *
+     * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
+     * The minInt32Value must be 0.
+     * All integers between minInt32Value and maxInt32Value must be supported.
+     *
+     * minInt32Value indicates that the glove box door is closed.
+     * maxInt32Value indicates that the glove box door is in the fully open position.
+     *
+     * Values in between minInt32Value and maxInt32Value indicate a transition state between the
+     * closed and fully open positions.
+     *
+     * The area ID must match the seat by which the glove box is intended to be used  (e.g. if the
+     * front right dashboard has a glove box embedded in it, then the area ID should be
+     * SEAT_1_RIGHT).
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     */
+    GLOVE_BOX_DOOR_POS =
+            0x0BF0 + VehiclePropertyGroup.SYSTEM + VehicleArea.SEAT + VehiclePropertyType.INT32,
+
+    /**
+     * Lock or unlock the glove box.
+     *
+     * If true, the glove box is locked. If false, the glove box is unlocked.
+     *
+     * The area ID must match the seat by which the glove box is intended to be used (e.g. if the
+     * front right dashboard has a glove box embedded in it, then the area ID should be
+     * VehicleAreaSeat#ROW_1_RIGHT).
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     */
+    GLOVE_BOX_LOCKED =
+            0x0BF1 + VehiclePropertyGroup.SYSTEM + VehicleArea.SEAT + VehiclePropertyType.BOOLEAN,
+
     /**
      * Vehicle Maps Service (VMS) message
      *
@@ -3418,10 +3496,45 @@ enum VehicleProperty {
     SHUTDOWN_REQUEST =
             0x0F49 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
 
-    /***************************************************************************
+    /**
+     * Whether the vehicle is currently in use.
+     *
+     * <p>In-use means a human user is present and is intended to use the vehicle. This doesn't
+     * necessarily means the human user is in the vehicle. For example, if the human user unlocks
+     * the vehicle remotely, the vehicle is considered in use.
+     *
+     * <p>If this property is supported:
+     *
+     * <p>Each time user powers on the vehicle or the system detects the user is present,
+     * VEHICLE_IN_USE must be set to true. Each time user powers off the vehicle or the system
+     * detects the user is not present, VEHICLE_IN_USE must be set to false.
+     *
+     * <p>This property is different than AP_POWER_BOOTUP_REASON in the sense that
+     * AP_POWER_BOOTUP_REASON is only set once during the system bootup. However, this property
+     * might change multiple times during a system bootup cycle.
+     *
+     * <p>For example, a device is currently not in use. The system bootup to execute a remote task.
+     * VEHICLE_IN_USE is false. While the remote task is executing, the user enters the vehicle and
+     * powers on the vehicle. VEHICLE_IN_USE is set to true. After a driving session, user powers
+     * off the vehicle, VEHICLE_IN_USE is set to false.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     */
+    VEHICLE_IN_USE =
+            0x0F4A + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+
+    /***********************************************************************************************
      * Start of ADAS Properties
+     *
+     * Android is not a safety critical system and is provided as is without any timing guarantees,
+     * representations or warranties. OEMs implementing these properties, and clients using these
+     * properties should ensure they complete any necessary safety reviews, in accordance with
+     * industry standards, to ensure the use of these APIs do not negatively impact driver safety.
+     * Use of any Google APIs will be at the OEM's sole risk.
+     *
      * Allocate IDs in range of 0x1000 (inclusive) to 0x1100 (exclusive) for ADAS properties
-     **************************************************************************/
+     **********************************************************************************************/
 
     /**
      * Enable or disable automatic emergency braking (AEB).
@@ -3429,9 +3542,10 @@ enum VehicleProperty {
      * Set true to enable AEB and false to disable AEB. When AEB is enabled, the ADAS system in the
      * vehicle should be turned on and monitoring to avoid potential collisions.
      *
-     * If AEB is not available, IVehicle#get must not return any NOT_AVAILABLE value in StatusCode.
-     * Other StatusCode values like TRY_AGAIN may still be used as needed. For example, if AEB is
-     * not available because the vehicle speed is too low, IVehicle#get must return false.
+     * In general, AUTOMATIC_EMERGENCY_BRAKING_ENABLED should always return true or false. If the
+     * feature is not available due to some temporary state, such as the vehicle speed being too
+     * low, that information must be conveyed through the ErrorState values in the
+     * AUTOMATIC_EMERGENCY_BRAKING_STATE property.
      *
      * This property is defined as read_write, but OEMs have the option to implement it as read
      * only.
@@ -3470,9 +3584,10 @@ enum VehicleProperty {
      * Set true to enable FCW and false to disable FCW. When FCW is enabled, the ADAS system in the
      * vehicle should be turned on and monitoring for potential collisions.
      *
-     * If FCW is not available, IVehicle#get must not return any NOT_AVAILABLE value in StatusCode.
-     * Other StatusCode values like TRY_AGAIN may still be used as needed. For example, if FCW is
-     * not available because the vehicle speed is too low, IVehicle#get must return false.
+     * In general, FORWARD_COLLISION_WARNING_ENABLED should always return true or false. If the
+     * feature is not available due to some temporary state, such as the vehicle speed being too
+     * low, that information must be conveyed through the ErrorState values in the
+     * FORWARD_COLLISION_WARNING_STATE property.
      *
      * This property is defined as read_write, but OEMs have the option to implement it as read
      * only.
@@ -3508,9 +3623,10 @@ enum VehicleProperty {
      * Set true to enable BSW and false to disable BSW. When BSW is enabled, the ADAS system in the
      * vehicle should be turned on and monitoring for objects in the vehicle’s blind spots.
      *
-     * If BSW is not available, IVehicle#get must not return any NOT_AVAILABLE value in StatusCode.
-     * Other StatusCode values like TRY_AGAIN may still be used as needed. For example, if BSW is
-     * not available because the vehicle speed is too low, IVehicle#get must return false.
+     * In general, BLIND_SPOT_WARNING_ENABLED should always return true or false. If the feature is
+     * not available due to some temporary state, such as the vehicle speed being too low, that
+     * information must be conveyed through the ErrorState values in the BLIND_SPOT_WARNING_STATE
+     * property.
      *
      * This property is defined as read_write, but OEMs have the option to implement it as read
      * only.
@@ -3547,6 +3663,11 @@ enum VehicleProperty {
      * vehicle should be turned on and monitoring if the vehicle is approaching or crossing lane
      * lines, in which case a warning will be given.
      *
+     * In general, LANE_DEPARTURE_WARNING_ENABLED should always return true or false. If the feature
+     * is not available due to some temporary state, such as the vehicle speed being too low or too
+     * high, that information must be conveyed through the ErrorState values in the
+     * LANE_DEPARTURE_WARNING_STATE property.
+     *
      * This property is defined as read_write, but OEMs have the option to implement it as read
      * only.
      *
@@ -3555,6 +3676,25 @@ enum VehicleProperty {
      */
     LANE_DEPARTURE_WARNING_ENABLED =
             0x1006 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+
+    /**
+     * Lane Departure Warning (LDW) state.
+     *
+     * Returns the current state of LDW. This property must always return a valid state defined in
+     * LaneDepartureWarningState or ErrorState. It must not surface errors through StatusCode
+     * and must use the supported error states instead.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both LaneDepartureWarningState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum LaneDepartureWarningState
+     * @data_enum ErrorState
+     */
+    LANE_DEPARTURE_WARNING_STATE =
+            0x1007 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
 
     /**
      * Enable or disable Lane Keep Assist (LKA).
@@ -3567,6 +3707,11 @@ enum VehicleProperty {
      * This is different from Lane Centering Assist (LCA) which, when activated, applies continuous
      * steering control to keep the vehicle centered in the current lane.
      *
+     * In general, LANE_KEEP_ASSIST_ENABLED should always return true or false. If the feature is
+     * not available due to some temporary state, such as the vehicle speed being too low or too
+     * high, that information must be conveyed through the ErrorState values in the
+     * LANE_KEEP_ASSIST_STATE property.
+     *
      * This property is defined as read_write, but OEMs have the option to implement it as read
      * only.
      *
@@ -3575,6 +3720,28 @@ enum VehicleProperty {
      */
     LANE_KEEP_ASSIST_ENABLED =
             0x1008 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+
+    /**
+     * Lane Keep Assist (LKA) state.
+     *
+     * Returns the current state of LKA. This property must always return a valid state defined in
+     * LaneKeepAssistState or ErrorState. It must not surface errors through StatusCode
+     * and must use the supported error states instead.
+     *
+     * If LKA includes lane departure warnings before applying steering corrections, those warnings
+     * must be surfaced through the Lane Departure Warning (LDW) properties.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both LaneKeepAssistState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum LaneKeepAssistState
+     * @data_enum ErrorState
+     */
+    LANE_KEEP_ASSIST_STATE =
+            0x1009 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
 
     /**
      * Enable or disable lane centering assist (LCA).
@@ -3588,6 +3755,11 @@ enum VehicleProperty {
      * drifts toward or over the lane marking. If an unintentional lane departure is detected, the
      * system applies steering control to return the vehicle into the current lane.
      *
+     * In general, LANE_CENTERING_ASSIST_ENABLED should always return true or false. If the feature
+     * is not available due to some temporary state, such as the vehicle speed being too low or too
+     * high, that information must be conveyed through the ErrorState values in the
+     * LANE_CENTERING_ASSIST_STATE property.
+     *
      * This property is defined as read_write, but OEMs have the option to implement it as read
      * only.
      *
@@ -3596,6 +3768,52 @@ enum VehicleProperty {
      */
     LANE_CENTERING_ASSIST_ENABLED =
             0x100A + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+
+    /**
+     * Lane Centering Assist (LCA) commands.
+     *
+     * Commands to activate and suspend LCA. They are only valid when LANE_CENTERING_ASSIST_ENABLED
+     * = true. Otherwise, these commands must return StatusCode#NOT_AVAILABLE or
+     * StatusCode#NOT_AVAILABLE_DISABLED.
+     *
+     * When the command ACTIVATE from LaneCenteringAssistCommmand is sent,
+     * LANE_CENTERING_ASSIST_STATE must be set to LaneCenteringAssistState#ACTIVATION_REQUESTED.
+     * When the ACTIVATE command succeeds, LANE_CENTERING_ASSIST_STATE must be set to
+     * LaneCenteringAssistState#ACTIVATED. When the command DEACTIVATE from
+     * LaneCenteringAssistCommmand succeeds, LANE_CENTERING_ASSIST_STATE must be set to
+     * LaneCenteringAssistState#ENABLED.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues must be defined unless
+     * all enum values of LaneCenteringAssistCommand are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.WRITE
+     * @data_enum LaneCenteringAssistCommmand
+     */
+    LANE_CENTERING_ASSIST_COMMAND =
+            0x100B + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Lane Centering Assist (LCA) state.
+     *
+     * Returns the current state of LCA. This property must always return a valid state defined in
+     * LaneCenteringAssistState or ErrorState. It must not surface errors through StatusCode
+     * and must use the supported error states instead.
+     *
+     * If LCA includes lane departure warnings, those warnings must be surfaced through the Lane
+     * Departure Warning (LDW) properties.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both LaneCenteringAssistState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum LaneCenteringAssistState
+     * @data_enum ErrorState
+     */
+    LANE_CENTERING_ASSIST_STATE =
+            0x100C + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
 
     /*
      * Enable or disable emergency lane keep assist (ELKA).
@@ -3615,13 +3833,33 @@ enum VehicleProperty {
             0x100D + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
 
     /**
-     * Enable or disable adaptive cruise control (ACC).
+     * Emergency Lane Keep Assist (ELKA) state.
      *
-     * Set true to enable ACC and false to disable ACC. When ACC is enabled, the ADAS system in the
-     * vehicle should be turned on and waiting for an activation signal from the driver. Once the
-     * feature is activated, the ADAS system in the car should be accelerating and braking in a way
-     * that allows the vehicle to maintain a set speed and to maintain a set distance gap from a
-     * leading vehicle.
+     * Returns the current state of ELKA. Generally, this property should return a valid state
+     * defined in the EmergencyLaneKeepAssistState or ErrorState. For example, if the feature is not
+     * available due to some temporary state, that information should be conveyed through
+     * ErrorState.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of EmergencyLaneKeepAssistState (including OTHER, which is not recommended)
+     * and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum EmergencyLaneKeepAssistState
+     * @data_enum ErrorState
+     */
+    EMERGENCY_LANE_KEEP_ASSIST_STATE =
+            0x100E + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Enable or disable cruise control (CC).
+     *
+     * Set true to enable CC and false to disable CC. This property is shared by all forms of
+     * CruiseControlType(s).
+     *
+     * When CC is enabled, the ADAS system in the vehicle should be turned on and responding to
+     * commands.
      *
      * This property is defined as read_write, but OEMs have the option to implement it as read
      * only.
@@ -3629,8 +3867,68 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
-    ADAPTIVE_CRUISE_CONTROL_ENABLED =
+    CRUISE_CONTROL_ENABLED =
             0x100F + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+
+    /**
+     * Current type of Cruise Control (CC).
+     *
+     * When CRUISE_CONTROL_ENABLED is true, this property returns the type of CC that is currently
+     * enabled (for example, standard CC, adaptive CC, predictive CC, etc.). Generally, this
+     * property should return a valid state defined in the CruiseControlType or ErrorState. For
+     * example, if the feature is not available due to some temporary state, that information should
+     * be conveyed through ErrorState.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of CruiseControlType (including OTHER, which is not recommended) and
+     * ErrorState are supported.
+     *
+     * Trying to write CruiseControlType#OTHER or an ErrorState to this property will throw an
+     * IllegalArgumentException.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     * @data_enum CruiseControlType
+     * @data_enum ErrorState
+     */
+    CRUISE_CONTROL_TYPE =
+            0x1010 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Current state of Cruise Control (CC).
+     *
+     * This property returns the current state of CC. Generally, this property should return a valid
+     * state defined in the CruiseControlState or ErrorState. For example, if the feature is not
+     * available due to some temporary state, that information should be conveyed through
+     * ErrorState.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of CruiseControlState (including OTHER, which is not recommended) and
+     * ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum CruiseControlState
+     * @data_enum ErrorState
+     */
+    CRUISE_CONTROL_STATE =
+            0x1011 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Write Cruise Control (CC) commands.
+     *
+     * See CruiseControlCommand for the details about each supported command.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of CruiseControlState are supported. Any unsupported commands sent through
+     * this property should return StatusCode.INVALID_ARG.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.WRITE
+     * @data_enum CruiseControlCommand
+     */
+    CRUISE_CONTROL_COMMAND =
+            0x1012 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
 
     /**
      * Enable or disable hands on detection (HOD).
