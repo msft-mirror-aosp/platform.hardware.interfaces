@@ -111,6 +111,7 @@ public final class AccessForVehicleProperty {
         Map.entry(VehicleProperty.AP_POWER_STATE_REPORT, VehiclePropertyAccess.READ_WRITE),
         Map.entry(VehicleProperty.AP_POWER_BOOTUP_REASON, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.DISPLAY_BRIGHTNESS, VehiclePropertyAccess.READ_WRITE),
+        Map.entry(VehicleProperty.PER_DISPLAY_BRIGHTNESS, VehiclePropertyAccess.READ_WRITE),
         Map.entry(VehicleProperty.HW_KEY_INPUT, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.HW_KEY_INPUT_V2, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.HW_MOTION_INPUT, VehiclePropertyAccess.READ),
@@ -171,6 +172,7 @@ public final class AccessForVehicleProperty {
         Map.entry(VehicleProperty.WINDOW_LOCK, VehiclePropertyAccess.READ_WRITE),
         Map.entry(VehicleProperty.WINDSHIELD_WIPERS_PERIOD, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.WINDSHIELD_WIPERS_STATE, VehiclePropertyAccess.READ),
+        Map.entry(VehicleProperty.WINDSHIELD_WIPERS_SWITCH, VehiclePropertyAccess.READ_WRITE),
         Map.entry(VehicleProperty.STEERING_WHEEL_DEPTH_POS, VehiclePropertyAccess.READ_WRITE),
         Map.entry(VehicleProperty.STEERING_WHEEL_DEPTH_MOVE, VehiclePropertyAccess.READ_WRITE),
         Map.entry(VehicleProperty.STEERING_WHEEL_HEIGHT_POS, VehiclePropertyAccess.READ_WRITE),
@@ -255,8 +257,15 @@ public final class AccessForVehicleProperty {
         Map.entry(VehicleProperty.CRUISE_CONTROL_TYPE, VehiclePropertyAccess.READ_WRITE),
         Map.entry(VehicleProperty.CRUISE_CONTROL_STATE, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.CRUISE_CONTROL_COMMAND, VehiclePropertyAccess.WRITE),
+        Map.entry(VehicleProperty.CRUISE_CONTROL_TARGET_SPEED, VehiclePropertyAccess.READ),
+        Map.entry(VehicleProperty.ADAPTIVE_CRUISE_CONTROL_TARGET_TIME_GAP, VehiclePropertyAccess.READ_WRITE),
+        Map.entry(VehicleProperty.ADAPTIVE_CRUISE_CONTROL_LEAD_VEHICLE_MEASURED_DISTANCE, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.HANDS_ON_DETECTION_ENABLED, VehiclePropertyAccess.READ_WRITE),
-        Map.entry(VehicleProperty.DRIVER_ATTENTION_MONITORING_ENABLED, VehiclePropertyAccess.READ_WRITE)
+        Map.entry(VehicleProperty.HANDS_ON_DETECTION_DRIVER_STATE, VehiclePropertyAccess.READ),
+        Map.entry(VehicleProperty.HANDS_ON_DETECTION_WARNING, VehiclePropertyAccess.READ),
+        Map.entry(VehicleProperty.DRIVER_ATTENTION_MONITORING_ENABLED, VehiclePropertyAccess.READ_WRITE),
+        Map.entry(VehicleProperty.DRIVER_ATTENTION_MONITORING_STATE, VehiclePropertyAccess.READ),
+        Map.entry(VehicleProperty.DRIVER_ATTENTION_MONITORING_WARNING, VehiclePropertyAccess.READ)
     );
 
 }

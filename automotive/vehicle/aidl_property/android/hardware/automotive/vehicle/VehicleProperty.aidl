@@ -1252,9 +1252,16 @@ enum VehicleProperty {
     AP_POWER_BOOTUP_REASON = 0x0A02 + 0x10000000 + 0x01000000
             + 0x00400000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:INT32
     /**
-     * Property to represent brightness of the display. Some cars have single
-     * control for the brightness of all displays and this property is to share
-     * change in that control.
+     * Property to represent brightness of the display.
+     *
+     * Some cars have single control for the brightness of all displays and this
+     * property is to share change in that control. In cars which have displays
+     * whose brightness is controlled separately, they must use
+     * PER_DISPLAY_BRIGHTNESS.
+     *
+     * Only one of DISPLAY_BRIGHTNESS and PER_DISPLAY_BRIGHTNESS should be
+     * implemented. If both are available, PER_DISPLAY_BRIGHTNESS is used by
+     * AAOS.
      *
      * If this is writable, android side can set this value when user changes
      * display brightness from Settings. If this is read only, user may still
@@ -1266,6 +1273,29 @@ enum VehicleProperty {
      */
     DISPLAY_BRIGHTNESS = 0x0A03 + 0x10000000 + 0x01000000
             + 0x00400000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:INT32
+    /**
+     * Property to represent brightness of the displays which are controlled separately.
+     *
+     * Some cars have one or more displays whose brightness is controlled
+     * separately and this property is to inform the brightness of each
+     * passenger display. In cars where all displays' brightness is controlled
+     * together, they must use DISPLAY_BRIGHTNESS.
+     *
+     * Only one of DISPLAY_BRIGHTNESS and PER_DISPLAY_BRIGHTNESS should be
+     * implemented. If both are available, PER_DISPLAY_BRIGHTNESS is used by
+     * AAOS.
+     *
+     * The display port uniquely identifies a physical connector on the device
+     * for display output, ranging from 0 to 255.
+     *
+     * int32Values[0] : display port
+     * int32Values[1] : brightness
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     */
+    PER_DISPLAY_BRIGHTNESS = 0x0A04 + 0x10000000 + 0x01000000
+            + 0x00410000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:INT32_VEC
     /**
      * Property to feed H/W input events to android
      *
@@ -2130,6 +2160,31 @@ enum VehicleProperty {
      */
     WINDSHIELD_WIPERS_STATE =
             0x0BC6 + VehiclePropertyGroup.SYSTEM + VehicleArea.WINDOW + VehiclePropertyType.INT32,
+
+    /**
+     * Windshield wipers switch.
+     *
+     * Represents the position of the switch controlling the windshield wipers. The value of
+     * WINDSHIELD_WIPERS_SWITCH may not match the value of WINDSHIELD_WIPERS_STATE (e.g.
+     * WINDSHIELD_WIPERS_SWITCH = AUTO and WINDSHIELD_WIPERS_STATE = WindshieldWipersState#ON).
+     *
+     * For each supported area ID, the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states in WindshieldWipersSwitch are supported (including OTHER, which is not
+     * recommended).
+     *
+     * This property is defined as read_write, but OEMs have the option to implement it as read
+     * only.
+     *
+     * If this property is implemented as read_write and the OTHER state is listed in the
+     * VehicleAreaConfig#supportedEnumValues array, then OTHER is not a supported value for writing.
+     * It is only a supported value for reading.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     * @data_enum WindshieldWipersSwitch
+     */
+    WINDSHIELD_WIPERS_SWITCH =
+            0x0BC7 + VehiclePropertyGroup.SYSTEM + VehicleArea.WINDOW + VehiclePropertyType.INT32,
 
     /**
      * Steering wheel depth position
@@ -3931,6 +3986,69 @@ enum VehicleProperty {
             0x1012 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
 
     /**
+     * Current target speed for Cruise Control (CC).
+     *
+     * OEMs should set the minInt32Value and maxInt32Value values for this property to define the
+     * min and max target speed values. These values must be non-negative.
+     *
+     * The maxFloatValue represents the upper bound of the target speed.
+     * The minFloatValue represents the lower bound of the target speed.
+     *
+     * When this property is not available (for example when CRUISE_CONTROL_ENABLED is false), it
+     * should return StatusCode.NOT_AVAILABLE_DISABLED.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @unit VehicleUnit:METER_PER_SEC
+     */
+    CRUISE_CONTROL_TARGET_SPEED =
+            0x1013 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
+
+    /**
+     * Current target time gap for Adaptive Cruise Control (ACC) or Predictive Cruise Control in
+     * milliseconds.
+     *
+     * This property should specify the target time gap to a leading vehicle. This gap is defined as
+     * the time to travel the distance between the leading vehicle's rear-most point to the ACC
+     * vehicle's front-most point. The actual time gap from a leading vehicle can be above or below
+     * this value.
+     *
+     * The possible values to set for the target time gap should be specified in configArray in
+     * ascending order. All values must be positive. If the property is writable, all values must be
+     * writable.
+     *
+     * Writing to this property when it is not available should return StatusCode.NOT_AVAILABLE.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     * @unit VehicleUnit:MILLI_SECS
+     */
+    ADAPTIVE_CRUISE_CONTROL_TARGET_TIME_GAP =
+            0x1014 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Measured distance from leading vehicle when using Adaptive Cruise Control (ACC) or
+     * Predictive Cruise Control.
+     *
+     * Returns the measured distance in millimeters between the rear-most point of the leading
+     * vehicle and the front-most point of the ACC vehicle.
+     *
+     * The minInt32Value should be 0.
+     * The maxInt32Value should be populated with the maximum range the distance sensor can support.
+     * This value should be non-negative.
+     *
+     * When no lead vehicle is detected (that is, when there is no leading vehicle or the leading
+     * vehicle is too far away for the sensor to detect), this property should return
+     * StatusCode.NOT_AVAILABLE.
+     *
+     * @change_mode VehiclePropertyChangeMode.CONTINUOUS
+     * @access VehiclePropertyAccess.READ
+     * @unit VehicleUnit:MILLIMETER
+     */
+    ADAPTIVE_CRUISE_CONTROL_LEAD_VEHICLE_MEASURED_DISTANCE =
+            0x1015 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
      * Enable or disable hands on detection (HOD).
      *
      * Set true to enable HOD and false to disable HOD. When HOD is enabled, a system inside the
@@ -3945,6 +4063,52 @@ enum VehicleProperty {
      */
     HANDS_ON_DETECTION_ENABLED =
             0x1016 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+
+    /**
+     * Hands on detection (HOD) driver state.
+     *
+     * Returns whether the driver's hands are on the steering wheel. Generally, this property should
+     * return a valid state defined in the HandsOnDetectionDriverState or ErrorState. For example,
+     * if the feature is not available due to some temporary state, that information should be
+     * conveyed through ErrorState.
+     *
+     * If the vehicle wants to send a warning to the user because the driver's hands have been off
+     * the steering wheel for too long, the warning should be surfaced through
+     * HANDS_ON_DETECTION_WARNING.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both HandsOnDetectionDriverState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum HandsOnDetectionDriverState
+     * @data_enum ErrorState
+     */
+    HANDS_ON_DETECTION_DRIVER_STATE =
+            0x1017 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Hands on detection (HOD) warning.
+     *
+     * Returns whether a warning is being sent to the driver for having their hands off the wheel
+     * for too long a duration.
+     *
+     * Generally, this property should return a valid state defined in HandsOnDetectionWarning or
+     * ErrorState. For example, if the feature is not available due to some temporary state, that
+     * information should be conveyed through an ErrorState.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both HandsOnDetectionWarning (including OTHER, which is not recommended)
+     * and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum HandsOnDetectionWarning
+     * @data_enum ErrorState
+     */
+    HANDS_ON_DETECTION_WARNING =
+            0x1018 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
 
     /**
      * Enable or disable driver attention monitoring.
@@ -3962,6 +4126,51 @@ enum VehicleProperty {
      */
     DRIVER_ATTENTION_MONITORING_ENABLED =
             0x1019 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+
+    /**
+     * Driver attention monitoring state.
+     *
+     * Returns whether the driver is currently attentive or distracted. Generally, this property
+     * should return a valid state defined in the DriverAttentionMonitoringState or ErrorState. For
+     * example, if the feature is not available due to some temporary state, that information should
+     * be conveyed through an ErrorState.
+     *
+     * If the vehicle wants to send a warning to the user because the driver has been distracted for
+     * too long, the warning should be surfaced through DRIVER_ATTENTION_MONITORING_WARNING.
+     *
+     * The VehicleAreaConfig#configArray array must define all states from
+     * DriverAttentionMonitoringState (including OTHER, which is not recommended) and ErrorState
+     * that are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum DriverAttentionMonitoringState
+     * @data_enum ErrorState
+     */
+    DRIVER_ATTENTION_MONITORING_STATE =
+            0x101A + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Driver attention monitoring warning.
+     *
+     * Returns whether a warning is being sent to the driver for being distracted for too long a
+     * duration.
+     *
+     * Generally, this property should return a valid state defined in the
+     * DriverAttentionMonitoringWarning or ErrorState. For example, if the feature is not available
+     * due to some temporary state, that information should be conveyed through an ErrorState.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both DriverAttentionMonitoringWarning (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum DriverAttentionMonitoringWarning
+     * @data_enum ErrorState
+     */
+    DRIVER_ATTENTION_MONITORING_WARNING =
+            0x101B + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
 
     /***************************************************************************
      * End of ADAS Properties

@@ -119,6 +119,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyAccess> AccessForVehiclePrope
         {VehicleProperty::AP_POWER_STATE_REPORT, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::AP_POWER_BOOTUP_REASON, VehiclePropertyAccess::READ},
         {VehicleProperty::DISPLAY_BRIGHTNESS, VehiclePropertyAccess::READ_WRITE},
+        {VehicleProperty::PER_DISPLAY_BRIGHTNESS, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::HW_KEY_INPUT, VehiclePropertyAccess::READ},
         {VehicleProperty::HW_KEY_INPUT_V2, VehiclePropertyAccess::READ},
         {VehicleProperty::HW_MOTION_INPUT, VehiclePropertyAccess::READ},
@@ -179,6 +180,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyAccess> AccessForVehiclePrope
         {VehicleProperty::WINDOW_LOCK, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::WINDSHIELD_WIPERS_PERIOD, VehiclePropertyAccess::READ},
         {VehicleProperty::WINDSHIELD_WIPERS_STATE, VehiclePropertyAccess::READ},
+        {VehicleProperty::WINDSHIELD_WIPERS_SWITCH, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::STEERING_WHEEL_DEPTH_POS, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::STEERING_WHEEL_DEPTH_MOVE, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::STEERING_WHEEL_HEIGHT_POS, VehiclePropertyAccess::READ_WRITE},
@@ -263,8 +265,15 @@ std::unordered_map<VehicleProperty, VehiclePropertyAccess> AccessForVehiclePrope
         {VehicleProperty::CRUISE_CONTROL_TYPE, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::CRUISE_CONTROL_STATE, VehiclePropertyAccess::READ},
         {VehicleProperty::CRUISE_CONTROL_COMMAND, VehiclePropertyAccess::WRITE},
+        {VehicleProperty::CRUISE_CONTROL_TARGET_SPEED, VehiclePropertyAccess::READ},
+        {VehicleProperty::ADAPTIVE_CRUISE_CONTROL_TARGET_TIME_GAP, VehiclePropertyAccess::READ_WRITE},
+        {VehicleProperty::ADAPTIVE_CRUISE_CONTROL_LEAD_VEHICLE_MEASURED_DISTANCE, VehiclePropertyAccess::READ},
         {VehicleProperty::HANDS_ON_DETECTION_ENABLED, VehiclePropertyAccess::READ_WRITE},
+        {VehicleProperty::HANDS_ON_DETECTION_DRIVER_STATE, VehiclePropertyAccess::READ},
+        {VehicleProperty::HANDS_ON_DETECTION_WARNING, VehiclePropertyAccess::READ},
         {VehicleProperty::DRIVER_ATTENTION_MONITORING_ENABLED, VehiclePropertyAccess::READ_WRITE},
+        {VehicleProperty::DRIVER_ATTENTION_MONITORING_STATE, VehiclePropertyAccess::READ},
+        {VehicleProperty::DRIVER_ATTENTION_MONITORING_WARNING, VehiclePropertyAccess::READ},
 };
 
 }  // namespace vehicle

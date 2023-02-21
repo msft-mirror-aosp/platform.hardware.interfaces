@@ -119,6 +119,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyChangeMode> ChangeModeForVehi
         {VehicleProperty::AP_POWER_STATE_REPORT, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::AP_POWER_BOOTUP_REASON, VehiclePropertyChangeMode::STATIC},
         {VehicleProperty::DISPLAY_BRIGHTNESS, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::PER_DISPLAY_BRIGHTNESS, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::HW_KEY_INPUT, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::HW_KEY_INPUT_V2, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::HW_MOTION_INPUT, VehiclePropertyChangeMode::ON_CHANGE},
@@ -179,6 +180,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyChangeMode> ChangeModeForVehi
         {VehicleProperty::WINDOW_LOCK, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::WINDSHIELD_WIPERS_PERIOD, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::WINDSHIELD_WIPERS_STATE, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::WINDSHIELD_WIPERS_SWITCH, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::STEERING_WHEEL_DEPTH_POS, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::STEERING_WHEEL_DEPTH_MOVE, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::STEERING_WHEEL_HEIGHT_POS, VehiclePropertyChangeMode::ON_CHANGE},
@@ -263,8 +265,15 @@ std::unordered_map<VehicleProperty, VehiclePropertyChangeMode> ChangeModeForVehi
         {VehicleProperty::CRUISE_CONTROL_TYPE, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::CRUISE_CONTROL_STATE, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::CRUISE_CONTROL_COMMAND, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::CRUISE_CONTROL_TARGET_SPEED, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::ADAPTIVE_CRUISE_CONTROL_TARGET_TIME_GAP, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::ADAPTIVE_CRUISE_CONTROL_LEAD_VEHICLE_MEASURED_DISTANCE, VehiclePropertyChangeMode::CONTINUOUS},
         {VehicleProperty::HANDS_ON_DETECTION_ENABLED, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::HANDS_ON_DETECTION_DRIVER_STATE, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::HANDS_ON_DETECTION_WARNING, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::DRIVER_ATTENTION_MONITORING_ENABLED, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::DRIVER_ATTENTION_MONITORING_STATE, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::DRIVER_ATTENTION_MONITORING_WARNING, VehiclePropertyChangeMode::ON_CHANGE},
 };
 
 }  // namespace vehicle

@@ -28,7 +28,7 @@ import android.hardware.wifi.NanMatchInd;
 import android.hardware.wifi.NanPairingConfirmInd;
 import android.hardware.wifi.NanPairingRequestInd;
 import android.hardware.wifi.NanStatus;
-
+import android.hardware.wifi.NanSuspensionModeChangeInd;
 /**
  * NAN Response and Asynchronous Event Callbacks.
  *
@@ -139,6 +139,13 @@ oneway interface IWifiNanIfaceEventCallback {
      *               |NanStatusCode.PROTOCOL_FAILURE|
      */
     void eventTransmitFollowup(in char id, in NanStatus status);
+
+    /**
+     * Callback indicating that device suspension mode status change
+     *
+     * @param event NanSuspensionModeChangeInd containing event details.
+     */
+    void eventSuspensionModeChanged(in NanSuspensionModeChangeInd event);
 
     /**
      * Callback invoked in response to a capability request
@@ -440,4 +447,18 @@ oneway interface IWifiNanIfaceEventCallback {
      *        |NanStatusCode.INVALID_NDP_ID|
      */
     void notifyRespondToBootstrappingIndicationResponse(in char id, in NanStatus status);
+
+    /**
+     * Callback invoked in response to a terminate pairing request
+     * |IWifiNanIface.terminatePairingRequest|.
+     *
+     * @param id Command Id corresponding to the original request.
+     * @param status NanStatus of the operation. Possible status codes are:
+     *        |NanStatusCode.SUCCESS|
+     *        |NanStatusCode.INVALID_ARGS|
+     *        |NanStatusCode.INTERNAL_FAILURE|
+     *        |NanStatusCode.PROTOCOL_FAILURE|
+     *        |NanStatusCode.INVALID_PAIRING_ID|
+     */
+    void notifyTerminatePairingResponse(in char id, in NanStatus status);
 }
