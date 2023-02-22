@@ -64,6 +64,7 @@ bool ShouldCheckMissingHalsInFcm(const std::string& package) {
             "android.hardware.keymaster",
             "android.hardware.media.bufferpool2",
             "android.hardware.radio",
+            "android.hardware.threadnetwork",
             "android.hardware.uwb.fira_android",
 
             // Fastboot HAL is only used by recovery. Recovery is owned by OEM. Framework
@@ -102,6 +103,10 @@ bool ShouldCheckMissingHalsInFcm(const std::string& package) {
             "android.hardware.thermal@1.0",
             "android.hardware.thermal@1.1",
             "android.hardware.wifi.offload@1.0",
+
+            // Under hardware/interfaces/staging, still in development
+            // AIDL
+            "android.hardware.media.c2",
     };
 
     auto package_has_prefix = [&](const std::string& prefix) {

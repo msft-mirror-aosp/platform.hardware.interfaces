@@ -344,9 +344,11 @@ VtsComposerClient::getHdrConversionCapabilities() {
             hdrConversionCapability};
 }
 
-ScopedAStatus VtsComposerClient::setHdrConversionStrategy(
+std::pair<ScopedAStatus, common::Hdr> VtsComposerClient::setHdrConversionStrategy(
         const common::HdrConversionStrategy& conversionStrategy) {
-    return mComposerClient->setHdrConversionStrategy(conversionStrategy);
+    common::Hdr preferredHdrOutputType;
+    return {mComposerClient->setHdrConversionStrategy(conversionStrategy, &preferredHdrOutputType),
+            preferredHdrOutputType};
 }
 
 std::pair<ScopedAStatus, common::Transform> VtsComposerClient::getDisplayPhysicalOrientation(
@@ -371,6 +373,12 @@ int32_t VtsComposerClient::getVsyncIdleCount() {
 
 int64_t VtsComposerClient::getVsyncIdleTime() {
     return mComposerCallback->getVsyncIdleTime();
+}
+
+ndk::ScopedAStatus VtsComposerClient::setRefreshRateChangedCallbackDebugEnabled(
+        int64_t /* display */, bool /* enabled */) {
+    // TODO(b/202734676) Add implementation for VTS tests
+    return ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
 }
 
 int64_t VtsComposerClient::getInvalidDisplayId() {

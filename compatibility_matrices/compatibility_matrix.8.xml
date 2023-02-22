@@ -108,10 +108,17 @@
             <instance>default</instance>
         </interface>
     </hal>
-     <hal format="aidl" optional="true">
+    <hal format="aidl" optional="true">
         <name>android.hardware.automotive.remoteaccess</name>
         <interface>
             <name>IRemoteAccess</name>
+            <instance>default</instance>
+        </interface>
+    </hal>
+    <hal format="aidl" optional="true">
+        <name>android.hardware.automotive.ivn</name>
+        <interface>
+            <name>IIvnAndroidDevice</name>
             <instance>default</instance>
         </interface>
     </hal>
@@ -367,15 +374,6 @@
     <hal format="hidl" optional="true">
         <name>android.hardware.media.c2</name>
         <version>1.0-2</version>
-        <interface>
-            <name>IComponentStore</name>
-            <regex-instance>default[0-9]*</regex-instance>
-            <regex-instance>vendor[0-9]*_software</regex-instance>
-        </interface>
-    </hal>
-    <hal format="aidl" optional="true">
-        <name>android.hardware.media.c2</name>
-        <version>1</version>
         <interface>
             <name>IComponentStore</name>
             <regex-instance>default[0-9]*</regex-instance>
