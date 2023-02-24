@@ -4015,50 +4015,6 @@ enum VehicleProperty {
             0x1013 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
 
     /**
-     * Current target time gap for Adaptive Cruise Control (ACC) or Predictive Cruise Control in
-     * milliseconds.
-     *
-     * This property should specify the target time gap to a leading vehicle. This gap is defined as
-     * the time to travel the distance between the leading vehicle's rear-most point to the ACC
-     * vehicle's front-most point. The actual time gap from a leading vehicle can be above or below
-     * this value.
-     *
-     * The possible values to set for the target time gap should be specified in configArray in
-     * ascending order. All values must be positive. If the property is writable, all values must be
-     * writable.
-     *
-     * Writing to this property when it is not available should return StatusCode.NOT_AVAILABLE.
-     *
-     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
-     * @access VehiclePropertyAccess.READ_WRITE
-     * @unit VehicleUnit:MILLI_SECS
-     */
-    ADAPTIVE_CRUISE_CONTROL_TARGET_TIME_GAP =
-            0x1014 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
-
-    /**
-     * Measured distance from leading vehicle when using Adaptive Cruise Control (ACC) or
-     * Predictive Cruise Control.
-     *
-     * Returns the measured distance in millimeters between the rear-most point of the leading
-     * vehicle and the front-most point of the ACC vehicle.
-     *
-     * The minInt32Value should be 0.
-     * The maxInt32Value should be populated with the maximum range the distance sensor can support.
-     * This value should be non-negative.
-     *
-     * When no lead vehicle is detected (that is, when there is no leading vehicle or the leading
-     * vehicle is too far away for the sensor to detect), this property should return
-     * StatusCode.NOT_AVAILABLE.
-     *
-     * @change_mode VehiclePropertyChangeMode.CONTINUOUS
-     * @access VehiclePropertyAccess.READ
-     * @unit VehicleUnit:MILLIMETER
-     */
-    ADAPTIVE_CRUISE_CONTROL_LEAD_VEHICLE_MEASURED_DISTANCE =
-            0x1015 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
-
-    /**
      * Enable or disable hands on detection (HOD).
      *
      * Set true to enable HOD and false to disable HOD. When HOD is enabled, a system inside the
