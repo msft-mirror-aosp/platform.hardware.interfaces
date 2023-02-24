@@ -35,10 +35,10 @@ package android.hardware.biometrics.fingerprint;
 /* @hide */
 @Backing(type="byte") @VintfStability
 enum FingerprintSensorType {
-  UNKNOWN = 0,
-  REAR = 1,
-  UNDER_DISPLAY_ULTRASONIC = 2,
-  UNDER_DISPLAY_OPTICAL = 3,
-  POWER_BUTTON = 4,
-  HOME_BUTTON = 5,
+  UNKNOWN,
+  REAR,
+  UNDER_DISPLAY_ULTRASONIC,
+  UNDER_DISPLAY_OPTICAL,
+  POWER_BUTTON,
+  HOME_BUTTON,
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,16 @@
  * limitations under the License.
  */
 
-package android.hardware.bluetooth.audio;
-
+package android.hardware.biometrics.fingerprint;
+/**
+ * This is most useful for sensors configured as FingerprintSensorType::UNDER_DISPLAY_OPTICAL,
+ * as it's used to compute the on-screen sensor boundaries for the touch detection algorithm.
+ *
+ * @hide
+ */
 @VintfStability
-@Backing(type="int")
-enum CodecType {
-    UNKNOWN,
-    SBC,
-    AAC,
-    APTX,
-    APTX_HD,
-    LDAC,
-    LC3,
-    VENDOR,
-    APTX_ADAPTIVE,
-    OPUS,
-    APTX_ADAPTIVE_LE,
-    APTX_ADAPTIVE_LEX,
+@Backing(type="byte")
+enum SensorShape {
+    SQUARE,
+    CIRCLE,
 }
