@@ -17,22 +17,20 @@
 package android.hardware.uwb.fira_android;
 
 /**
- * Android specific vendor status codes should be defined here.
+ * Android specific vendor reason codes should be defined here.
  *
  */
 @VintfStability
-@Backing(type="byte")
-enum UwbVendorStatusCodes {
+@Backing(type="int")
+enum UwbVendorReasonCodes {
     /**
-     * Use values from the vendor specific status code range: 0x50 – 0xFF defined in Table 32 of
-     * UCI specification.
+     * Use values from the vendor specific reason code range: 0x80 – 0xFF defined in
+     * Table 15 (state change with reason codes) of UCI specification.
      */
 
-    /** CCC specific */
-    /** Secure element is busy */
-    STATUS_ERROR_CCC_SE_BUSY = 0x50,
-    /** CCC Lifecycle error */
-    STATUS_ERROR_CCC_LIFECYCLE = 0x51,
-    /** UWB Regulation Off */
-    STATUS_REGULATION_UWB_OFF = 0x52,
+    /** Fira specific */
+    /** The channel requested is not available for AoA */
+    REASON_ERROR_INVALID_CHANNEL_WITH_AOA = 0x80,
+    /** UWB has been disabled (eg: country code change leads to UWB unsupported) */
+    REASON_REGULATION_UWB_OFF = 0x81,
 }
