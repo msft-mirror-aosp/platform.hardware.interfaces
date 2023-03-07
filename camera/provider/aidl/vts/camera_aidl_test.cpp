@@ -167,7 +167,7 @@ std::vector<std::string> CameraAidlTest::getCameraDeviceNames(
         ScopedAStatus physicalCameraDeviceStatusChange(
                 const std::string&, const std::string&,
                 ::aidl::android::hardware::camera::common::CameraDeviceStatus) override {
-            return ndk::ScopedAStatus();
+            return ScopedAStatus::ok();
         }
 
         std::vector<std::string> externalCameraDeviceNames;
@@ -751,8 +751,6 @@ Status CameraAidlTest::getAvailableOutputStreams(const camera_metadata_t* static
                                                  std::vector<AvailableStream>& outputStreams,
                                                  const AvailableStream* threshold,
                                                  bool maxResolution) {
-    AvailableStream depthPreviewThreshold = {kMaxPreviewWidth, kMaxPreviewHeight,
-                                             static_cast<int32_t>(PixelFormat::Y16)};
     if (nullptr == staticMeta) {
         return Status::ILLEGAL_ARGUMENT;
     }
@@ -778,7 +776,11 @@ Status CameraAidlTest::getAvailableOutputStreams(const camera_metadata_t* static
     }
 
     if (foundDepth == 0 && (0 == (depthEntry.count % 4))) {
-        fillOutputStreams(&depthEntry, outputStreams, &depthPreviewThreshold,
+        AvailableStream depthPreviewThreshold = {kMaxPreviewWidth, kMaxPreviewHeight,
+                                                 static_cast<int32_t>(PixelFormat::Y16)};
+        const AvailableStream* depthThreshold =
+                (threshold != nullptr) ? threshold : &depthPreviewThreshold;
+        fillOutputStreams(&depthEntry, outputStreams, depthThreshold,
                           ANDROID_DEPTH_AVAILABLE_DEPTH_STREAM_CONFIGURATIONS_OUTPUT);
     }
 
@@ -1181,6 +1183,7 @@ void CameraAidlTest::verifyLogicalOrUltraHighResCameraMetadata(
         camera_metadata_ro_entry physicalMultiResStreamConfigs;
         camera_metadata_ro_entry physicalStreamConfigs;
         camera_metadata_ro_entry physicalMaxResolutionStreamConfigs;
+        CameraMetadata physChars;
         bool isUltraHighRes = false;
         std::unordered_set<int32_t> subCameraPrivacyTestPatterns;
         if (isPublicId) {
@@ -1189,12 +1192,11 @@ void CameraAidlTest::verifyLogicalOrUltraHighResCameraMetadata(
             ASSERT_TRUE(ret.isOk());
             ASSERT_NE(subDevice, nullptr);
 
-            CameraMetadata subDeviceChars;
-            ret = subDevice->getCameraCharacteristics(&subDeviceChars);
+            ret = subDevice->getCameraCharacteristics(&physChars);
             ASSERT_TRUE(ret.isOk());
 
             const camera_metadata_t* staticMetadata =
-                    reinterpret_cast<const camera_metadata_t*>(subDeviceChars.metadata.data());
+                    reinterpret_cast<const camera_metadata_t*>(physChars.metadata.data());
             retStatus = getSystemCameraKind(staticMetadata, &physSystemCameraKind);
             ASSERT_EQ(retStatus, Status::OK);
 
@@ -1215,7 +1217,6 @@ void CameraAidlTest::verifyLogicalOrUltraHighResCameraMetadata(
             getPrivacyTestPatternModes(staticMetadata, &subCameraPrivacyTestPatterns);
         } else {
             // Check camera characteristics for hidden camera id
-            CameraMetadata physChars;
             ndk::ScopedAStatus ret =
                     device->getPhysicalCameraCharacteristics(physicalId, &physChars);
             ASSERT_TRUE(ret.isOk());
@@ -2333,6 +2334,7 @@ void CameraAidlTest::processPreviewStabilizationCaptureRequestInternal(
         request.fmqSettingsSize = 0;
         request.settings.metadata =
                 std::vector(rawMetadata, rawMetadata + get_camera_metadata_size(releasedMetadata));
+        overrideRotateAndCrop(&request.settings);
         request.outputBuffers = std::vector<StreamBuffer>(1);
         StreamBuffer& outputBuffer = request.outputBuffers[0];
         if (useHalBufManager) {
