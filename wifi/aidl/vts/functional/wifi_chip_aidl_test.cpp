@@ -22,6 +22,7 @@
 #include <aidl/Vintf.h>
 #include <aidl/android/hardware/wifi/BnWifi.h>
 #include <aidl/android/hardware/wifi/BnWifiChipEventCallback.h>
+#include <aidl/android/hardware/wifi/WifiIfaceMode.h>
 #include <android/binder_manager.h>
 #include <android/binder_status.h>
 #include <binder/IServiceManager.h>
@@ -41,7 +42,7 @@ using aidl::android::hardware::wifi::WifiDebugHostWakeReasonStats;
 using aidl::android::hardware::wifi::WifiDebugRingBufferStatus;
 using aidl::android::hardware::wifi::WifiDebugRingBufferVerboseLevel;
 using aidl::android::hardware::wifi::WifiIfaceMode;
-using aidl::android::hardware::wifi::WifiRadioCombinationMatrix;
+using aidl::android::hardware::wifi::WifiRadioCombination;
 using aidl::android::hardware::wifi::WifiStatusCode;
 using aidl::android::hardware::wifi::WifiUsableChannel;
 
@@ -129,16 +130,6 @@ class WifiChipAidlTest : public testing::TestWithParam<std::string> {
         }
         EXPECT_NE(nullptr, iface2.get());
         return {iface1, iface2};
-    }
-
-    bool hasAnyRingBufferCapabilities(int32_t caps) {
-        return caps &
-               (static_cast<int32_t>(
-                        IWifiChip::ChipCapabilityMask::DEBUG_RING_BUFFER_CONNECT_EVENT) |
-                static_cast<int32_t>(IWifiChip::ChipCapabilityMask::DEBUG_RING_BUFFER_POWER_EVENT) |
-                static_cast<int32_t>(
-                        IWifiChip::ChipCapabilityMask::DEBUG_RING_BUFFER_WAKELOCK_EVENT) |
-                static_cast<int32_t>(IWifiChip::ChipCapabilityMask::DEBUG_RING_BUFFER_VENDOR_DATA));
     }
 
     const char* getInstanceName() { return GetParam().c_str(); }
@@ -242,9 +233,7 @@ TEST_P(WifiChipAidlTest, GetUsableChannels) {
 
     std::vector<WifiUsableChannel> channels;
     configureChipForConcurrencyType(IfaceConcurrencyType::STA);
-    auto status = wifi_chip_->getUsableChannels(
-            band, static_cast<WifiIfaceMode>(ifaceModeMask),
-            static_cast<IWifiChip::UsableChannelFilter>(filterMask), &channels);
+    auto status = wifi_chip_->getUsableChannels(band, ifaceModeMask, filterMask, &channels);
     if (checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED)) {
         GTEST_SKIP() << "getUsableChannels() is not supported by vendor.";
     }
@@ -252,14 +241,14 @@ TEST_P(WifiChipAidlTest, GetUsableChannels) {
 }
 
 /*
- * GetSupportedRadioCombinationsMatrix
+ * GetSupportedRadioCombinations
  */
-TEST_P(WifiChipAidlTest, GetSupportedRadioCombinationsMatrix) {
-    WifiRadioCombinationMatrix combination_matrix = {};
+TEST_P(WifiChipAidlTest, GetSupportedRadioCombinations) {
+    std::vector<WifiRadioCombination> combinations;
     configureChipForConcurrencyType(IfaceConcurrencyType::STA);
-    auto status = wifi_chip_->getSupportedRadioCombinationsMatrix(&combination_matrix);
+    auto status = wifi_chip_->getSupportedRadioCombinations(&combinations);
     if (checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED)) {
-        GTEST_SKIP() << "Skipping this test since getSupportedRadioCombinationsMatrix() "
+        GTEST_SKIP() << "Skipping this test since getSupportedRadioCombinations() "
                         "is not supported by vendor.";
     }
     EXPECT_TRUE(status.isOk());
@@ -347,7 +336,7 @@ TEST_P(WifiChipAidlTest, SetCoexUnsafeChannels) {
 
     // Test with an empty vector of CoexUnsafeChannels.
     std::vector<IWifiChip::CoexUnsafeChannel> vec;
-    IWifiChip::CoexRestriction restrictions = static_cast<IWifiChip::CoexRestriction>(0);
+    int restrictions = 0;
     auto status = wifi_chip_->setCoexUnsafeChannels(vec, restrictions);
     if (!status.isOk()) {
         EXPECT_TRUE(checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
@@ -362,10 +351,9 @@ TEST_P(WifiChipAidlTest, SetCoexUnsafeChannels) {
     unsafeChannel5Ghz.band = WifiBand::BAND_5GHZ;
     unsafeChannel5Ghz.channel = 36;
     vec.push_back(unsafeChannel5Ghz);
-    restrictions = static_cast<IWifiChip::CoexRestriction>(
-            static_cast<int32_t>(IWifiChip::CoexRestriction::WIFI_AWARE) |
-            static_cast<int32_t>(IWifiChip::CoexRestriction::SOFTAP) |
-            static_cast<int32_t>(IWifiChip::CoexRestriction::WIFI_DIRECT));
+    restrictions = static_cast<int32_t>(IWifiChip::CoexRestriction::WIFI_AWARE) |
+                   static_cast<int32_t>(IWifiChip::CoexRestriction::SOFTAP) |
+                   static_cast<int32_t>(IWifiChip::CoexRestriction::WIFI_DIRECT);
 
     status = wifi_chip_->setCoexUnsafeChannels(vec, restrictions);
     if (!status.isOk()) {
@@ -452,14 +440,9 @@ TEST_P(WifiChipAidlTest, RequestChipDebugInfo) {
  */
 TEST_P(WifiChipAidlTest, RequestFirmwareDebugDump) {
     configureChipForConcurrencyType(IfaceConcurrencyType::STA);
-    int32_t caps = getChipCapabilities(wifi_chip_);
     std::vector<uint8_t> debug_dump;
     auto status = wifi_chip_->requestFirmwareDebugDump(&debug_dump);
-    if (caps & static_cast<int32_t>(IWifiChip::ChipCapabilityMask::DEBUG_MEMORY_FIRMWARE_DUMP)) {
-        EXPECT_TRUE(status.isOk());
-    } else {
-        EXPECT_TRUE(checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
-    }
+    EXPECT_TRUE(status.isOk() || checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
 }
 
 /*
@@ -467,14 +450,9 @@ TEST_P(WifiChipAidlTest, RequestFirmwareDebugDump) {
  */
 TEST_P(WifiChipAidlTest, RequestDriverDebugDump) {
     configureChipForConcurrencyType(IfaceConcurrencyType::STA);
-    int32_t caps = getChipCapabilities(wifi_chip_);
     std::vector<uint8_t> debug_dump;
     auto status = wifi_chip_->requestDriverDebugDump(&debug_dump);
-    if (caps & static_cast<int32_t>(IWifiChip::ChipCapabilityMask::DEBUG_MEMORY_DRIVER_DUMP)) {
-        EXPECT_TRUE(status.isOk());
-    } else {
-        EXPECT_TRUE(checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
-    }
+    EXPECT_TRUE(status.isOk() || checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
 }
 
 /*
@@ -482,17 +460,14 @@ TEST_P(WifiChipAidlTest, RequestDriverDebugDump) {
  */
 TEST_P(WifiChipAidlTest, GetDebugRingBuffersStatus) {
     configureChipForConcurrencyType(IfaceConcurrencyType::STA);
-    int32_t caps = getChipCapabilities(wifi_chip_);
     std::vector<WifiDebugRingBufferStatus> ring_buffer_status;
     auto status = wifi_chip_->getDebugRingBuffersStatus(&ring_buffer_status);
-    if (hasAnyRingBufferCapabilities(caps)) {
-        EXPECT_TRUE(status.isOk());
+    EXPECT_TRUE(status.isOk() || checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
+    if (status.isOk()) {
         ASSERT_NE(ring_buffer_status.size(), 0);
         for (const auto& ring_buffer : ring_buffer_status) {
             EXPECT_NE(ring_buffer.ringName.size(), 0);
         }
-    } else {
-        EXPECT_TRUE(checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
     }
 }
 
@@ -501,14 +476,9 @@ TEST_P(WifiChipAidlTest, GetDebugRingBuffersStatus) {
  */
 TEST_P(WifiChipAidlTest, GetDebugHostWakeReasonStats) {
     configureChipForConcurrencyType(IfaceConcurrencyType::STA);
-    int32_t caps = getChipCapabilities(wifi_chip_);
     WifiDebugHostWakeReasonStats wake_reason_stats = {};
     auto status = wifi_chip_->getDebugHostWakeReasonStats(&wake_reason_stats);
-    if (caps & static_cast<int32_t>(IWifiChip::ChipCapabilityMask::DEBUG_HOST_WAKE_REASON_STATS)) {
-        EXPECT_TRUE(status.isOk());
-    } else {
-        EXPECT_TRUE(checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
-    }
+    EXPECT_TRUE(status.isOk() || checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
 }
 
 /*
@@ -516,26 +486,19 @@ TEST_P(WifiChipAidlTest, GetDebugHostWakeReasonStats) {
  */
 TEST_P(WifiChipAidlTest, StartLoggingToDebugRingBuffer) {
     configureChipForConcurrencyType(IfaceConcurrencyType::STA);
-    int32_t caps = getChipCapabilities(wifi_chip_);
     std::string ring_name;
     std::vector<WifiDebugRingBufferStatus> ring_buffer_status;
-    auto status = wifi_chip_->getDebugRingBuffersStatus(&ring_buffer_status);
 
-    if (hasAnyRingBufferCapabilities(caps)) {
-        EXPECT_TRUE(status.isOk());
+    auto status = wifi_chip_->getDebugRingBuffersStatus(&ring_buffer_status);
+    EXPECT_TRUE(status.isOk() || checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
+    if (status.isOk()) {
         ASSERT_NE(ring_buffer_status.size(), 0);
         ring_name = ring_buffer_status[0].ringName;
-    } else {
-        EXPECT_TRUE(checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
     }
 
     status = wifi_chip_->startLoggingToDebugRingBuffer(
             ring_name, WifiDebugRingBufferVerboseLevel::VERBOSE, 5, 1024);
-    if (hasAnyRingBufferCapabilities(caps)) {
-        EXPECT_TRUE(status.isOk());
-    } else {
-        EXPECT_TRUE(checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
-    }
+    EXPECT_TRUE(status.isOk() || checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
 }
 
 /*
@@ -543,25 +506,18 @@ TEST_P(WifiChipAidlTest, StartLoggingToDebugRingBuffer) {
  */
 TEST_P(WifiChipAidlTest, ForceDumpToDebugRingBuffer) {
     configureChipForConcurrencyType(IfaceConcurrencyType::STA);
-    int32_t caps = getChipCapabilities(wifi_chip_);
     std::string ring_name;
     std::vector<WifiDebugRingBufferStatus> ring_buffer_status;
-    auto status = wifi_chip_->getDebugRingBuffersStatus(&ring_buffer_status);
 
-    if (hasAnyRingBufferCapabilities(caps)) {
-        EXPECT_TRUE(status.isOk());
+    auto status = wifi_chip_->getDebugRingBuffersStatus(&ring_buffer_status);
+    EXPECT_TRUE(status.isOk() || checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
+    if (status.isOk()) {
         ASSERT_NE(ring_buffer_status.size(), 0);
         ring_name = ring_buffer_status[0].ringName;
-    } else {
-        EXPECT_TRUE(checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
     }
 
     status = wifi_chip_->forceDumpToDebugRingBuffer(ring_name);
-    if (hasAnyRingBufferCapabilities(caps)) {
-        EXPECT_TRUE(status.isOk());
-    } else {
-        EXPECT_TRUE(checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
-    }
+    EXPECT_TRUE(status.isOk() || checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
 }
 
 /*

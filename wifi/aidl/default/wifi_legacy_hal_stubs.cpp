@@ -131,6 +131,7 @@ bool initHalFuncTableWithStubs(wifi_hal_fn* hal_fn) {
     populateStubFor(&hal_fn->wifi_nan_bootstrapping_request);
     populateStubFor(&hal_fn->wifi_nan_bootstrapping_indication_response);
     populateStubFor(&hal_fn->wifi_nan_data_end);
+    populateStubFor(&hal_fn->wifi_nan_pairing_end);
     populateStubFor(&hal_fn->wifi_get_packet_filter_capabilities);
     populateStubFor(&hal_fn->wifi_set_packet_filter);
     populateStubFor(&hal_fn->wifi_read_packet_filter);
@@ -176,6 +177,8 @@ bool initHalFuncTableWithStubs(wifi_hal_fn* hal_fn) {
     populateStubFor(&hal_fn->wifi_nan_suspend_request);
     populateStubFor(&hal_fn->wifi_nan_resume_request);
     populateStubFor(&hal_fn->wifi_set_scan_mode);
+    populateStubFor(&hal_fn->wifi_set_mlo_mode);
+    populateStubFor(&hal_fn->wifi_get_supported_iface_concurrency_matrix);
     return true;
 }
 

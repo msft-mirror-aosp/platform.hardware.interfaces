@@ -119,6 +119,24 @@ ScopedAStatus VtsComposerClient::setActiveConfig(VtsDisplay* vtsDisplay, int32_t
     return updateDisplayProperties(vtsDisplay, config);
 }
 
+ScopedAStatus VtsComposerClient::setPeakRefreshRateConfig(VtsDisplay* vtsDisplay) {
+    const auto displayId = vtsDisplay->getDisplayId();
+    auto [activeStatus, activeConfig] = getActiveConfig(displayId);
+    EXPECT_TRUE(activeStatus.isOk());
+    auto peakDisplayConfig = vtsDisplay->getDisplayConfig(activeConfig);
+    auto peakConfig = activeConfig;
+
+    const auto displayConfigs = vtsDisplay->getDisplayConfigs();
+    for (const auto [config, displayConfig] : displayConfigs) {
+        if (displayConfig.configGroup == peakDisplayConfig.configGroup &&
+            displayConfig.vsyncPeriod < peakDisplayConfig.vsyncPeriod) {
+            peakDisplayConfig = displayConfig;
+            peakConfig = config;
+        }
+    }
+    return setActiveConfig(vtsDisplay, peakConfig);
+}
+
 std::pair<ScopedAStatus, int32_t> VtsComposerClient::getDisplayAttribute(
         int64_t display, int32_t config, DisplayAttribute displayAttribute) {
     int32_t outDisplayAttribute;
@@ -344,9 +362,11 @@ VtsComposerClient::getHdrConversionCapabilities() {
             hdrConversionCapability};
 }
 
-ScopedAStatus VtsComposerClient::setHdrConversionStrategy(
+std::pair<ScopedAStatus, common::Hdr> VtsComposerClient::setHdrConversionStrategy(
         const common::HdrConversionStrategy& conversionStrategy) {
-    return mComposerClient->setHdrConversionStrategy(conversionStrategy);
+    common::Hdr preferredHdrOutputType;
+    return {mComposerClient->setHdrConversionStrategy(conversionStrategy, &preferredHdrOutputType),
+            preferredHdrOutputType};
 }
 
 std::pair<ScopedAStatus, common::Transform> VtsComposerClient::getDisplayPhysicalOrientation(
@@ -371,6 +391,17 @@ int32_t VtsComposerClient::getVsyncIdleCount() {
 
 int64_t VtsComposerClient::getVsyncIdleTime() {
     return mComposerCallback->getVsyncIdleTime();
+}
+
+ndk::ScopedAStatus VtsComposerClient::setRefreshRateChangedCallbackDebugEnabled(int64_t display,
+                                                                                bool enabled) {
+    mComposerCallback->setRefreshRateChangedDebugDataEnabledCallbackAllowed(enabled);
+    return mComposerClient->setRefreshRateChangedCallbackDebugEnabled(display, enabled);
+}
+
+std::vector<RefreshRateChangedDebugData>
+VtsComposerClient::takeListOfRefreshRateChangedDebugData() {
+    return mComposerCallback->takeListOfRefreshRateChangedDebugData();
 }
 
 int64_t VtsComposerClient::getInvalidDisplayId() {
@@ -535,6 +566,10 @@ bool VtsComposerClient::verifyComposerCallbackParams() {
         }
         if (mComposerCallback->getInvalidSeamlessPossibleCount() != 0) {
             ALOGE("Invalid seamless possible count");
+            isValid = false;
+        }
+        if (mComposerCallback->getInvalidRefreshRateDebugEnabledCallbackCount() != 0) {
+            ALOGE("Invalid refresh rate debug enabled callback count");
             isValid = false;
         }
     }

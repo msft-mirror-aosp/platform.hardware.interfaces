@@ -55,6 +55,7 @@ using aidl::android::hardware::wifi::NanPublishType;
 using aidl::android::hardware::wifi::NanRespondToDataPathIndicationRequest;
 using aidl::android::hardware::wifi::NanStatus;
 using aidl::android::hardware::wifi::NanStatusCode;
+using aidl::android::hardware::wifi::NanSuspensionModeChangeInd;
 using aidl::android::hardware::wifi::NanTxType;
 
 #define TIMEOUT_PERIOD 10
@@ -106,6 +107,7 @@ class WifiNanIfaceAidlTest : public testing::TestWithParam<std::string> {
         NOTIFY_RESPOND_TO_BOOTSTRAPPING_INDICATION_RESPONSE,
         NOTIFY_SUSPEND_RESPONSE,
         NOTIFY_RESUME_RESPONSE,
+        NOTIFY_TERMINATE_PAIRING_RESPONSE,
 
         EVENT_CLUSTER_EVENT,
         EVENT_DISABLED,
@@ -123,6 +125,7 @@ class WifiNanIfaceAidlTest : public testing::TestWithParam<std::string> {
         EVENT_PAIRING_CONFIRM,
         EVENT_BOOTSTRAPPING_REQUEST,
         EVENT_BOOTSTRAPPING_CONFIRM,
+        EVENT_SUSPENSION_MODE_CHANGE,
     };
 
     // Test code calls this function to wait for data/event callback.
@@ -251,6 +254,13 @@ class WifiNanIfaceAidlTest : public testing::TestWithParam<std::string> {
                 const NanBootstrappingRequestInd& event) override {
             parent_.callback_type_ = EVENT_BOOTSTRAPPING_REQUEST;
             parent_.nan_bootstrapping_request_ind_ = event;
+            parent_.notify();
+            return ndk::ScopedAStatus::ok();
+        }
+        ::ndk::ScopedAStatus eventSuspensionModeChanged(
+                const NanSuspensionModeChangeInd& event) override {
+            parent_.callback_type_ = EVENT_SUSPENSION_MODE_CHANGE;
+            parent_.nan_suspension_mode_change_ind_ = event;
             parent_.notify();
             return ndk::ScopedAStatus::ok();
         }
@@ -416,6 +426,14 @@ class WifiNanIfaceAidlTest : public testing::TestWithParam<std::string> {
             parent_.notify();
             return ndk::ScopedAStatus::ok();
         }
+        ::ndk::ScopedAStatus notifyTerminatePairingResponse(char16_t id,
+                                                            const NanStatus& status) override {
+            parent_.callback_type_ = NOTIFY_TERMINATE_PAIRING_RESPONSE;
+            parent_.id_ = id;
+            parent_.status_ = status;
+            parent_.notify();
+            return ndk::ScopedAStatus::ok();
+        }
 
       private:
         WifiNanIfaceAidlTest& parent_;
@@ -442,6 +460,7 @@ class WifiNanIfaceAidlTest : public testing::TestWithParam<std::string> {
     NanPairingConfirmInd nan_pairing_confirm_ind_;
     NanBootstrappingRequestInd nan_bootstrapping_request_ind_;
     NanBootstrappingConfirmInd nan_bootstrapping_confirm_ind_;
+    NanSuspensionModeChangeInd nan_suspension_mode_change_ind_;
 
     const char* getInstanceName() { return GetParam().c_str(); }
 

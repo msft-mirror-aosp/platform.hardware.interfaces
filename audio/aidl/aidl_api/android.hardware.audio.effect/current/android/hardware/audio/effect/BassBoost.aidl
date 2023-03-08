@@ -38,13 +38,7 @@ union BassBoost {
   int strengthPm;
   @VintfStability
   union Id {
-    int vendorExtensionTag;
+    android.hardware.audio.effect.VendorExtension vendorExtensionTag;
     android.hardware.audio.effect.BassBoost.Tag commonTag;
-  }
-  @VintfStability
-  parcelable Capability {
-    ParcelableHolder extension;
-    int maxStrengthPm;
-    boolean strengthSupported;
   }
 }

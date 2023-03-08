@@ -24,6 +24,9 @@ class DriverStub : public DriverInterface {
   public:
     DriverStub(const StreamContext& context, bool isInput);
     ::android::status_t init() override;
+    ::android::status_t setConnectedDevices(
+            const std::vector<::aidl::android::media::audio::common::AudioDevice>& connectedDevices)
+            override;
     ::android::status_t drain(StreamDescriptor::DrainMode) override;
     ::android::status_t flush() override;
     ::android::status_t pause() override;
@@ -33,6 +36,8 @@ class DriverStub : public DriverInterface {
 
   private:
     const size_t mFrameSizeBytes;
+    const int mSampleRate;
+    const bool mIsAsynchronous;
     const bool mIsInput;
 };
 
@@ -40,13 +45,16 @@ class StreamInStub final : public StreamIn {
   public:
     static ndk::ScopedAStatus createInstance(
             const ::aidl::android::hardware::audio::common::SinkMetadata& sinkMetadata,
-            StreamContext&& context, const std::vector<MicrophoneInfo>& microphones,
+            StreamContext&& context,
+            const std::vector<::aidl::android::media::audio::common::MicrophoneInfo>& microphones,
             std::shared_ptr<StreamIn>* result);
 
   private:
     friend class ndk::SharedRefBase;
-    StreamInStub(const ::aidl::android::hardware::audio::common::SinkMetadata& sinkMetadata,
-                 StreamContext&& context, const std::vector<MicrophoneInfo>& microphones);
+    StreamInStub(
+            const ::aidl::android::hardware::audio::common::SinkMetadata& sinkMetadata,
+            StreamContext&& context,
+            const std::vector<::aidl::android::media::audio::common::MicrophoneInfo>& microphones);
 };
 
 class StreamOutStub final : public StreamOut {

@@ -18,6 +18,9 @@ package android.hardware.wifi;
 
 import android.hardware.wifi.NanBootstrappingMethod;
 
+/**
+ * See Wi-Fi Aware R4.0 section 9.5.21.7
+ */
 @VintfStability
 parcelable NanBootstrappingRequest {
     /**
@@ -34,7 +37,12 @@ parcelable NanBootstrappingRequest {
     byte[6] peerDiscMacAddr;
 
     /**
-     * Bootstrapping method in the request, one of the |NanBootstrappingMethod|
+     * One of |NanBootstrappingMethod| indicating the bootstrapping method in the request.
      */
     NanBootstrappingMethod requestBootstrappingMethod;
+
+    /**
+     * Cookie received from previous |NanBootstrappingConfirmInd| for comeback request.
+     */
+    byte[] cookie;
 }

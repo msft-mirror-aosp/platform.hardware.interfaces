@@ -39,6 +39,8 @@ union EnvironmentalReverb {
   int roomHfLevelMb;
   int decayTimeMs;
   int decayHfRatioPm;
+  int reflectionsLevelMb;
+  int reflectionsDelayMs;
   int levelMb;
   int delayMs;
   int diffusionPm;
@@ -46,23 +48,7 @@ union EnvironmentalReverb {
   boolean bypass;
   @VintfStability
   union Id {
-    int vendorExtensionTag;
+    android.hardware.audio.effect.VendorExtension vendorExtensionTag;
     android.hardware.audio.effect.EnvironmentalReverb.Tag commonTag;
-  }
-  @VintfStability
-  parcelable Capability {
-    android.hardware.audio.effect.VendorExtension extension;
-    int minRoomLevelMb;
-    int maxRoomLevelMb;
-    int minRoomHfLevelMb;
-    int maxRoomHfLevelMb;
-    int maxDecayTimeMs;
-    int minDecayHfRatioPm;
-    int maxDecayHfRatioPm;
-    int minLevelMb;
-    int maxLevelMb;
-    int maxDelayMs;
-    int maxDiffusionPm;
-    int maxDensityPm;
   }
 }

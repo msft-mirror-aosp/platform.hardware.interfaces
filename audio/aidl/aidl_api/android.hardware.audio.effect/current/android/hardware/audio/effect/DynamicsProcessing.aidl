@@ -34,7 +34,7 @@
 package android.hardware.audio.effect;
 @VintfStability
 union DynamicsProcessing {
-  android.hardware.audio.effect.VendorExtension vendorExtension;
+  android.hardware.audio.effect.VendorExtension vendor;
   android.hardware.audio.effect.DynamicsProcessing.EngineArchitecture engineArchitecture;
   android.hardware.audio.effect.DynamicsProcessing.ChannelConfig[] preEq;
   android.hardware.audio.effect.DynamicsProcessing.ChannelConfig[] postEq;
@@ -46,14 +46,8 @@ union DynamicsProcessing {
   android.hardware.audio.effect.DynamicsProcessing.InputGain[] inputGain;
   @VintfStability
   union Id {
-    int vendorExtensionTag;
+    android.hardware.audio.effect.VendorExtension vendorExtensionTag;
     android.hardware.audio.effect.DynamicsProcessing.Tag commonTag;
-  }
-  @VintfStability
-  parcelable Capability {
-    ParcelableHolder extension;
-    float minCutOffFreq;
-    float maxCutOffFreq;
   }
   enum ResolutionPreference {
     FAVOR_FREQUENCY_RESOLUTION,

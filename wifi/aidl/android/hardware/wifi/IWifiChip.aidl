@@ -31,7 +31,7 @@ import android.hardware.wifi.WifiDebugHostWakeReasonStats;
 import android.hardware.wifi.WifiDebugRingBufferStatus;
 import android.hardware.wifi.WifiDebugRingBufferVerboseLevel;
 import android.hardware.wifi.WifiIfaceMode;
-import android.hardware.wifi.WifiRadioCombinationMatrix;
+import android.hardware.wifi.WifiRadioCombination;
 import android.hardware.wifi.WifiUsableChannel;
 
 /**
@@ -46,71 +46,42 @@ interface IWifiChip {
     @Backing(type="int")
     enum ChipCapabilityMask {
         /**
-         * Memory dump of Firmware.
-         */
-        DEBUG_MEMORY_FIRMWARE_DUMP = 1 << 0,
-        /**
-         * Memory dump of Driver.
-         */
-        DEBUG_MEMORY_DRIVER_DUMP = 1 << 1,
-        /**
-         * Connectivity events reported via debug ring buffer.
-         */
-        DEBUG_RING_BUFFER_CONNECT_EVENT = 1 << 2,
-        /**
-         * Power events reported via debug ring buffer.
-         */
-        DEBUG_RING_BUFFER_POWER_EVENT = 1 << 3,
-        /**
-         * Wakelock events reported via debug ring buffer.
-         */
-        DEBUG_RING_BUFFER_WAKELOCK_EVENT = 1 << 4,
-        /**
-         * Vendor data reported via debug ring buffer.
-         * This mostly contains firmware event logs.
-         */
-        DEBUG_RING_BUFFER_VENDOR_DATA = 1 << 5,
-        /**
-         * Host wake reasons stats collection.
-         */
-        DEBUG_HOST_WAKE_REASON_STATS = 1 << 6,
-        /**
-         * Error alerts.
-         */
-        DEBUG_ERROR_ALERTS = 1 << 7,
-        /**
          * Set/Reset Tx Power limits.
          */
-        SET_TX_POWER_LIMIT = 1 << 8,
+        SET_TX_POWER_LIMIT = 1 << 0,
         /**
          * Device to Device RTT.
          */
-        D2D_RTT = 1 << 9,
+        D2D_RTT = 1 << 1,
         /**
          * Device to AP RTT.
          */
-        D2AP_RTT = 1 << 10,
+        D2AP_RTT = 1 << 2,
         /**
          * Set/Reset Tx Power limits.
          */
-        USE_BODY_HEAD_SAR = 1 << 11,
+        USE_BODY_HEAD_SAR = 1 << 3,
         /**
          * Set Latency Mode.
          */
-        SET_LATENCY_MODE = 1 << 12,
+        SET_LATENCY_MODE = 1 << 4,
         /**
          * Support P2P MAC randomization.
          */
-        P2P_RAND_MAC = 1 << 13,
+        P2P_RAND_MAC = 1 << 5,
         /**
          * Chip can operate in the 60GHz band (WiGig chip).
          */
-        WIGIG = 1 << 14,
+        WIGIG = 1 << 6,
         /**
          * Chip supports setting allowed channels along with PSD in 6GHz band
          * for AFC purposes.
          */
-        SET_AFC_CHANNEL_ALLOWANCE = 1 << 15,
+        SET_AFC_CHANNEL_ALLOWANCE = 1 << 7,
+        /**
+         * Chip supports Tid-To-Link mapping negotiation.
+         */
+        T2LM_NEGOTIATION = 1 << 8,
     }
 
     /**
@@ -540,7 +511,6 @@ interface IWifiChip {
      * API to enable/disable alert notifications from the chip.
      * These alerts must be used to notify the framework of any fatal error events
      * that the chip encounters via |IWifiChipEventCallback.onDebugErrorAlert| method.
-     * Must fail if |ChipCapabilityMask.DEBUG_ERROR_ALERTS| is not set.
      *
      * @param enable true to enable, false to disable.
      * @throws ServiceSpecificException with one of the following values:
@@ -620,7 +590,7 @@ interface IWifiChip {
      *         |WifiStatusCode.ERROR_NOT_AVAILABLE|,
      *         |WifiStatusCode.ERROR_UNKNOWN|
      */
-    ChipCapabilityMask getCapabilities();
+    int getCapabilities();
 
     /**
      * API to retrieve the wifi wake up reason stats for debugging.
@@ -767,8 +737,7 @@ interface IWifiChip {
      * Retrieve the list of all the possible radio combinations supported by this
      * chip.
      *
-     * @return A list of all the possible radio combinations represented by
-     *         |WifiRadioCombinationMatrix|.
+     * @return A list of all the possible radio combinations.
      *         For example, in case of a chip which has two radios, where one radio is
      *         capable of 2.4GHz 2X2 only and another radio which is capable of either
      *         5GHz or 6GHz 2X2, the number of possible radio combinations in this case
@@ -789,7 +758,7 @@ interface IWifiChip {
      *         |WifiStatusCode.FAILURE_UNKNOWN|
      *
      */
-    WifiRadioCombinationMatrix getSupportedRadioCombinationsMatrix();
+    WifiRadioCombination[] getSupportedRadioCombinations();
 
     /**
      * Get capabilities supported by this chip.
@@ -839,7 +808,7 @@ interface IWifiChip {
      *         |WifiStatusCode.FAILURE_UNKNOWN|
      */
     WifiUsableChannel[] getUsableChannels(
-            in WifiBand band, in WifiIfaceMode ifaceModeMask, in UsableChannelFilter filterMask);
+            in WifiBand band, in int ifaceModeMask, in int filterMask);
 
     /*
      * Set the max power level the chip is allowed to transmit on for 6Ghz AFC
@@ -1013,8 +982,7 @@ interface IWifiChip {
      *         |WifiStatusCode.ERROR_WIFI_CHIP_INVALID|,
      *         |WifiStatusCode.ERROR_INVALID_ARGS|,
      */
-    void setCoexUnsafeChannels(
-            in CoexUnsafeChannel[] unsafeChannels, in CoexRestriction restrictions);
+    void setCoexUnsafeChannels(in CoexUnsafeChannel[] unsafeChannels, in int restrictions);
 
     /**
      * Set country code for this Wifi chip.
@@ -1141,12 +1109,48 @@ interface IWifiChip {
      * If the channel category is enabled and allowed by the regulatory, the HAL method
      * getUsableChannels() will contain the current STA-connected channel if that channel belongs
      * to that category.
-     * @param channelCategoryEnableFlag bitmask of |ChannelCategoryMask|.
+     * @param channelCategoryEnableFlag Bitmask of |ChannelCategoryMask| values.
      *        For each bit, 1 enables the channel category and 0 disables that channel category.
      * @throws ServiceSpecificException with one of the following values:
      *         |WifiStatusCode.ERROR_WIFI_CHIP_INVALID|,
      *         |WifiStatusCode.ERROR_NOT_SUPPORTED|,
      *         |WifiStatusCode.FAILURE_UNKNOWN|
      */
-    void enableStaChannelForPeerNetwork(in ChannelCategoryMask channelCategoryEnableFlag);
+    void enableStaChannelForPeerNetwork(in int channelCategoryEnableFlag);
+
+    /**
+     * Multi-Link Operation modes.
+     */
+    @VintfStability
+    @Backing(type="int")
+    enum ChipMloMode {
+        /**
+         * Default mode for Multi-Link Operation.
+         */
+        DEFAULT = 0,
+        /**
+         * Low latency mode for Multi-link operation.
+         */
+        LOW_LATENCY = 1,
+        /**
+         * High throughput mode for Multi-link operation.
+         */
+        HIGH_THROUGHPUT = 2,
+        /**
+         * Low power mode for Multi-link operation.
+         */
+        LOW_POWER = 3,
+    }
+
+    /**
+     * Set mode for Multi-Link Operation. Various modes are defined by the enum |ChipMloMode|.
+     *
+     * @param mode MLO mode as defined by the enum |ChipMloMode|
+     * @throws ServiceSpecificException with one of the following values:
+     *         |WifiStatusCode.ERROR_WIFI_IFACE_INVALID|,
+     *         |WifiStatusCode.ERROR_NOT_SUPPORTED|,
+     *         |WifiStatusCode.ERROR_UNKNOWN|
+     *
+     */
+    void setMloMode(in ChipMloMode mode);
 }

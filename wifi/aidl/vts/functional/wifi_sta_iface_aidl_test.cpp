@@ -54,9 +54,9 @@ class WifiStaIfaceAidlTest : public testing::TestWithParam<std::string> {
 
   protected:
     bool isCapabilitySupported(IWifiStaIface::StaIfaceCapabilityMask expected) {
-        IWifiStaIface::StaIfaceCapabilityMask caps = {};
+        int32_t caps = 0;
         EXPECT_TRUE(wifi_sta_iface_->getCapabilities(&caps).isOk());
-        return static_cast<uint32_t>(caps) & static_cast<uint32_t>(expected);
+        return caps & static_cast<int32_t>(expected);
     }
 
     ndk::ScopedAStatus createStaIface(std::shared_ptr<IWifiStaIface>* sta_iface) {
@@ -86,9 +86,9 @@ TEST_P(WifiStaIfaceAidlTest, GetFactoryMacAddress) {
  * GetCapabilities
  */
 TEST_P(WifiStaIfaceAidlTest, GetCapabilities) {
-    IWifiStaIface::StaIfaceCapabilityMask caps = {};
+    int32_t caps = 0;
     EXPECT_TRUE(wifi_sta_iface_->getCapabilities(&caps).isOk());
-    EXPECT_NE(static_cast<int32_t>(caps), 0);
+    EXPECT_NE(caps, 0);
 }
 
 /*
@@ -255,18 +255,17 @@ TEST_P(WifiStaIfaceAidlTest, EnableNDOffload) {
  * PacketFateMonitoring
  */
 TEST_P(WifiStaIfaceAidlTest, PacketFateMonitoring) {
-    if (!isCapabilitySupported(IWifiStaIface::StaIfaceCapabilityMask::DEBUG_PACKET_FATE)) {
-        GTEST_SKIP() << "Packet fate monitoring is not supported.";
-    }
-
     // Start packet fate monitoring.
-    EXPECT_TRUE(wifi_sta_iface_->startDebugPacketFateMonitoring().isOk());
+    auto status = wifi_sta_iface_->startDebugPacketFateMonitoring();
+    EXPECT_TRUE(status.isOk() || checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
 
     // Retrieve packets.
-    std::vector<WifiDebugRxPacketFateReport> rx_reports;
-    std::vector<WifiDebugTxPacketFateReport> tx_reports;
-    EXPECT_TRUE(wifi_sta_iface_->getDebugRxPacketFates(&rx_reports).isOk());
-    EXPECT_TRUE(wifi_sta_iface_->getDebugTxPacketFates(&tx_reports).isOk());
+    if (status.isOk()) {
+        std::vector<WifiDebugRxPacketFateReport> rx_reports;
+        std::vector<WifiDebugTxPacketFateReport> tx_reports;
+        EXPECT_TRUE(wifi_sta_iface_->getDebugRxPacketFates(&rx_reports).isOk());
+        EXPECT_TRUE(wifi_sta_iface_->getDebugTxPacketFates(&tx_reports).isOk());
+    }
 }
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(WifiStaIfaceAidlTest);

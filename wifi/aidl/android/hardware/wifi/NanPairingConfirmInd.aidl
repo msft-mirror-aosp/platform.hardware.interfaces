@@ -16,7 +16,6 @@
 
 package android.hardware.wifi;
 
-import android.hardware.wifi.NanDataPathChannelInfo;
 import android.hardware.wifi.NanPairingRequestType;
 import android.hardware.wifi.NanStatus;
 import android.hardware.wifi.NpkSecurityAssociation;
@@ -24,7 +23,7 @@ import android.hardware.wifi.NpkSecurityAssociation;
 /**
  * NAN pairing confirmation indication structure. Event indication is
  * received on both initiator and responder side when negotiation for a
- * pairing finishes on success or failure.
+ * pairing finishes on success or failure. See Wi-Fi Aware R4.0 section 7.6.1.4
  */
 @VintfStability
 parcelable NanPairingConfirmInd {

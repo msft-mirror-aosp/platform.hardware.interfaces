@@ -16,8 +16,6 @@
 
 package android.hardware.wifi;
 
-import android.hardware.wifi.NanBootstrappingMethod;
-
 /**
  * The NAN pairing config
  */
@@ -36,7 +34,8 @@ parcelable NanPairingConfig {
      */
     boolean enablePairingVerification;
     /**
-     * The set of supported bootstrapping methods. The |NanBootstrappingMethod| bit fields are used.
+     * Bitmap of |NanBootstrappingMethod| values indicating the set of
+     * supported bootstrapping methods.
      */
     int supportedBootstrappingMethods;
 }

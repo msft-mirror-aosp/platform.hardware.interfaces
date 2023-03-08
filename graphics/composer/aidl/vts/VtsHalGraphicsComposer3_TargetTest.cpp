@@ -637,8 +637,10 @@ TEST_P(GraphicsComposerAidlTest, SetHdrConversionStrategy_Passthrough) {
     }
     common::HdrConversionStrategy hdrConversionStrategy;
     hdrConversionStrategy.set<common::HdrConversionStrategy::Tag::passthrough>(true);
-    const auto& status = mComposerClient->setHdrConversionStrategy(hdrConversionStrategy);
+    const auto& [status, preferredHdrOutputType] =
+            mComposerClient->setHdrConversionStrategy(hdrConversionStrategy);
     EXPECT_TRUE(status.isOk());
+    EXPECT_EQ(common::Hdr::INVALID, preferredHdrOutputType);
 }
 
 TEST_P(GraphicsComposerAidlTest, SetHdrConversionStrategy_Force) {
@@ -648,13 +650,14 @@ TEST_P(GraphicsComposerAidlTest, SetHdrConversionStrategy_Force) {
     }
     const auto& [status, conversionCapabilities] = mComposerClient->getHdrConversionCapabilities();
     for (auto conversionCapability : conversionCapabilities) {
-        if (conversionCapability.outputType) {
+        if (conversionCapability.outputType != common::Hdr::INVALID) {
             common::HdrConversionStrategy hdrConversionStrategy;
             hdrConversionStrategy.set<common::HdrConversionStrategy::Tag::forceHdrConversion>(
-                    conversionCapability.outputType->hdr);
-            const auto& statusSet =
+                    conversionCapability.outputType);
+            const auto& [statusSet, preferredHdrOutputType] =
                     mComposerClient->setHdrConversionStrategy(hdrConversionStrategy);
-            EXPECT_TRUE(status.isOk());
+            EXPECT_TRUE(statusSet.isOk());
+            EXPECT_EQ(common::Hdr::INVALID, preferredHdrOutputType);
         }
     }
 }
@@ -667,15 +670,17 @@ TEST_P(GraphicsComposerAidlTest, SetHdrConversionStrategy_Auto) {
     const auto& [status, conversionCapabilities] = mComposerClient->getHdrConversionCapabilities();
     std::vector<aidl::android::hardware::graphics::common::Hdr> autoHdrTypes;
     for (auto conversionCapability : conversionCapabilities) {
-        if (conversionCapability.outputType) {
-            autoHdrTypes.push_back(conversionCapability.outputType->hdr);
+        if (conversionCapability.outputType != common::Hdr::INVALID) {
+            autoHdrTypes.push_back(conversionCapability.outputType);
         }
     }
     common::HdrConversionStrategy hdrConversionStrategy;
     hdrConversionStrategy.set<common::HdrConversionStrategy::Tag::autoAllowedHdrTypes>(
             autoHdrTypes);
-    const auto& statusSet = mComposerClient->setHdrConversionStrategy(hdrConversionStrategy);
-    EXPECT_TRUE(status.isOk());
+    const auto& [statusSet, preferredHdrOutputType] =
+            mComposerClient->setHdrConversionStrategy(hdrConversionStrategy);
+    EXPECT_TRUE(statusSet.isOk());
+    EXPECT_NE(common::Hdr::INVALID, preferredHdrOutputType);
 }
 
 TEST_P(GraphicsComposerAidlTest, SetAutoLowLatencyMode_BadDisplay) {
@@ -869,6 +874,13 @@ TEST_P(GraphicsComposerAidlTest, GetDisplayName) {
 }
 
 TEST_P(GraphicsComposerAidlTest, GetOverlaySupport) {
+    const auto& [versionStatus, version] = mComposerClient->getInterfaceVersion();
+    ASSERT_TRUE(versionStatus.isOk());
+    if (version == 1) {
+        GTEST_SUCCEED() << "Device does not support the new API for overlay support";
+        return;
+    }
+
     const auto& [status, properties] = mComposerClient->getOverlaySupport();
     if (!status.isOk() && status.getExceptionCode() == EX_SERVICE_SPECIFIC &&
         status.getServiceSpecificError() == IComposerClient::EX_UNSUPPORTED) {
@@ -1205,6 +1217,14 @@ class GraphicsComposerAidlCommandTest : public GraphicsComposerAidlTest {
         }
     }
 
+    bool checkIfCallbackRefreshRateChangedDebugEnabledReceived(
+            std::function<bool(RefreshRateChangedDebugData)> filter) {
+        const auto list = mComposerClient->takeListOfRefreshRateChangedDebugData();
+        return std::any_of(list.begin(), list.end(), [&](auto refreshRateChangedDebugData) {
+            return filter(refreshRateChangedDebugData);
+        });
+    }
+
     sp<GraphicBuffer> allocate(::android::PixelFormat pixelFormat) {
         return sp<GraphicBuffer>::make(
                 static_cast<uint32_t>(getPrimaryDisplay().getDisplayWidth()),
@@ -1304,7 +1324,7 @@ class GraphicsComposerAidlCommandTest : public GraphicsComposerAidlTest {
         return vsyncPeriod;
     }
 
-    int64_t createOnScreenLayer() {
+    int64_t createOnScreenLayer(Composition composition = Composition::DEVICE) {
         const auto& [status, layer] =
                 mComposerClient->createLayer(getPrimaryDisplayId(), kBufferSlotCount);
         EXPECT_TRUE(status.isOk());
@@ -1312,10 +1332,23 @@ class GraphicsComposerAidlCommandTest : public GraphicsComposerAidlTest {
                           getPrimaryDisplay().getDisplayHeight()};
         FRect cropRect{0, 0, (float)getPrimaryDisplay().getDisplayWidth(),
                        (float)getPrimaryDisplay().getDisplayHeight()};
-        configureLayer(getPrimaryDisplay(), layer, Composition::DEVICE, displayFrame, cropRect);
+        configureLayer(getPrimaryDisplay(), layer, composition, displayFrame, cropRect);
         auto& writer = getWriter(getPrimaryDisplayId());
         writer.setLayerDataspace(getPrimaryDisplayId(), layer, common::Dataspace::UNKNOWN);
         return layer;
+    }
+
+    void sendBufferUpdate(int64_t layer) {
+        const auto buffer = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+        ASSERT_NE(nullptr, buffer->handle);
+
+        auto& writer = getWriter(getPrimaryDisplayId());
+        writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 0, buffer->handle,
+                              /*acquireFence*/ -1);
+
+        const sp<::android::Fence> presentFence =
+                presentAndGetFence(ComposerClientWriter::kNoTimestamp);
+        presentFence->waitForever(LOG_TAG);
     }
 
     bool hasDisplayCapability(int64_t display, DisplayCapability cap) {
@@ -2254,6 +2287,176 @@ TEST_P(GraphicsComposerAidlCommandTest, SetIdleTimerEnabled_Timeout_2) {
     }
 
     EXPECT_TRUE(mComposerClient->setPowerMode(getPrimaryDisplayId(), PowerMode::OFF).isOk());
+}
+
+TEST_P(GraphicsComposerAidlCommandTest, SetRefreshRateChangedCallbackDebug_Unsupported) {
+    if (!hasCapability(Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG)) {
+        auto status = mComposerClient->setRefreshRateChangedCallbackDebugEnabled(
+                getPrimaryDisplayId(), /*enabled*/ true);
+        EXPECT_FALSE(status.isOk());
+        EXPECT_NO_FATAL_FAILURE(
+                assertServiceSpecificError(status, IComposerClient::EX_UNSUPPORTED));
+
+        status = mComposerClient->setRefreshRateChangedCallbackDebugEnabled(getPrimaryDisplayId(),
+                                                                            /*enabled*/ false);
+        EXPECT_FALSE(status.isOk());
+        EXPECT_NO_FATAL_FAILURE(
+                assertServiceSpecificError(status, IComposerClient::EX_UNSUPPORTED));
+    }
+}
+
+TEST_P(GraphicsComposerAidlCommandTest, SetRefreshRateChangedCallbackDebug_Enabled) {
+    if (!hasCapability(Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG)) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is not supported";
+        return;
+    }
+
+    const auto displayId = getPrimaryDisplayId();
+    EXPECT_TRUE(mComposerClient->setPowerMode(displayId, PowerMode::ON).isOk());
+    // Enable the callback
+    ASSERT_TRUE(mComposerClient
+                        ->setRefreshRateChangedCallbackDebugEnabled(displayId,
+                                                                    /*enabled*/ true)
+                        .isOk());
+    std::this_thread::sleep_for(100ms);
+
+    const auto displayFilter = [displayId](auto refreshRateChangedDebugData) {
+        return displayId == refreshRateChangedDebugData.display;
+    };
+
+    // Check that we immediately got a callback
+    EXPECT_TRUE(checkIfCallbackRefreshRateChangedDebugEnabledReceived(displayFilter));
+
+    ASSERT_TRUE(mComposerClient
+                        ->setRefreshRateChangedCallbackDebugEnabled(displayId,
+                                                                    /*enabled*/ false)
+                        .isOk());
+}
+
+TEST_P(GraphicsComposerAidlCommandTest,
+       SetRefreshRateChangedCallbackDebugEnabled_noCallbackWhenIdle) {
+    if (!hasCapability(Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG)) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is not supported";
+        return;
+    }
+
+    auto display = getEditablePrimaryDisplay();
+    const auto displayId = display.getDisplayId();
+
+    if (!hasDisplayCapability(displayId, DisplayCapability::DISPLAY_IDLE_TIMER)) {
+        GTEST_SUCCEED() << "DisplayCapability::DISPLAY_IDLE_TIMER is not supported";
+        return;
+    }
+
+    EXPECT_TRUE(mComposerClient->setPowerMode(displayId, PowerMode::ON).isOk());
+    EXPECT_TRUE(mComposerClient->setPeakRefreshRateConfig(&display).isOk());
+
+    ASSERT_TRUE(mComposerClient->setIdleTimerEnabled(displayId, /*timeoutMs*/ 500).isOk());
+    // Enable the callback
+    ASSERT_TRUE(mComposerClient
+                        ->setRefreshRateChangedCallbackDebugEnabled(displayId,
+                                                                    /*enabled*/ true)
+                        .isOk());
+
+    const auto displayFilter = [displayId](auto refreshRateChangedDebugData) {
+        return displayId == refreshRateChangedDebugData.display;
+    };
+
+    int retryCount = 3;
+    do {
+        // Wait for 1s so that we enter the idle state
+        std::this_thread::sleep_for(1s);
+        if (!checkIfCallbackRefreshRateChangedDebugEnabledReceived(displayFilter)) {
+            // DID NOT receive a callback, we are in the idle state.
+            break;
+        }
+    } while (--retryCount > 0);
+
+    if (retryCount == 0) {
+        GTEST_SUCCEED() << "Unable to enter the idle mode";
+        return;
+    }
+
+    // Send the REFRESH_RATE_INDICATOR update
+    ASSERT_NO_FATAL_FAILURE(
+            sendBufferUpdate(createOnScreenLayer(Composition::REFRESH_RATE_INDICATOR)));
+    std::this_thread::sleep_for(1s);
+    EXPECT_FALSE(checkIfCallbackRefreshRateChangedDebugEnabledReceived(displayFilter))
+            << "A callback should not be received for REFRESH_RATE_INDICATOR";
+
+    EXPECT_TRUE(mComposerClient
+                        ->setRefreshRateChangedCallbackDebugEnabled(displayId,
+                                                                    /*enabled*/ false)
+                        .isOk());
+}
+
+TEST_P(GraphicsComposerAidlCommandTest,
+       SetRefreshRateChangedCallbackDebugEnabled_SetActiveConfigWithConstraints) {
+    if (!hasCapability(Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG)) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is not supported";
+        return;
+    }
+
+    VsyncPeriodChangeConstraints constraints;
+    constraints.seamlessRequired = false;
+    constraints.desiredTimeNanos = systemTime();
+
+    for (VtsDisplay& display : mDisplays) {
+        const auto displayId = display.getDisplayId();
+        EXPECT_TRUE(mComposerClient->setPowerMode(displayId, PowerMode::ON).isOk());
+
+        // Enable the callback
+        ASSERT_TRUE(mComposerClient
+                            ->setRefreshRateChangedCallbackDebugEnabled(displayId, /*enabled*/ true)
+                            .isOk());
+
+        forEachTwoConfigs(displayId, [&](int32_t config1, int32_t config2) {
+            const int32_t vsyncPeriod1 = display.getDisplayConfig(config1).vsyncPeriod;
+            const int32_t vsyncPeriod2 = display.getDisplayConfig(config2).vsyncPeriod;
+
+            if (vsyncPeriod1 == vsyncPeriod2) {
+                return;  // continue
+            }
+
+            EXPECT_TRUE(mComposerClient->setActiveConfig(&display, config1).isOk());
+            sendRefreshFrame(display, nullptr);
+
+            const auto& [status, timeline] =
+                    mComposerClient->setActiveConfigWithConstraints(&display, config2, constraints);
+            EXPECT_TRUE(status.isOk());
+
+            if (timeline.refreshRequired) {
+                sendRefreshFrame(display, &timeline);
+            }
+
+            const auto callbackFilter = [displayId,
+                                         vsyncPeriod2](auto refreshRateChangedDebugData) {
+                constexpr int kVsyncThreshold = 1000;
+                return displayId == refreshRateChangedDebugData.display &&
+                       std::abs(vsyncPeriod2 - refreshRateChangedDebugData.vsyncPeriodNanos) <=
+                               kVsyncThreshold;
+            };
+
+            int retryCount = 3;
+            do {
+                std::this_thread::sleep_for(100ms);
+                if (checkIfCallbackRefreshRateChangedDebugEnabledReceived(callbackFilter)) {
+                    GTEST_SUCCEED() << "Received a callback successfully";
+                    break;
+                }
+            } while (--retryCount > 0);
+
+            if (retryCount == 0) {
+                GTEST_FAIL() << "failed to get a callback for the display " << displayId
+                             << " with config " << config2;
+            }
+        });
+
+        EXPECT_TRUE(
+                mComposerClient
+                        ->setRefreshRateChangedCallbackDebugEnabled(displayId, /*enabled*/ false)
+                        .isOk());
+    }
 }
 
 /*

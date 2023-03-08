@@ -38,6 +38,12 @@ using ::aidl::android::hardware::automotive::vehicle::AccessForVehicleProperty;
 using ::aidl::android::hardware::automotive::vehicle::AutomaticEmergencyBrakingState;
 using ::aidl::android::hardware::automotive::vehicle::BlindSpotWarningState;
 using ::aidl::android::hardware::automotive::vehicle::ChangeModeForVehicleProperty;
+using ::aidl::android::hardware::automotive::vehicle::CruiseControlCommand;
+using ::aidl::android::hardware::automotive::vehicle::CruiseControlState;
+using ::aidl::android::hardware::automotive::vehicle::CruiseControlType;
+using ::aidl::android::hardware::automotive::vehicle::DriverAttentionMonitoringState;
+using ::aidl::android::hardware::automotive::vehicle::DriverAttentionMonitoringWarning;
+using ::aidl::android::hardware::automotive::vehicle::EmergencyLaneKeepAssistState;
 using ::aidl::android::hardware::automotive::vehicle::ErrorState;
 using ::aidl::android::hardware::automotive::vehicle::EvConnectorType;
 using ::aidl::android::hardware::automotive::vehicle::EvsServiceState;
@@ -45,6 +51,13 @@ using ::aidl::android::hardware::automotive::vehicle::EvsServiceType;
 using ::aidl::android::hardware::automotive::vehicle::ForwardCollisionWarningState;
 using ::aidl::android::hardware::automotive::vehicle::FuelType;
 using ::aidl::android::hardware::automotive::vehicle::GsrComplianceRequirementType;
+using ::aidl::android::hardware::automotive::vehicle::HandsOnDetectionDriverState;
+using ::aidl::android::hardware::automotive::vehicle::HandsOnDetectionWarning;
+using ::aidl::android::hardware::automotive::vehicle::LaneCenteringAssistCommand;
+using ::aidl::android::hardware::automotive::vehicle::LaneCenteringAssistState;
+using ::aidl::android::hardware::automotive::vehicle::LaneDepartureWarningState;
+using ::aidl::android::hardware::automotive::vehicle::LaneKeepAssistState;
+using ::aidl::android::hardware::automotive::vehicle::LocationCharacterization;
 using ::aidl::android::hardware::automotive::vehicle::RawPropValues;
 using ::aidl::android::hardware::automotive::vehicle::VehicleApPowerStateReport;
 using ::aidl::android::hardware::automotive::vehicle::VehicleApPowerStateReq;
@@ -63,6 +76,8 @@ using ::aidl::android::hardware::automotive::vehicle::VehicleSeatOccupancyState;
 using ::aidl::android::hardware::automotive::vehicle::VehicleTurnSignal;
 using ::aidl::android::hardware::automotive::vehicle::VehicleUnit;
 using ::aidl::android::hardware::automotive::vehicle::VehicleVendorPermission;
+using ::aidl::android::hardware::automotive::vehicle::WindshieldWipersState;
+using ::aidl::android::hardware::automotive::vehicle::WindshieldWipersSwitch;
 
 using ::android::base::Error;
 using ::android::base::Result;
@@ -122,6 +137,7 @@ const std::unordered_map<std::string, int> CONSTANTS_BY_NAME = {
 #ifdef ENABLE_VEHICLE_HAL_TEST_PROPERTIES
         // Following are test properties:
         {"ECHO_REVERSE_BYTES", ECHO_REVERSE_BYTES},
+        {"VENDOR_PROPERTY_ID", VENDOR_PROPERTY_ID},
         {"kMixedTypePropertyForTest", kMixedTypePropertyForTest},
         {"VENDOR_CLUSTER_NAVIGATION_STATE", VENDOR_CLUSTER_NAVIGATION_STATE},
         {"VENDOR_CLUSTER_REQUEST_DISPLAY", VENDOR_CLUSTER_REQUEST_DISPLAY},
@@ -185,6 +201,8 @@ JsonValueParser::JsonValueParser() {
             std::make_unique<ConstantParser<VehiclePropertyAccess>>();
     mConstantParsersByType["VehiclePropertyChangeMode"] =
             std::make_unique<ConstantParser<VehiclePropertyChangeMode>>();
+    mConstantParsersByType["LocationCharacterization"] =
+            std::make_unique<ConstantParser<LocationCharacterization>>();
     mConstantParsersByType["VehicleGear"] = std::make_unique<ConstantParser<VehicleGear>>();
     mConstantParsersByType["VehicleAreaWindow"] =
             std::make_unique<ConstantParser<VehicleAreaWindow>>();
@@ -211,6 +229,26 @@ JsonValueParser::JsonValueParser() {
     mConstantParsersByType["VehicleIgnitionState"] =
             std::make_unique<ConstantParser<VehicleIgnitionState>>();
     mConstantParsersByType["FuelType"] = std::make_unique<ConstantParser<FuelType>>();
+    mConstantParsersByType["WindshieldWipersState"] =
+            std::make_unique<ConstantParser<WindshieldWipersState>>();
+    mConstantParsersByType["WindshieldWipersSwitch"] =
+            std::make_unique<ConstantParser<WindshieldWipersSwitch>>();
+    mConstantParsersByType["EmergencyLaneKeepAssistState"] =
+            std::make_unique<ConstantParser<EmergencyLaneKeepAssistState>>();
+    mConstantParsersByType["CruiseControlType"] =
+            std::make_unique<ConstantParser<CruiseControlType>>();
+    mConstantParsersByType["CruiseControlState"] =
+            std::make_unique<ConstantParser<CruiseControlState>>();
+    mConstantParsersByType["CruiseControlCommand"] =
+            std::make_unique<ConstantParser<CruiseControlCommand>>();
+    mConstantParsersByType["HandsOnDetectionDriverState"] =
+            std::make_unique<ConstantParser<HandsOnDetectionDriverState>>();
+    mConstantParsersByType["HandsOnDetectionWarning"] =
+            std::make_unique<ConstantParser<HandsOnDetectionWarning>>();
+    mConstantParsersByType["DriverAttentionMonitoringState"] =
+            std::make_unique<ConstantParser<DriverAttentionMonitoringState>>();
+    mConstantParsersByType["DriverAttentionMonitoringWarning"] =
+            std::make_unique<ConstantParser<DriverAttentionMonitoringWarning>>();
     mConstantParsersByType["ErrorState"] = std::make_unique<ConstantParser<ErrorState>>();
     mConstantParsersByType["AutomaticEmergencyBrakingState"] =
             std::make_unique<ConstantParser<AutomaticEmergencyBrakingState>>();
@@ -218,6 +256,14 @@ JsonValueParser::JsonValueParser() {
             std::make_unique<ConstantParser<ForwardCollisionWarningState>>();
     mConstantParsersByType["BlindSpotWarningState"] =
             std::make_unique<ConstantParser<BlindSpotWarningState>>();
+    mConstantParsersByType["LaneDepartureWarningState"] =
+            std::make_unique<ConstantParser<LaneDepartureWarningState>>();
+    mConstantParsersByType["LaneKeepAssistState"] =
+            std::make_unique<ConstantParser<LaneKeepAssistState>>();
+    mConstantParsersByType["LaneCenteringAssistCommand"] =
+            std::make_unique<ConstantParser<LaneCenteringAssistCommand>>();
+    mConstantParsersByType["LaneCenteringAssistState"] =
+            std::make_unique<ConstantParser<LaneCenteringAssistState>>();
     mConstantParsersByType["Constants"] = std::make_unique<LocalVariableParser>();
 }
 

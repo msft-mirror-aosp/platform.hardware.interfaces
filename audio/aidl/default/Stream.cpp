@@ -24,6 +24,7 @@
 #include "core-impl/Module.h"
 #include "core-impl/Stream.h"
 
+using aidl::android::hardware::audio::common::AudioOffloadMetadata;
 using aidl::android::hardware::audio::common::SinkMetadata;
 using aidl::android::hardware::audio::common::SourceMetadata;
 using aidl::android::media::audio::common::AudioDevice;
@@ -31,6 +32,8 @@ using aidl::android::media::audio::common::AudioDualMonoMode;
 using aidl::android::media::audio::common::AudioLatencyMode;
 using aidl::android::media::audio::common::AudioOffloadInfo;
 using aidl::android::media::audio::common::AudioPlaybackRate;
+using aidl::android::media::audio::common::MicrophoneDynamicInfo;
+using aidl::android::media::audio::common::MicrophoneInfo;
 using android::hardware::audio::common::getChannelCount;
 using android::hardware::audio::common::getFrameSizeInBytes;
 
@@ -135,10 +138,16 @@ StreamInWorkerLogic::Status StreamInWorkerLogic::cycle() {
         mState = StreamDescriptor::State::ERROR;
         return Status::ABORT;
     }
-    LOG(DEBUG) << __func__ << ": received command " << command.toString() << " in " << kThreadName;
+    using Tag = StreamDescriptor::Command::Tag;
+    using LogSeverity = ::android::base::LogSeverity;
+    const LogSeverity severity =
+            command.getTag() == Tag::burst || command.getTag() == Tag::getStatus
+                    ? LogSeverity::VERBOSE
+                    : LogSeverity::DEBUG;
+    LOG(severity) << __func__ << ": received command " << command.toString() << " in "
+                  << kThreadName;
     StreamDescriptor::Reply reply{};
     reply.status = STATUS_BAD_VALUE;
-    using Tag = StreamDescriptor::Command::Tag;
     switch (command.getTag()) {
         case Tag::halReservedExit:
             if (const int32_t cookie = command.get<Tag::halReservedExit>();
@@ -166,8 +175,8 @@ StreamInWorkerLogic::Status StreamInWorkerLogic::cycle() {
             break;
         case Tag::burst:
             if (const int32_t fmqByteCount = command.get<Tag::burst>(); fmqByteCount >= 0) {
-                LOG(DEBUG) << __func__ << ": '" << toString(command.getTag()) << "' command for "
-                           << fmqByteCount << " bytes";
+                LOG(VERBOSE) << __func__ << ": '" << toString(command.getTag()) << "' command for "
+                             << fmqByteCount << " bytes";
                 if (mState == StreamDescriptor::State::IDLE ||
                     mState == StreamDescriptor::State::ACTIVE ||
                     mState == StreamDescriptor::State::PAUSED ||
@@ -253,7 +262,7 @@ StreamInWorkerLogic::Status StreamInWorkerLogic::cycle() {
             break;
     }
     reply.state = mState;
-    LOG(DEBUG) << __func__ << ": writing reply " << reply.toString();
+    LOG(severity) << __func__ << ": writing reply " << reply.toString();
     if (!mReplyMQ->writeBlocking(&reply, 1)) {
         LOG(ERROR) << __func__ << ": writing of reply " << reply.toString() << " to MQ failed";
         mState = StreamDescriptor::State::ERROR;
@@ -284,8 +293,8 @@ bool StreamInWorkerLogic::read(size_t clientSize, StreamDescriptor::Reply* reply
     if (bool success =
                 actualByteCount > 0 ? mDataMQ->write(&mDataBuffer[0], actualByteCount) : true;
         success) {
-        LOG(DEBUG) << __func__ << ": writing of " << actualByteCount << " bytes into data MQ"
-                   << " succeeded; connected? " << isConnected;
+        LOG(VERBOSE) << __func__ << ": writing of " << actualByteCount << " bytes into data MQ"
+                     << " succeeded; connected? " << isConnected;
         // Frames are provided and counted regardless of connection status.
         reply->fmqByteCount += actualByteCount;
         mFrameCount += actualFrameCount;
@@ -340,7 +349,14 @@ StreamOutWorkerLogic::Status StreamOutWorkerLogic::cycle() {
         mState = StreamDescriptor::State::ERROR;
         return Status::ABORT;
     }
-    LOG(DEBUG) << __func__ << ": received command " << command.toString() << " in " << kThreadName;
+    using Tag = StreamDescriptor::Command::Tag;
+    using LogSeverity = ::android::base::LogSeverity;
+    const LogSeverity severity =
+            command.getTag() == Tag::burst || command.getTag() == Tag::getStatus
+                    ? LogSeverity::VERBOSE
+                    : LogSeverity::DEBUG;
+    LOG(severity) << __func__ << ": received command " << command.toString() << " in "
+                  << kThreadName;
     StreamDescriptor::Reply reply{};
     reply.status = STATUS_BAD_VALUE;
     using Tag = StreamDescriptor::Command::Tag;
@@ -383,8 +399,8 @@ StreamOutWorkerLogic::Status StreamOutWorkerLogic::cycle() {
         } break;
         case Tag::burst:
             if (const int32_t fmqByteCount = command.get<Tag::burst>(); fmqByteCount >= 0) {
-                LOG(DEBUG) << __func__ << ": '" << toString(command.getTag()) << "' command for "
-                           << fmqByteCount << " bytes";
+                LOG(VERBOSE) << __func__ << ": '" << toString(command.getTag()) << "' command for "
+                             << fmqByteCount << " bytes";
                 if (mState != StreamDescriptor::State::ERROR &&
                     mState != StreamDescriptor::State::TRANSFERRING &&
                     mState != StreamDescriptor::State::TRANSFER_PAUSED) {
@@ -499,7 +515,7 @@ StreamOutWorkerLogic::Status StreamOutWorkerLogic::cycle() {
             break;
     }
     reply.state = mState;
-    LOG(DEBUG) << __func__ << ": writing reply " << reply.toString();
+    LOG(severity) << __func__ << ": writing reply " << reply.toString();
     if (!mReplyMQ->writeBlocking(&reply, 1)) {
         LOG(ERROR) << __func__ << ": writing of reply " << reply.toString() << " to MQ failed";
         mState = StreamDescriptor::State::ERROR;
@@ -514,8 +530,8 @@ bool StreamOutWorkerLogic::write(size_t clientSize, StreamDescriptor::Reply* rep
     int32_t latency = Module::kLatencyMs;
     if (bool success = readByteCount > 0 ? mDataMQ->read(&mDataBuffer[0], readByteCount) : true) {
         const bool isConnected = mIsConnected;
-        LOG(DEBUG) << __func__ << ": reading of " << readByteCount << " bytes from data MQ"
-                   << " succeeded; connected? " << isConnected;
+        LOG(VERBOSE) << __func__ << ": reading of " << readByteCount << " bytes from data MQ"
+                     << " succeeded; connected? " << isConnected;
         // Amount of data that the HAL module is going to actually use.
         size_t byteCount = std::min({clientSize, readByteCount, mDataBufferSize});
         if (byteCount >= mFrameSize && mForceTransientBurst) {
@@ -644,6 +660,16 @@ ndk::ScopedAStatus StreamCommonImpl<Metadata>::close() {
 }
 
 template <class Metadata>
+ndk::ScopedAStatus StreamCommonImpl<Metadata>::prepareToClose() {
+    LOG(DEBUG) << __func__;
+    if (!isClosed()) {
+        return ndk::ScopedAStatus::ok();
+    }
+    LOG(ERROR) << __func__ << ": stream was closed";
+    return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
+}
+
+template <class Metadata>
 void StreamCommonImpl<Metadata>::stopWorker() {
     if (auto commandMQ = mContext.getCommandMQ(); commandMQ != nullptr) {
         LOG(DEBUG) << __func__ << ": asking the worker to exit...";
@@ -768,6 +794,40 @@ StreamOut::StreamOut(const SourceMetadata& sourceMetadata, StreamContext&& conte
                                        createWorker),
       mOffloadInfo(offloadInfo) {
     LOG(DEBUG) << __func__;
+}
+
+ndk::ScopedAStatus StreamOut::updateOffloadMetadata(
+        const AudioOffloadMetadata& in_offloadMetadata) {
+    LOG(DEBUG) << __func__;
+    if (isClosed()) {
+        LOG(ERROR) << __func__ << ": stream was closed";
+        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
+    }
+    if (!mOffloadInfo.has_value()) {
+        LOG(ERROR) << __func__ << ": not a compressed offload stream";
+        return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
+    }
+    if (in_offloadMetadata.sampleRate < 0) {
+        LOG(ERROR) << __func__ << ": invalid sample rate value: " << in_offloadMetadata.sampleRate;
+        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+    }
+    if (in_offloadMetadata.averageBitRatePerSecond < 0) {
+        LOG(ERROR) << __func__
+                   << ": invalid average BPS value: " << in_offloadMetadata.averageBitRatePerSecond;
+        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+    }
+    if (in_offloadMetadata.delayFrames < 0) {
+        LOG(ERROR) << __func__
+                   << ": invalid delay frames value: " << in_offloadMetadata.delayFrames;
+        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+    }
+    if (in_offloadMetadata.paddingFrames < 0) {
+        LOG(ERROR) << __func__
+                   << ": invalid padding frames value: " << in_offloadMetadata.paddingFrames;
+        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+    }
+    mOffloadMetadata = in_offloadMetadata;
+    return ndk::ScopedAStatus::ok();
 }
 
 ndk::ScopedAStatus StreamOut::getHwVolume(std::vector<float>* _aidl_return) {

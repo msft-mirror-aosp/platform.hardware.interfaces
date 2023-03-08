@@ -35,6 +35,7 @@ package android.hardware.audio.effect;
 @VintfStability
 union PresetReverb {
   android.hardware.audio.effect.VendorExtension vendor;
+  android.hardware.audio.effect.PresetReverb.Presets[] supportedPresets;
   android.hardware.audio.effect.PresetReverb.Presets preset;
   @Backing(type="int") @VintfStability
   enum Presets {
@@ -48,12 +49,7 @@ union PresetReverb {
   }
   @VintfStability
   union Id {
-    int vendorExtensionTag;
+    android.hardware.audio.effect.VendorExtension vendorExtensionTag;
     android.hardware.audio.effect.PresetReverb.Tag commonTag;
-  }
-  @VintfStability
-  parcelable Capability {
-    android.hardware.audio.effect.VendorExtension extension;
-    android.hardware.audio.effect.PresetReverb.Presets[] supportedPresets;
   }
 }

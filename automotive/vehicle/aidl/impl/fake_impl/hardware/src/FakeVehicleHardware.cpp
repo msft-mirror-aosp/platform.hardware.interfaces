@@ -15,6 +15,7 @@
  */
 
 #define LOG_TAG "FakeVehicleHardware"
+#define ATRACE_TAG ATRACE_TAG_HAL
 #define FAKE_VEHICLEHARDWARE_DEBUG false  // STOPSHIP if true.
 
 #include "FakeVehicleHardware.h"
@@ -33,6 +34,7 @@
 #include <android-base/strings.h>
 #include <utils/Log.h>
 #include <utils/SystemClock.h>
+#include <utils/Trace.h>
 
 #include <dirent.h>
 #include <inttypes.h>
@@ -85,7 +87,8 @@ constexpr char OVERRIDE_CONFIG_DIR[] = "/vendor/etc/automotive/vhaloverride/";
 // overwrite the default configs.
 constexpr char OVERRIDE_PROPERTY[] = "persist.vendor.vhal_init_value_override";
 constexpr char POWER_STATE_REQ_CONFIG_PROPERTY[] = "ro.vendor.fake_vhal.ap_power_state_req.config";
-
+// The value to be returned if VENDOR_PROPERTY_ID is set as the property
+constexpr int VENDOR_ERROR_CODE = 0x00ab0005;
 // A list of supported options for "--set" command.
 const std::unordered_set<std::string> SET_PROP_OPTIONS = {
         // integer.
@@ -389,6 +392,9 @@ FakeVehicleHardware::ValueResultType FakeVehicleHardware::maybeGetSpecialValue(
         case ECHO_REVERSE_BYTES:
             *isSpecialValue = true;
             return getEchoReverseBytes(value);
+        case VENDOR_PROPERTY_ID:
+            *isSpecialValue = true;
+            return StatusError((StatusCode)VENDOR_ERROR_CODE);
         default:
             // Do nothing.
             break;
@@ -469,6 +475,9 @@ VhalResult<void> FakeVehicleHardware::maybeSetSpecialValue(const VehiclePropValu
         case OBD2_FREEZE_FRAME_CLEAR:
             *isSpecialValue = true;
             return mFakeObd2Frame->clearObd2FreezeFrames(value);
+        case VENDOR_PROPERTY_ID:
+            *isSpecialValue = true;
+            return StatusError((StatusCode)VENDOR_ERROR_CODE);
 
 #ifdef ENABLE_VEHICLE_HAL_TEST_PROPERTIES
         case toInt(VehicleProperty::CLUSTER_REPORT_STATE):
@@ -1621,11 +1630,15 @@ void FakeVehicleHardware::PendingRequestHandler<FakeVehicleHardware::GetValuesCa
     std::unordered_map<std::shared_ptr<const GetValuesCallback>, std::vector<GetValueResult>>
             callbackToResults;
     for (const auto& rwc : mRequests.flush()) {
+        ATRACE_BEGIN("FakeVehicleHardware:handleGetValueRequest");
         auto result = mHardware->handleGetValueRequest(rwc.request);
+        ATRACE_END();
         callbackToResults[rwc.callback].push_back(std::move(result));
     }
     for (const auto& [callback, results] : callbackToResults) {
+        ATRACE_BEGIN("FakeVehicleHardware:call get value result callback");
         (*callback)(std::move(results));
+        ATRACE_END();
     }
 }
 
@@ -1635,11 +1648,15 @@ void FakeVehicleHardware::PendingRequestHandler<FakeVehicleHardware::SetValuesCa
     std::unordered_map<std::shared_ptr<const SetValuesCallback>, std::vector<SetValueResult>>
             callbackToResults;
     for (const auto& rwc : mRequests.flush()) {
+        ATRACE_BEGIN("FakeVehicleHardware:handleSetValueRequest");
         auto result = mHardware->handleSetValueRequest(rwc.request);
+        ATRACE_END();
         callbackToResults[rwc.callback].push_back(std::move(result));
     }
     for (const auto& [callback, results] : callbackToResults) {
+        ATRACE_BEGIN("FakeVehicleHardware:call set value result callback");
         (*callback)(std::move(results));
+        ATRACE_END();
     }
 }
 

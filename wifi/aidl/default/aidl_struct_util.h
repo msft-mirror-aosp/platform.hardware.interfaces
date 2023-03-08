@@ -20,7 +20,10 @@
 #include <aidl/android/hardware/wifi/IWifiChip.h>
 #include <aidl/android/hardware/wifi/IWifiChipEventCallback.h>
 #include <aidl/android/hardware/wifi/NanBandIndex.h>
+#include <aidl/android/hardware/wifi/StaBackgroundScanBucketEventReportSchemeMask.h>
+#include <aidl/android/hardware/wifi/StaScanDataFlagMask.h>
 #include <aidl/android/hardware/wifi/WifiDebugRingBufferFlags.h>
+#include <aidl/android/hardware/wifi/WifiIfaceMode.h>
 
 #include <vector>
 
@@ -37,9 +40,7 @@ namespace wifi {
 namespace aidl_struct_util {
 
 // Chip conversion methods.
-bool convertLegacyFeaturesToAidlChipCapabilities(uint64_t legacy_feature_set,
-                                                 uint32_t legacy_logger_feature_set,
-                                                 uint32_t* aidl_caps);
+bool convertLegacyFeaturesToAidlChipCapabilities(uint64_t legacy_feature_set, uint32_t* aidl_caps);
 bool convertLegacyDebugRingBufferStatusToAidl(
         const legacy_hal::wifi_ring_buffer_status& legacy_status,
         WifiDebugRingBufferStatus* aidl_status);
@@ -66,14 +67,14 @@ bool convertAidlVectorOfCoexUnsafeChannelToLegacy(
         std::vector<legacy_hal::wifi_coex_unsafe_channel>* legacy_unsafe_channels);
 bool convertLegacyRadioCombinationsMatrixToAidl(
         legacy_hal::wifi_radio_combination_matrix* legacy_matrix,
-        WifiRadioCombinationMatrix* aidl_matrix);
+        std::vector<WifiRadioCombination>* aidl_combinations);
 WifiBand convertLegacyMacBandToAidlWifiBand(uint32_t band);
 WifiAntennaMode convertLegacyAntennaConfigurationToAidl(uint32_t antenna_cfg);
+bool convertLegacyIfaceCombinationsMatrixToChipMode(
+        legacy_hal::wifi_iface_concurrency_matrix& legacy_matrix, IWifiChip::ChipMode* chip_mode);
 
 // STA iface conversion methods.
-bool convertLegacyFeaturesToAidlStaCapabilities(uint64_t legacy_feature_set,
-                                                uint32_t legacy_logger_feature_set,
-                                                uint32_t* aidl_caps);
+bool convertLegacyFeaturesToAidlStaCapabilities(uint64_t legacy_feature_set, uint32_t* aidl_caps);
 bool convertLegacyApfCapabilitiesToAidl(const legacy_hal::PacketFilterCapabilities& legacy_caps,
                                         StaApfPacketFilterCapabilities* aidl_caps);
 bool convertLegacyGscanCapabilitiesToAidl(const legacy_hal::wifi_gscan_capabilities& legacy_caps,

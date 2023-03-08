@@ -21,7 +21,7 @@ import android.hardware.wifi.NanBootstrappingMethod;
 /**
  * NAN Data path request indication message structure.
  * Event indication received by an intended Responder when a NAN
- * data request initiated by an Initiator.
+ * data request is initiated by an Initiator. See Wi-Fi Aware R4.0 section 9.5.21.7
  */
 @VintfStability
 parcelable NanBootstrappingRequestInd {
@@ -48,7 +48,7 @@ parcelable NanBootstrappingRequestInd {
     int bootstrappingInstanceId;
 
     /**
-     * Bootstrapping method in the incoming request, one of the |NanBootstrappingMethod|
+     * One of |NanBootstrappingMethod| indicating the bootstrapping method in the incoming request.
      */
     NanBootstrappingMethod requestBootstrappingMethod;
 }
