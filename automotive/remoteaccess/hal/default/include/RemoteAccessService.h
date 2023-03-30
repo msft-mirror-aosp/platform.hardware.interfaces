@@ -97,10 +97,7 @@ class RemoteAccessService
     bool mTaskWaitStopped GUARDED_BY(mLock);
     // A mutex to make sure startTaskLoop does not overlap with stopTaskLoop.
     std::mutex mStartStopTaskLoopLock;
-    bool mTaskLoopRunning GUARDED_BY(mStartStopTaskLoopLock) = false;
-    bool mGrpcConnected GUARDED_BY(mLock) = false;
-    std::unordered_map<std::string, size_t> mClientIdToTaskCount GUARDED_BY(mLock);
-
+    bool mTaskLoopRunning GUARDED_BY(mStartStopTaskLoopLock);
     // Default wait time before retry connecting to remote access client is 10s.
     size_t mRetryWaitInMs = 10'000;
     std::shared_ptr<DebugRemoteTaskCallback> mDebugCallback;
@@ -113,12 +110,6 @@ class RemoteAccessService
 
     void setRetryWaitInMs(size_t retryWaitInMs) { mRetryWaitInMs = retryWaitInMs; }
     void dumpHelp(int fd);
-    void printCurrentStatus(int fd);
-    std::string clientIdToTaskCountToStringLocked() REQUIRES(mLock);
-    void debugInjectTask(int fd, std::string_view clientId, std::string_view taskData);
-    void updateGrpcConnected(bool connected);
-    android::base::Result<void> deliverRemoteTaskThroughCallback(const std::string& clientId,
-                                                                 std::string_view taskData);
 };
 
 }  // namespace remoteaccess

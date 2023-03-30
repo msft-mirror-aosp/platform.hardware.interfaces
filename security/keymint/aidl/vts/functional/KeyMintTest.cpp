@@ -590,7 +590,8 @@ string device_suffix(const string& name) {
     return name.substr(pos + 1);
 }
 
-std::shared_ptr<IRemotelyProvisionedComponent> matching_rp_instance(const std::string& km_name) {
+bool matching_rp_instance(const string& km_name,
+                          std::shared_ptr<IRemotelyProvisionedComponent>* rp) {
     string km_suffix = device_suffix(km_name);
 
     vector<string> rp_names =
@@ -600,10 +601,11 @@ std::shared_ptr<IRemotelyProvisionedComponent> matching_rp_instance(const std::s
         // KeyMint instance, assume they match.
         if (device_suffix(rp_name) == km_suffix && AServiceManager_isDeclared(rp_name.c_str())) {
             ::ndk::SpAIBinder binder(AServiceManager_waitForService(rp_name.c_str()));
-            return IRemotelyProvisionedComponent::fromBinder(binder);
+            *rp = IRemotelyProvisionedComponent::fromBinder(binder);
+            return true;
         }
     }
-    return nullptr;
+    return false;
 }
 
 }  // namespace
@@ -1138,14 +1140,11 @@ TEST_P(NewKeyGenerationTest, RsaWithRkpAttestation) {
         GTEST_SKIP() << "RKP support is not required on this platform";
     }
 
-    // Check for an IRemotelyProvisionedComponent instance associated with the
-    // KeyMint instance.
-    std::shared_ptr<IRemotelyProvisionedComponent> rp = matching_rp_instance(GetParam());
-    if (rp == nullptr && SecLevel() == SecurityLevel::STRONGBOX) {
-        GTEST_SKIP() << "Encountered StrongBox implementation that does not support RKP";
-    }
-    ASSERT_NE(rp, nullptr) << "No IRemotelyProvisionedComponent found that matches KeyMint device "
-                           << GetParam();
+    // There should be an IRemotelyProvisionedComponent instance associated with the KeyMint
+    // instance.
+    std::shared_ptr<IRemotelyProvisionedComponent> rp;
+    ASSERT_TRUE(matching_rp_instance(GetParam(), &rp))
+            << "No IRemotelyProvisionedComponent found that matches KeyMint device " << GetParam();
 
     // Generate a P-256 keypair to use as an attestation key.
     MacedPublicKey macedPubKey;
@@ -1219,14 +1218,11 @@ TEST_P(NewKeyGenerationTest, EcdsaWithRkpAttestation) {
         GTEST_SKIP() << "RKP support is not required on this platform";
     }
 
-    // Check for an IRemotelyProvisionedComponent instance associated with the
-    // KeyMint instance.
-    std::shared_ptr<IRemotelyProvisionedComponent> rp = matching_rp_instance(GetParam());
-    if (rp == nullptr && SecLevel() == SecurityLevel::STRONGBOX) {
-        GTEST_SKIP() << "Encountered StrongBox implementation that does not support RKP";
-    }
-    ASSERT_NE(rp, nullptr) << "No IRemotelyProvisionedComponent found that matches KeyMint device "
-                           << GetParam();
+    // There should be an IRemotelyProvisionedComponent instance associated with the KeyMint
+    // instance.
+    std::shared_ptr<IRemotelyProvisionedComponent> rp;
+    ASSERT_TRUE(matching_rp_instance(GetParam(), &rp))
+            << "No IRemotelyProvisionedComponent found that matches KeyMint device " << GetParam();
 
     // Generate a P-256 keypair to use as an attestation key.
     MacedPublicKey macedPubKey;

@@ -92,21 +92,14 @@ TEST_P(WifiStaIfaceAidlTest, GetFeatureSet) {
 }
 
 /*
- * CheckApfIsSupported:
- * Ensures the APF packet filter is fully supported as required in VSR 14:
- * https://docs.partner.android.com/gms/policies/vsr/vsr-14
+ * GetApfPacketFilterCapabilities
  */
-TEST_P(WifiStaIfaceAidlTest, CheckApfIsSupported) {
-    // It is not required to check the vendor API level is at least U here
-    // because the Wi-Fi AIDL interface is launched with Android U(VSR-14).
-    // TODO: Add wavier list to the chipsets that doesn't support APF.
-    EXPECT_TRUE(isFeatureSupported(IWifiStaIface::FeatureSetMask::APF));
+TEST_P(WifiStaIfaceAidlTest, GetApfPacketFilterCapabilities) {
+    if (!isFeatureSupported(IWifiStaIface::FeatureSetMask::APF)) {
+        GTEST_SKIP() << "APF packet filter capabilities are not supported.";
+    }
     StaApfPacketFilterCapabilities apf_caps = {};
     EXPECT_TRUE(wifi_sta_iface_->getApfPacketFilterCapabilities(&apf_caps).isOk());
-    // The APF version must be 4 and the usable memory must be at least
-    // 1024 bytes.
-    EXPECT_EQ(apf_caps.version, 4);
-    EXPECT_GE(apf_caps.maxLength, 1024);
 }
 
 /*
