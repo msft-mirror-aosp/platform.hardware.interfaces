@@ -18,7 +18,8 @@ package android.hardware.wifi.supplicant;
 
 /**
  * Callback to allow supplicant to retrieve non-standard certificate types
- * from the client.
+ * from the framework. Certificates can be stored in the framework using
+ * the WifiKeystore#put system API.
  *
  * Must be registered by the client at initialization, so that
  * supplicant can call into the client to retrieve any values.
@@ -34,4 +35,13 @@ interface INonStandardCertCallback {
      *         |SupplicantStatusCode.FAILURE_UNKNOWN|
      */
     byte[] getBlob(in String alias);
+
+    /**
+     * List the aliases currently stored in the database.
+     *
+     * @param prefix Prefix to filter the aliases by.
+     * @return List of alias strings in the certificate store.
+               The resulting strings will each exclude the prefix.
+     */
+    String[] listAliases(in String prefix);
 }

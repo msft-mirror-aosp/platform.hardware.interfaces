@@ -22,18 +22,19 @@
 
 #include <aidl/android/hardware/audio/core/AudioPatch.h>
 #include <aidl/android/hardware/audio/core/AudioRoute.h>
-#include <aidl/android/hardware/audio/core/MicrophoneInfo.h>
 #include <aidl/android/media/audio/common/AudioPort.h>
 #include <aidl/android/media/audio/common/AudioPortConfig.h>
+#include <aidl/android/media/audio/common/MicrophoneInfo.h>
 
 namespace aidl::android::hardware::audio::core::internal {
 
 struct Configuration {
-    std::vector<MicrophoneInfo> microphones;
+    std::vector<::aidl::android::media::audio::common::MicrophoneInfo> microphones;
     std::vector<::aidl::android::media::audio::common::AudioPort> ports;
     std::vector<::aidl::android::media::audio::common::AudioPortConfig> portConfigs;
     std::vector<::aidl::android::media::audio::common::AudioPortConfig> initialConfigs;
-    // Port id -> List of profiles to use when the device port state is set to 'connected'.
+    // Port id -> List of profiles to use when the device port state is set to 'connected'
+    // in connection simulation mode.
     std::map<int32_t, std::vector<::aidl::android::media::audio::common::AudioProfile>>
             connectedProfiles;
     std::vector<AudioRoute> routes;
@@ -44,5 +45,6 @@ struct Configuration {
 
 std::unique_ptr<Configuration> getPrimaryConfiguration();
 std::unique_ptr<Configuration> getRSubmixConfiguration();
+std::unique_ptr<Configuration> getUsbConfiguration();
 
 }  // namespace aidl::android::hardware::audio::core::internal

@@ -43,6 +43,8 @@ import android.hardware.automotive.vehicle.VehiclePropertyType;
 enum VehicleProperty {
     /**
      * Undefined property.
+     *
+     * This property must never be used/supported.
      */
     INVALID = 0x00000000,
     /**
@@ -88,7 +90,17 @@ enum VehicleProperty {
     INFO_FUEL_CAPACITY = 0x0104 + 0x10000000 + 0x01000000
             + 0x00600000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:FLOAT
     /**
-     * List of fuels the vehicle may use
+     * List of fuels the vehicle may use.
+     *
+     * FuelType::FUEL_TYPE_ELECTRIC must only be included if the vehicle is plug in rechargeable.
+     * For example:
+     *   An FHEV (Fully Hybrid Electric Vehicle) must not include FuelType::FUEL_TYPE_ELECTRIC in
+     *   INFO_FUEL_TYPE's INT32_VEC value. So INFO_FUEL_TYPE can be populated as such:
+     *     int32Values = { FuelType::FUEL_TYPE_UNLEADED }
+     *   On the other hand, a PHEV (Partially Hybrid Electric Vehicle) is plug in rechargeable, and
+     *   hence should include FuelType::FUEL_TYPE_ELECTRIC in INFO_FUEL_TYPE's INT32_VEC value. So
+     *   INFO_FUEL_TYPE can be populated as such:
+     *     int32Values = { FuelType::FUEL_TYPE_UNLEADED, FuelType::FUEL_TYPE_ELECTRIC }
      *
      * @change_mode VehiclePropertyChangeMode.STATIC
      * @access VehiclePropertyAccess.READ
@@ -296,7 +308,10 @@ enum VehicleProperty {
      * configArray is used to indicate the micrometers-per-wheel-tick value and
      * which wheels are supported.  configArray is set as follows:
      *
-     *  configArray[0], bits [0:3] = supported wheels.  Uses enum Wheel.
+     *  configArray[0], bits [0:3] = supported wheels. Uses enum Wheel. For example, if all wheels
+     *    are supported, then configArray[0] = VehicleAreaWheel::LEFT_FRONT
+     *    | VehicleAreaWheel::RIGHT_FRONT | VehicleAreaWheel::LEFT_REAR
+     *    | VehicleAreaWheel::RIGHT_REAR
      *  configArray[1] = micrometers per front left wheel tick
      *  configArray[2] = micrometers per front right wheel tick
      *  configArray[3] = micrometers per rear right wheel tick
@@ -324,6 +339,9 @@ enum VehicleProperty {
             + 0x00600000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:FLOAT
     /**
      * Fuel door open
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -360,6 +378,9 @@ enum VehicleProperty {
     /**
      * EV charge port open
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -391,6 +412,10 @@ enum VehicleProperty {
      * Meters remaining of fuel and charge.  Range remaining shall account for
      * all energy sources in a vehicle.  For example, a hybrid car's range will
      * be the sum of the ranges based on fuel and battery.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE because a navigation app could
+     * update the range if it has a more accurate estimate based on the upcoming route. However,
+     * this property can be implemented as VehiclePropertyAccess.READ only at the OEM's discretion.
      *
      * @change_mode VehiclePropertyChangeMode.CONTINUOUS
      * @access VehiclePropertyAccess.READ_WRITE
@@ -445,6 +470,9 @@ enum VehicleProperty {
      *
      * If true, the vehicle may automatically shut off the engine when it is not needed and then
      * automatically restart it when needed.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -524,6 +552,9 @@ enum VehicleProperty {
      * The maxInt32Value in default area's VehicleAreaConfig indicates the maximum amount of energy
      * regenerated from braking. The minInt32Value in default area's VehicleAreaConfig indicates no
      * regenerative braking.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -610,6 +641,9 @@ enum VehicleProperty {
      *
      * The EvStoppingMode enum may be extended to include more states in the future.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @data_enum EvStoppingMode
@@ -619,10 +653,10 @@ enum VehicleProperty {
     /**
      * HVAC Properties
      *
-     * Additional rules for mapping a zoned HVAC property (except
-     * HVAC_MAX_DEFROST_ON) to AreaIDs:
-     *  - Every seat in VehicleAreaSeat that is available in the car, must be
-     *    part of an AreaID in the AreaID array.
+     * Additional rules for mapping non-GLOBAL VehicleArea type HVAC properties
+     * to AreaIDs:
+     *  - Every “area” for a specific VehicleArea type that is affected by the
+     *    property, must be included in an area ID for that property.
      *
      * Example 1: A car has two front seats (ROW_1_LEFT, ROW_1_RIGHT) and three
      *  back seats (ROW_2_LEFT, ROW_2_CENTER, ROW_2_RIGHT). There are two
@@ -651,8 +685,21 @@ enum VehicleProperty {
      *     - ROW_1_RIGHT
      *     - ROW_2_LEFT | ROW_2_CENTER | ROW_2_RIGHT | ROW_3_LEFT | ROW_3_CENTER | ROW_3_RIGHT
      *
+     * Example 3: A car has two front seats (ROW_1_LEFT, ROW_1_RIGHT) and three
+     *  back seats (ROW_2_LEFT, ROW_2_CENTER, ROW_2_RIGHT). Suppose the car
+     *  supports HVAC_AUTO_ON for just the two front seats.
+     *   - A valid mapping set of AreaIDs for HVAC_AUTO_ON would be:
+     *      - ROW_1_LEFT | ROW_1_RIGHT
+     *   - If HVAC_AUTO_ON had two separate control units for the driver side
+     *     and passenger side, an alternative mapping would be:
+     *      - ROW_1_LEFT
+     *      - ROW_1_RIGHT
+     *
      *
      * Fan speed setting
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -661,6 +708,9 @@ enum VehicleProperty {
             + 0x00400000, // VehiclePropertyGroup:SYSTEM,VehicleArea:SEAT,VehiclePropertyType:INT32
     /**
      * Fan direction setting
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -698,6 +748,9 @@ enum VehicleProperty {
      * that property to get the suggested value before setting HVAC_TEMPERATURE_SET. Otherwise,
      * the application may choose the value in HVAC_TEMPERATURE_SET configArray by itself.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @unit VehicleUnit:CELSIUS
@@ -707,6 +760,9 @@ enum VehicleProperty {
     /**
      * Fan-based defrost for designated window.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -714,6 +770,9 @@ enum VehicleProperty {
             + 0x00200000, // VehiclePropertyGroup:SYSTEM,VehicleArea:WINDOW,VehiclePropertyType:BOOLEAN
     /**
      * On/off AC for designated areaId
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -728,6 +787,9 @@ enum VehicleProperty {
      * temperature, etc as necessary to cool the vehicle as quickly as possible.
      * Any parameters modified as a side effect of turning on/off the MAX AC
      * parameter shall generate onPropertyEvent() callbacks to the VHAL.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -748,6 +810,9 @@ enum VehicleProperty {
      * areaConfig.areaId = {ROW_1_LEFT | ROW_1_RIGHT} indicates HVAC_MAX_DEFROST_ON
      * only can be controlled for the front rows.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -760,6 +825,9 @@ enum VehicleProperty {
      * majority of the airflow into the cabin is originating in the cabin.
      * Recirc “off” means the majority of the airflow into the cabin is coming
      * from outside the car.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -796,13 +864,29 @@ enum VehicleProperty {
      * onPropertyEvent() callbacks (i.e. HVAC_DUAL_ON = false,
      * HVAC_TEMPERATURE_SET[AreaID] = xxx, etc).
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
     HVAC_DUAL_ON = 0x0509 + 0x10000000 + 0x05000000
             + 0x00200000, // VehiclePropertyGroup:SYSTEM,VehicleArea:SEAT,VehiclePropertyType:BOOLEAN
     /**
-     * On/off automatic mode
+     * On/off automatic climate control.
+     *
+     * If true, automatic climate control is on. If false, automatic climate control is off.
+     *
+     * If the vehicle does not support directly turning off automatic climate control, then OEMs
+     * should add logic in their VHAL implementation so that setting HVAC_AUTO_ON to false would
+     * change the necessary HVAC settings to indirectly turn off HVAC_AUTO_ON. Ideally, this should
+     * not be disruptive to the user, so OEMs should change back to the previous state any settings
+     * that were modified once automatic climate control is off. That way the only outcome should be
+     * that HVAC_AUTO_ON is off. If restoring the HVAC settings to its previous settings is not
+     * possible, then the OEM should choose the least disruptive change and implement that.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -820,6 +904,9 @@ enum VehicleProperty {
      * min/max range defines the allowable range and number of steps in each
      * direction.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -831,6 +918,9 @@ enum VehicleProperty {
      * Increasing values denote higher heating levels for side mirrors.
      * The Max value in the config data represents the highest heating level.
      * The Min value in the config data MUST be zero and indicates no heating.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -845,6 +935,9 @@ enum VehicleProperty {
      * Positive value indicates heating.
      * Negative value indicates cooling.
      * 0 indicates temperature control is off.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -863,6 +956,12 @@ enum VehicleProperty {
      * This parameter MAY be used for displaying any HVAC temperature in the system.
      * Values must be one of VehicleUnit::CELSIUS or VehicleUnit::FAHRENHEIT
      * Note that internally, all temperatures are represented in floating point Celsius.
+     *
+     * If updating HVAC_TEMPERATURE_DISPLAY_UNITS affects the values of other *_DISPLAY_UNITS
+     * properties, then their values must be updated and communicated to the AAOS framework as well.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -915,6 +1014,9 @@ enum VehicleProperty {
      *   - ROW_1_LEFT | ROW_1_RIGHT
      *   - ROW_2_LEFT | ROW_2_CENTER | ROW_2_RIGHT | ROW_3_LEFT | ROW_3_CENTER | ROW_3_RIGHT
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -946,6 +1048,9 @@ enum VehicleProperty {
      * switch to recirculation mode if the vehicle detects poor incoming air
      * quality.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -961,6 +1066,9 @@ enum VehicleProperty {
      * ventilation.  This is different than seating cooling. It can be on at the
      * same time as cooling, or not.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -968,6 +1076,9 @@ enum VehicleProperty {
             + 0x00400000, // VehiclePropertyGroup:SYSTEM,VehicleArea:SEAT,VehiclePropertyType:INT32
     /**
      * Electric defrosters' status
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1025,6 +1136,13 @@ enum VehicleProperty {
      * For example: configArray[0] = METER
      *              configArray[1] = KILOMETER
      *              configArray[2] = MILE
+     *
+     * If updating DISTANCE_DISPLAY_UNITS affects the values of other *_DISPLAY_UNITS properties,
+     * then their values must be updated and communicated to the AAOS framework as well.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @data_enum VehicleUnit
@@ -1041,6 +1159,13 @@ enum VehicleProperty {
      * Volume units are defined in VehicleUnit.
      * For example: configArray[0] = LITER
      *              configArray[1] = GALLON
+     *
+     * If updating FUEL_VOLUME_DISPLAY_UNITS affects the values of other *_DISPLAY_UNITS properties,
+     * then their values must be updated and communicated to the AAOS framework as well.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @data_enum VehicleUnit
@@ -1058,6 +1183,13 @@ enum VehicleProperty {
      * For example: configArray[0] = KILOPASCAL
      *              configArray[1] = PSI
      *              configArray[2] = BAR
+     *
+     * If updating TIRE_PRESSURE_DISPLAY_UNITS affects the values of other *_DISPLAY_UNITS
+     * properties, then their values must be updated and communicated to the AAOS framework as well.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @data_enum VehicleUnit
@@ -1075,6 +1207,13 @@ enum VehicleProperty {
      * For example: configArray[0] = WATT_HOUR
      *              configArray[1] = AMPERE_HOURS
      *              configArray[2] = KILOWATT_HOUR
+     *
+     * If updating EV_BATTERY_DISPLAY_UNITS affects the values of other *_DISPLAY_UNITS properties,
+     * then their values must be updated and communicated to the AAOS framework as well.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @data_enum VehicleUnit
@@ -1087,6 +1226,9 @@ enum VehicleProperty {
      * Indicates type of units the car is using to display fuel consumption information to user
      * True indicates units are distance over volume such as MPG.
      * False indicates units are volume over distance such as L/100KM.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1103,6 +1245,13 @@ enum VehicleProperty {
      * For example: configArray[0] = METER_PER_SEC
      *              configArray[1] = MILES_PER_HOUR
      *              configArray[2] = KILOMETERS_PER_HOUR
+     *
+     * If updating VEHICLE_SPEED_DISPLAY_UNITS affects the values of other *_DISPLAY_UNITS
+     * properties, then their values must be updated and communicated to the AAOS framework as well.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1230,7 +1379,6 @@ enum VehicleProperty {
      *
      *   int32Values[0] : VehicleApPowerStateReport enum value
      *   int32Values[1] : Time in ms to wake up, if necessary.  Otherwise 0.
-
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1252,9 +1400,16 @@ enum VehicleProperty {
     AP_POWER_BOOTUP_REASON = 0x0A02 + 0x10000000 + 0x01000000
             + 0x00400000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:INT32
     /**
-     * Property to represent brightness of the display. Some cars have single
-     * control for the brightness of all displays and this property is to share
-     * change in that control.
+     * Property to represent brightness of the display.
+     *
+     * Some cars have single control for the brightness of all displays and this
+     * property is to share change in that control. In cars which have displays
+     * whose brightness is controlled separately, they must use
+     * PER_DISPLAY_BRIGHTNESS.
+     *
+     * Only one of DISPLAY_BRIGHTNESS and PER_DISPLAY_BRIGHTNESS should be
+     * implemented. If both are available, PER_DISPLAY_BRIGHTNESS is used by
+     * AAOS.
      *
      * If this is writable, android side can set this value when user changes
      * display brightness from Settings. If this is read only, user may still
@@ -1266,6 +1421,29 @@ enum VehicleProperty {
      */
     DISPLAY_BRIGHTNESS = 0x0A03 + 0x10000000 + 0x01000000
             + 0x00400000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:INT32
+    /**
+     * Property to represent brightness of the displays which are controlled separately.
+     *
+     * Some cars have one or more displays whose brightness is controlled
+     * separately and this property is to inform the brightness of each
+     * passenger display. In cars where all displays' brightness is controlled
+     * together, they must use DISPLAY_BRIGHTNESS.
+     *
+     * Only one of DISPLAY_BRIGHTNESS and PER_DISPLAY_BRIGHTNESS should be
+     * implemented. If both are available, PER_DISPLAY_BRIGHTNESS is used by
+     * AAOS.
+     *
+     * The display port uniquely identifies a physical connector on the device
+     * for display output, ranging from 0 to 255.
+     *
+     * int32Values[0] : display port
+     * int32Values[1] : brightness
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     */
+    PER_DISPLAY_BRIGHTNESS = 0x0A04 + 0x10000000 + 0x01000000
+            + 0x00410000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:INT32_VEC
     /**
      * Property to feed H/W input events to android
      *
@@ -1409,8 +1587,11 @@ enum VehicleProperty {
      * This is an integer in case a door may be set to a particular position.
      * Max value indicates fully open, min value (0) indicates fully closed.
      *
-     * Some vehicles (minivans) can open the door electronically.  Hence, the
+     * Some vehicles (minivans) can open the door electronically. Hence, the
      * ability to write this property.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1419,6 +1600,9 @@ enum VehicleProperty {
             + 0x00400000, // VehiclePropertyGroup:SYSTEM,VehicleArea:DOOR,VehiclePropertyType:INT32
     /**
      * Door move
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1429,6 +1613,9 @@ enum VehicleProperty {
      * Door lock
      *
      * 'true' indicates door is locked
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1442,6 +1629,9 @@ enum VehicleProperty {
      *
      * If enabled, the door is unable to be opened from the inside.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1451,6 +1641,9 @@ enum VehicleProperty {
      * Mirror Z Position
      *
      * Positive value indicates tilt upwards, negative value is downwards
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1462,6 +1655,9 @@ enum VehicleProperty {
      *
      * Positive value indicates tilt upwards, negative value is downwards
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1471,6 +1667,9 @@ enum VehicleProperty {
      * Mirror Y Position
      *
      * Positive value indicate tilt right, negative value is left
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1482,6 +1681,9 @@ enum VehicleProperty {
      *
      * Positive value indicate tilt right, negative value is left
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1492,6 +1694,9 @@ enum VehicleProperty {
      *
      * True indicates mirror positions are locked and not changeable
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1501,6 +1706,9 @@ enum VehicleProperty {
      * Mirror Fold
      *
      * True indicates mirrors are folded
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1514,6 +1722,9 @@ enum VehicleProperty {
      * This property is true when the feature for automatically folding the vehicle's side mirrors
      * (for example, when the mirrors fold inward automatically when one exits and locks the
      * vehicle) is enabled.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1529,6 +1740,9 @@ enum VehicleProperty {
      * (for example, when the mirrors tilt downward automatically when one reverses the vehicle) is
      * enabled.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1541,11 +1755,11 @@ enum VehicleProperty {
      *
      * This parameter selects the memory preset to use to select the seat
      * position. The minValue is always 0, and the maxValue determines the
-     * number of seat positions available.
+     * number of seat preset memory slots available (i.e. numSeatPresets - 1).
      *
      * For instance, if the driver's seat has 3 memory presets, the maxValue
-     * will be 3. When the user wants to select a preset, the desired preset
-     * number (1, 2, or 3) is set.
+     * will be 2. When the user wants to select a preset, the desired preset
+     * number (0, 1, or 2) is set.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.WRITE
@@ -1572,6 +1786,9 @@ enum VehicleProperty {
      * Write access indicates automatic seat buckling capabilities.  There are
      * no known cars at this time, but you never know...
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1584,6 +1801,9 @@ enum VehicleProperty {
      * Max value indicates highest position
      * Min value indicates lowest position
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1591,6 +1811,9 @@ enum VehicleProperty {
             + 0x00400000, // VehiclePropertyGroup:SYSTEM,VehicleArea:SEAT,VehiclePropertyType:INT32
     /**
      * Seatbelt height move
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1604,6 +1827,9 @@ enum VehicleProperty {
      * Max value indicates closest to wheel, min value indicates most rearward
      * position.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1613,6 +1839,9 @@ enum VehicleProperty {
      * Seat fore/aft move
      *
      * Moves the seat position forward and aft.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1626,6 +1855,9 @@ enum VehicleProperty {
      * Max value indicates angling forward towards the steering wheel.
      * Min value indicates full recline.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1635,6 +1867,9 @@ enum VehicleProperty {
      * Seat backrest angle 1 move
      *
      * Moves the backrest forward or recline.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1648,6 +1883,9 @@ enum VehicleProperty {
      * Max value indicates angling forward towards the steering wheel.
      * Min value indicates full recline.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1657,6 +1895,9 @@ enum VehicleProperty {
      * Seat backrest angle 2 move
      *
      * Moves the backrest forward or recline.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1670,6 +1911,9 @@ enum VehicleProperty {
      * Max value indicates highest position.
      * Min value indicates lowest position.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1679,6 +1923,9 @@ enum VehicleProperty {
      * Seat height move
      *
      * Moves the seat height.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1692,6 +1939,9 @@ enum VehicleProperty {
      * Max value indicates longest depth position.
      * Min value indicates shortest position.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1701,6 +1951,9 @@ enum VehicleProperty {
      * Seat depth move
      *
      * Adjusts the seat depth.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1714,6 +1967,9 @@ enum VehicleProperty {
      * Max value indicates front edge of seat higher than back edge.
      * Min value indicates front edge of seat lower than back edge.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1723,6 +1979,9 @@ enum VehicleProperty {
      * Seat tilt move
      *
      * Tilts the seat.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1736,6 +1995,9 @@ enum VehicleProperty {
      * Max value indicates most forward position.
      * Min value indicates most rearward position.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1745,6 +2007,9 @@ enum VehicleProperty {
      * Lumbar fore/aft move
      *
      * Adjusts the lumbar support.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1758,6 +2023,9 @@ enum VehicleProperty {
      * Max value indicates widest lumbar setting (i.e. least support)
      * Min value indicates thinnest lumbar setting.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1767,6 +2035,9 @@ enum VehicleProperty {
      * Lumbar side support move
      *
      * Adjusts the amount of lateral lumbar support.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1783,6 +2054,9 @@ enum VehicleProperty {
      * Sets the headrest height.
      * Max value indicates tallest setting.
      * Min value indicates shortest setting.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1802,6 +2076,9 @@ enum VehicleProperty {
      *
      * This value is not in any particular unit but in a specified range of steps.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1812,6 +2089,9 @@ enum VehicleProperty {
      * Headrest height move
      *
      * Moves the headrest up and down.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1825,6 +2105,9 @@ enum VehicleProperty {
      * Max value indicates most upright angle.
      * Min value indicates shallowest headrest angle.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1834,6 +2117,9 @@ enum VehicleProperty {
      * Headrest angle move
      *
      * Adjusts the angle of the headrest
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1847,6 +2133,9 @@ enum VehicleProperty {
      * Max value indicates position closest to front of car.
      * Min value indicates position closest to rear of car.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1854,6 +2143,9 @@ enum VehicleProperty {
             + 0x00400000, // VehiclePropertyGroup:SYSTEM,VehicleArea:SEAT,VehiclePropertyType:INT32
     /**
      * Headrest fore/aft move
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1896,6 +2188,9 @@ enum VehicleProperty {
      * For each supported area ID, the VehicleAreaConfig#supportedEnumValues must be defined unless
      * all enum values of VehicleLightSwitch are supported.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @data_enum VehicleLightSwitch
@@ -1906,7 +2201,11 @@ enum VehicleProperty {
      * Represents property for Seat easy access feature.
      *
      * If true, the seat will automatically adjust to make it easier for the occupant to enter and
-     * exit the vehicle.
+     * exit the vehicle. Each area ID must map to the seat that the user is trying to enter/exit
+     * with the help of the easy access feature.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1924,6 +2223,9 @@ enum VehicleProperty {
      * This property can be set to VehiclePropertyAccess.READ read only for the sake of regulation
      * or safety concerns.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1939,6 +2241,9 @@ enum VehicleProperty {
      * minInt32Value indicates the thinnest cushion side support setting (i.e most support).
      *
      * This value is not in any particular unit but in a specified range of steps.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1959,6 +2264,9 @@ enum VehicleProperty {
      * Larger absolute values, either positive or negative, indicate a faster movement speed. Once
      * the seat cushion side support reaches the positional limit, the value resets to 0.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -1974,6 +2282,9 @@ enum VehicleProperty {
      * minInt32Value indicates the lowest position.
      *
      * This value is not in any particular unit but in a specified range of steps.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1996,6 +2307,9 @@ enum VehicleProperty {
      *
      * This value is not in any particular unit but in a specified range of steps.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -2016,6 +2330,9 @@ enum VehicleProperty {
      *
      * The area ID must match the seat that actually moves when the walk-in feature activates, not
      * the intended seat the passengers will sit in.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -2048,6 +2365,9 @@ enum VehicleProperty {
      *
      *  Note that in this mode, 0 indicates the window is closed.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -2076,6 +2396,9 @@ enum VehicleProperty {
      *   Max = open the sunroof, automatically stop when sunroof is fully open.
      *   Min = open the vent, automatically stop when vent is fully open.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -2086,11 +2409,80 @@ enum VehicleProperty {
      *
      * True indicates windows are locked and can't be moved.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
     WINDOW_LOCK = 0x0BC4 + 0x10000000 + 0x03000000
             + 0x00200000, // VehiclePropertyGroup:SYSTEM,VehicleArea:WINDOW,VehiclePropertyType:BOOLEAN
+    /**
+     * Windshield wipers period (milliseconds).
+     *
+     * Returns the instantaneous time period for 1 full cycle of the windshield wipers in
+     * milliseconds. A full cycle is defined as a wiper moving from and returning to its rest
+     * position.
+     *
+     * When an intermittent wiper setting is selected, this property value must be set to 0 during
+     * the "pause" period of the intermittent wiping.
+     *
+     * The maxInt32Value for each area ID must specify the longest wiper period. The minInt32Value
+     * must be set to 0 for each area ID.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @unit VehicleUnit:MILLI_SECS
+     */
+    WINDSHIELD_WIPERS_PERIOD =
+            0x0BC5 + VehiclePropertyGroup.SYSTEM + VehicleArea.WINDOW + VehiclePropertyType.INT32,
+
+    /**
+     * Windshield wipers state.
+     *
+     * Returns the current state of the windshield wipers. The value of WINDSHIELD_WIPERS_STATE may
+     * not match the value of WINDSHIELD_WIPERS_SWITCH. (e.g. WINDSHIELD_WIPERS_STATE = ON and
+     * WINDSHIELD_WIPERS_SWITCH = WindshieldWipersSwitch#AUTO).
+     *
+     * If WINDSHIELD_WIPERS_STATE = ON and WINDSHIELD_WIPERS_PERIOD is implemented, then
+     * WINDSHIELD_WIPERS_PERIOD must reflect the time period of 1 full cycle of the wipers.
+     *
+     * For each supported area ID, the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states in WindshieldWipersState are supported (including OTHER, which is not
+     * recommended).
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum WindshieldWipersState
+     */
+    WINDSHIELD_WIPERS_STATE =
+            0x0BC6 + VehiclePropertyGroup.SYSTEM + VehicleArea.WINDOW + VehiclePropertyType.INT32,
+
+    /**
+     * Windshield wipers switch.
+     *
+     * Represents the position of the switch controlling the windshield wipers. The value of
+     * WINDSHIELD_WIPERS_SWITCH may not match the value of WINDSHIELD_WIPERS_STATE (e.g.
+     * WINDSHIELD_WIPERS_SWITCH = AUTO and WINDSHIELD_WIPERS_STATE = WindshieldWipersState#ON).
+     *
+     * For each supported area ID, the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states in WindshieldWipersSwitch are supported (including OTHER, which is not
+     * recommended).
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
+     * If this property is implemented as VehiclePropertyAccess.READ_WRITE and the OTHER state is
+     * listed in the VehicleAreaConfig#supportedEnumValues array, then OTHER is not a supported
+     * value for writing. It is only a supported value for reading.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     * @data_enum WindshieldWipersSwitch
+     */
+    WINDSHIELD_WIPERS_SWITCH =
+            0x0BC7 + VehiclePropertyGroup.SYSTEM + VehicleArea.WINDOW + VehiclePropertyType.INT32,
+
     /**
      * Steering wheel depth position
      *
@@ -2104,6 +2496,9 @@ enum VehicleProperty {
      * steering wheel position furthest to the driver.
      *
      * This value is not in any particular unit but in a specified range of steps.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -2124,6 +2519,9 @@ enum VehicleProperty {
      *
      * This value is not in any particular unit but in a specified range of steps.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -2140,6 +2538,9 @@ enum VehicleProperty {
      * steering wheel being in the lowest position.
      *
      * This value is not in any particular unit but in a specified range of steps.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -2159,6 +2560,9 @@ enum VehicleProperty {
      *
      * This value is not in any particular unit but in a specified range of steps.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -2170,6 +2574,9 @@ enum VehicleProperty {
      * If true, the steering wheel will lock automatically to prevent theft in certain
      * situations.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
@@ -2179,6 +2586,9 @@ enum VehicleProperty {
      * Steering wheel locked
      *
      * If true, the steering wheel's position is locked and not changeable.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -2191,11 +2601,58 @@ enum VehicleProperty {
      * If true, the driver’s steering wheel will automatically adjust to make it easier for the
      * driver to enter and exit the vehicle.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
     STEERING_WHEEL_EASY_ACCESS_ENABLED =
             0x0BE6 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+    /**
+     * Property that represents the current position of the glove box door.
+     *
+     * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
+     * The minInt32Value must be 0.
+     * All integers between minInt32Value and maxInt32Value must be supported.
+     *
+     * minInt32Value indicates that the glove box door is closed.
+     * maxInt32Value indicates that the glove box door is in the fully open position.
+     *
+     * Values in between minInt32Value and maxInt32Value indicate a transition state between the
+     * closed and fully open positions.
+     *
+     * The area ID must match the seat by which the glove box is intended to be used  (e.g. if the
+     * front right dashboard has a glove box embedded in it, then the area ID should be
+     * SEAT_1_RIGHT).
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     */
+    GLOVE_BOX_DOOR_POS =
+            0x0BF0 + VehiclePropertyGroup.SYSTEM + VehicleArea.SEAT + VehiclePropertyType.INT32,
+
+    /**
+     * Lock or unlock the glove box.
+     *
+     * If true, the glove box is locked. If false, the glove box is unlocked.
+     *
+     * The area ID must match the seat by which the glove box is intended to be used (e.g. if the
+     * front right dashboard has a glove box embedded in it, then the area ID should be
+     * VehicleAreaSeat#ROW_1_RIGHT).
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     */
+    GLOVE_BOX_LOCKED =
+            0x0BF1 + VehiclePropertyGroup.SYSTEM + VehicleArea.SEAT + VehiclePropertyType.BOOLEAN,
+
     /**
      * Vehicle Maps Service (VMS) message
      *
@@ -2214,6 +2671,25 @@ enum VehicleProperty {
      */
     VEHICLE_MAP_SERVICE = 0x0C00 + 0x10000000 + 0x01000000
             + 0x00e00000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:MIXED
+    /**
+     * Characterization of inputs used for computing location.
+     *
+     * This property must indicate what (if any) data and sensor inputs are considered by the system
+     * when computing the vehicle's location that is shared with Android through the GNSS HAL.
+     *
+     * The value must return a collection of bit flags. The bit flags are defined in
+     * LocationCharacterization. The value must also include exactly one of DEAD_RECKONED or
+     * RAW_GNSS_ONLY among its collection of bit flags.
+     *
+     * When this property is not supported, it is assumed that no additional sensor inputs are fused
+     * into the GNSS updates provided through the GNSS HAL. That is unless otherwise specified
+     * through the GNSS HAL interfaces.
+     *
+     * @change_mode VehiclePropertyChangeMode.STATIC
+     * @access VehiclePropertyAccess.READ
+     */
+    LOCATION_CHARACTERIZATION =
+            0x0C10 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
     /**
      * OBD2 Live Sensor Data
      *
@@ -2387,6 +2863,9 @@ enum VehicleProperty {
      *
      * The setting that the user wants.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @data_enum VehicleLightSwitch
@@ -2397,6 +2876,9 @@ enum VehicleProperty {
      * High beam light switch
      *
      * The setting that the user wants.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -2425,6 +2907,9 @@ enum VehicleProperty {
      * Only one of FOG_LIGHTS_SWITCH or REAR_FOG_LIGHTS_SWITCH must be implemented and not both.
      * FRONT_FOG_LIGHTS_SWITCH must not be implemented.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @data_enum VehicleLightSwitch
@@ -2435,6 +2920,9 @@ enum VehicleProperty {
      * Hazard light switch
      *
      * The setting that the user wants.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -2461,6 +2949,9 @@ enum VehicleProperty {
      * is open or because of a voice command.
      * For example, while the switch is in the "off" or "automatic" position.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @data_enum VehicleLightSwitch
@@ -2485,6 +2976,9 @@ enum VehicleProperty {
      * This might be different than the READING_LIGHTS_STATE if the lights are on because a door
      * is open or because of a voice command.
      * For example, while the switch is in the "off" or "automatic" position.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -2527,6 +3021,9 @@ enum VehicleProperty {
      *
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues must be defined unless
      * all enum values of VehicleLightSwitch are supported.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -3194,6 +3691,9 @@ enum VehicleProperty {
      * Only one of FOG_LIGHTS_SWITCH or FRONT_FOG_LIGHTS_SWITCH must be implemented. Please refer to
      * the documentation on FOG_LIGHTS_SWITCH for more information.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @data_enum VehicleLightSwitch
@@ -3222,6 +3722,9 @@ enum VehicleProperty {
      * Only one of FOG_LIGHTS_SWITCH or REAR_FOG_LIGHTS_SWITCH must be implemented. Please refer to
      * the documentation on FOG_LIGHTS_SWITCH for more information.
      *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @data_enum VehicleLightSwitch
@@ -3234,6 +3737,9 @@ enum VehicleProperty {
      *
      * configArray[0] is used to specify the max current draw allowed by
      * the vehicle in Amperes.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -3252,6 +3758,9 @@ enum VehicleProperty {
      *     [20, 40, 60, 80, 100]
      *   then the configArray should be {20, 40, 60, 80, 100}
      * If the configArray is empty then all values from 0 to 100 must be valid.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -3276,6 +3785,9 @@ enum VehicleProperty {
      *
      * The setting that the user wants. Setting this property to true starts the battery charging
      * and setting to false stops charging.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -3418,23 +3930,59 @@ enum VehicleProperty {
     SHUTDOWN_REQUEST =
             0x0F49 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
 
-    /***************************************************************************
+    /**
+     * Whether the vehicle is currently in use.
+     *
+     * <p>In-use means a human user is present and is intended to use the vehicle. This doesn't
+     * necessarily means the human user is in the vehicle. For example, if the human user unlocks
+     * the vehicle remotely, the vehicle is considered in use.
+     *
+     * <p>If this property is supported:
+     *
+     * <p>Each time user powers on the vehicle or the system detects the user is present,
+     * VEHICLE_IN_USE must be set to true. Each time user powers off the vehicle or the system
+     * detects the user is not present, VEHICLE_IN_USE must be set to false.
+     *
+     * <p>This property is different than AP_POWER_BOOTUP_REASON in the sense that
+     * AP_POWER_BOOTUP_REASON is only set once during the system bootup. However, this property
+     * might change multiple times during a system bootup cycle.
+     *
+     * <p>For example, a device is currently not in use. The system bootup to execute a remote task.
+     * VEHICLE_IN_USE is false. While the remote task is executing, the user enters the vehicle and
+     * powers on the vehicle. VEHICLE_IN_USE is set to true. After a driving session, user powers
+     * off the vehicle, VEHICLE_IN_USE is set to false.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     */
+    VEHICLE_IN_USE =
+            0x0F4A + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+
+    /***********************************************************************************************
      * Start of ADAS Properties
+     *
+     * Android is not a safety critical system and is provided as is without any timing guarantees,
+     * representations or warranties. OEMs implementing these properties, and clients using these
+     * properties should ensure they complete any necessary safety reviews, in accordance with
+     * industry standards, to ensure the use of these APIs do not negatively impact driver safety.
+     * Use of any Google APIs will be at the OEM's sole risk.
+     *
      * Allocate IDs in range of 0x1000 (inclusive) to 0x1100 (exclusive) for ADAS properties
-     **************************************************************************/
+     **********************************************************************************************/
 
     /**
-     * Enable or disable automatic emergency braking (AEB).
+     * Enable or disable Automatic Emergency Braking (AEB).
      *
      * Set true to enable AEB and false to disable AEB. When AEB is enabled, the ADAS system in the
      * vehicle should be turned on and monitoring to avoid potential collisions.
      *
-     * IVehicle#get must not return any NOT_AVAILABLE value in StatusCode. Other StatusCode values
-     * like TRY_AGAIN may still be used as needed. For example, if AEB is not available because the
-     * vehicle speed is too low, IVehicle#get must return false.
+     * In general, AUTOMATIC_EMERGENCY_BRAKING_ENABLED should always return true or false. If the
+     * feature is not available due to some temporary state, such as the vehicle speed being too
+     * low, that information must be conveyed through the ErrorState values in the
+     * AUTOMATIC_EMERGENCY_BRAKING_STATE property.
      *
-     * This property is defined as read_write, but OEMs have the option to implement it as read
-     * only.
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -3465,13 +4013,18 @@ enum VehicleProperty {
             0x1001 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
 
     /**
-     * Enable or disable forward collision warning (FCW).
+     * Enable or disable Forward Collision Warning (FCW).
      *
      * Set true to enable FCW and false to disable FCW. When FCW is enabled, the ADAS system in the
      * vehicle should be turned on and monitoring for potential collisions.
      *
-     * This property is defined as read_write, but OEMs have the option to implement it as read
-     * only.
+     * In general, FORWARD_COLLISION_WARNING_ENABLED should always return true or false. If the
+     * feature is not available due to some temporary state, such as the vehicle speed being too
+     * low, that information must be conveyed through the ErrorState values in the
+     * FORWARD_COLLISION_WARNING_STATE property.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -3480,13 +4033,37 @@ enum VehicleProperty {
             0x1002 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
 
     /**
-     * Enable and disable blind spot warning (BSW).
+     * Forward Collision Warning (FCW) state.
+     *
+     * Returns the current state of FCW. This property must always return a valid state defined in
+     * ForwardCollisionWarningState or ErrorState. It must not surface errors through StatusCode
+     * and must use the supported error states instead.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both ForwardCollisionWarningState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum ForwardCollisionWarningState
+     * @data_enum ErrorState
+     */
+    FORWARD_COLLISION_WARNING_STATE =
+            0x1003 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Enable and disable Blind Spot Warning (BSW).
      *
      * Set true to enable BSW and false to disable BSW. When BSW is enabled, the ADAS system in the
      * vehicle should be turned on and monitoring for objects in the vehicle’s blind spots.
      *
-     * This property is defined as read_write, but OEMs have the option to implement it as read
-     * only.
+     * In general, BLIND_SPOT_WARNING_ENABLED should always return true or false. If the feature is
+     * not available due to some temporary state, such as the vehicle speed being too low, that
+     * information must be conveyed through the ErrorState values in the BLIND_SPOT_WARNING_STATE
+     * property.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -3495,20 +4072,63 @@ enum VehicleProperty {
             0x1004 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
 
     /**
-     * Enable or disable lane departure warning (LDW).
+     * Blind Spot Warning (BSW) state.
+     *
+     * Returns the current state of BSW. This property must always return a valid state defined in
+     * BlindSpotWarningState or ErrorState. It must not surface errors through StatusCode
+     * and must use the supported error states instead.
+     *
+     * For each supported area ID, the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both BlindSpotWarningState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum BlindSpotWarningState
+     * @data_enum ErrorState
+     */
+    BLIND_SPOT_WARNING_STATE =
+            0x1005 + VehiclePropertyGroup.SYSTEM + VehicleArea.MIRROR + VehiclePropertyType.INT32,
+
+    /**
+     * Enable or disable Lane Departure Warning (LDW).
      *
      * Set true to enable LDW and false to disable LDW. When LDW is enabled, the ADAS system in the
      * vehicle should be turned on and monitoring if the vehicle is approaching or crossing lane
      * lines, in which case a warning will be given.
      *
-     * This property is defined as read_write, but OEMs have the option to implement it as read
-     * only.
+     * In general, LANE_DEPARTURE_WARNING_ENABLED should always return true or false. If the feature
+     * is not available due to some temporary state, such as the vehicle speed being too low or too
+     * high, that information must be conveyed through the ErrorState values in the
+     * LANE_DEPARTURE_WARNING_STATE property.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
     LANE_DEPARTURE_WARNING_ENABLED =
             0x1006 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+
+    /**
+     * Lane Departure Warning (LDW) state.
+     *
+     * Returns the current state of LDW. This property must always return a valid state defined in
+     * LaneDepartureWarningState or ErrorState. It must not surface errors through StatusCode
+     * and must use the supported error states instead.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both LaneDepartureWarningState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum LaneDepartureWarningState
+     * @data_enum ErrorState
+     */
+    LANE_DEPARTURE_WARNING_STATE =
+            0x1007 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
 
     /**
      * Enable or disable Lane Keep Assist (LKA).
@@ -3521,8 +4141,13 @@ enum VehicleProperty {
      * This is different from Lane Centering Assist (LCA) which, when activated, applies continuous
      * steering control to keep the vehicle centered in the current lane.
      *
-     * This property is defined as read_write, but OEMs have the option to implement it as read
-     * only.
+     * In general, LANE_KEEP_ASSIST_ENABLED should always return true or false. If the feature is
+     * not available due to some temporary state, such as the vehicle speed being too low or too
+     * high, that information must be conveyed through the ErrorState values in the
+     * LANE_KEEP_ASSIST_STATE property.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -3531,7 +4156,29 @@ enum VehicleProperty {
             0x1008 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
 
     /**
-     * Enable or disable lane centering assist (LCA).
+     * Lane Keep Assist (LKA) state.
+     *
+     * Returns the current state of LKA. This property must always return a valid state defined in
+     * LaneKeepAssistState or ErrorState. It must not surface errors through StatusCode
+     * and must use the supported error states instead.
+     *
+     * If LKA includes lane departure warnings before applying steering corrections, those warnings
+     * must be surfaced through the Lane Departure Warning (LDW) properties.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both LaneKeepAssistState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum LaneKeepAssistState
+     * @data_enum ErrorState
+     */
+    LANE_KEEP_ASSIST_STATE =
+            0x1009 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Enable or disable Lane Centering Assist (LCA).
      *
      * Set true to enable LCA and false to disable LCA. When LCA is enabled, the ADAS system in the
      * vehicle should be turned on and waiting for an activation signal from the driver. Once the
@@ -3542,8 +4189,13 @@ enum VehicleProperty {
      * drifts toward or over the lane marking. If an unintentional lane departure is detected, the
      * system applies steering control to return the vehicle into the current lane.
      *
-     * This property is defined as read_write, but OEMs have the option to implement it as read
-     * only.
+     * In general, LANE_CENTERING_ASSIST_ENABLED should always return true or false. If the feature
+     * is not available due to some temporary state, such as the vehicle speed being too low or too
+     * high, that information must be conveyed through the ErrorState values in the
+     * LANE_CENTERING_ASSIST_STATE property.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -3551,16 +4203,67 @@ enum VehicleProperty {
     LANE_CENTERING_ASSIST_ENABLED =
             0x100A + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
 
+    /**
+     * Lane Centering Assist (LCA) commands.
+     *
+     * Commands to activate and suspend LCA. They are only valid when LANE_CENTERING_ASSIST_ENABLED
+     * = true. Otherwise, these commands must return StatusCode#NOT_AVAILABLE or
+     * StatusCode#NOT_AVAILABLE_DISABLED.
+     *
+     * When the command ACTIVATE from LaneCenteringAssistCommmand is sent,
+     * LANE_CENTERING_ASSIST_STATE must be set to LaneCenteringAssistState#ACTIVATION_REQUESTED.
+     * When the ACTIVATE command succeeds, LANE_CENTERING_ASSIST_STATE must be set to
+     * LaneCenteringAssistState#ACTIVATED. When the command DEACTIVATE from
+     * LaneCenteringAssistCommmand succeeds, LANE_CENTERING_ASSIST_STATE must be set to
+     * LaneCenteringAssistState#ENABLED.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues must be defined unless
+     * all enum values of LaneCenteringAssistCommand are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.WRITE
+     * @data_enum LaneCenteringAssistCommmand
+     */
+    LANE_CENTERING_ASSIST_COMMAND =
+            0x100B + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Lane Centering Assist (LCA) state.
+     *
+     * Returns the current state of LCA. This property must always return a valid state defined in
+     * LaneCenteringAssistState or ErrorState. It must not surface errors through StatusCode
+     * and must use the supported error states instead.
+     *
+     * If LCA includes lane departure warnings, those warnings must be surfaced through the Lane
+     * Departure Warning (LDW) properties.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both LaneCenteringAssistState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum LaneCenteringAssistState
+     * @data_enum ErrorState
+     */
+    LANE_CENTERING_ASSIST_STATE =
+            0x100C + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
     /*
-     * Enable or disable emergency lane keep assist (ELKA).
+     * Enable or disable Emergency Lane Keep Assist (ELKA).
      *
      * Set true to enable ELKA and false to disable ELKA. When ELKA is enabled, the ADAS system in
      * the vehicle should be on and monitoring for unsafe lane changes by the driver. When an unsafe
      * maneuver is detected, ELKA alerts the driver and applies steering corrections to keep the
      * vehicle in its original lane.
      *
-     * This property is defined as read_write, but OEMs have the option to implement it as read
-     * only.
+     * In general, EMERGENCY_LANE_KEEP_ASSIST_ENABLED should always return true or false. If the
+     * feature is not available due to some temporary state, such as the vehicle speed being too
+     * low, that information must be conveyed through the ErrorState values in the
+     * EMERGENCY_LANE_KEEP_ASSIST_STATE property.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -3569,55 +4272,249 @@ enum VehicleProperty {
             0x100D + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
 
     /**
-     * Enable or disable adaptive cruise control (ACC).
+     * Emergency Lane Keep Assist (ELKA) state.
      *
-     * Set true to enable ACC and false to disable ACC. When ACC is enabled, the ADAS system in the
-     * vehicle should be turned on and waiting for an activation signal from the driver. Once the
-     * feature is activated, the ADAS system in the car should be accelerating and braking in a way
-     * that allows the vehicle to maintain a set speed and to maintain a set distance gap from a
-     * leading vehicle.
+     * Returns the current state of ELKA. Generally, this property should return a valid state
+     * defined in the EmergencyLaneKeepAssistState or ErrorState. For example, if the feature is not
+     * available due to some temporary state, that information should be conveyed through
+     * ErrorState.
      *
-     * This property is defined as read_write, but OEMs have the option to implement it as read
-     * only.
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of EmergencyLaneKeepAssistState (including OTHER, which is not recommended)
+     * and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum EmergencyLaneKeepAssistState
+     * @data_enum ErrorState
+     */
+    EMERGENCY_LANE_KEEP_ASSIST_STATE =
+            0x100E + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Enable or disable cruise control (CC).
+     *
+     * Set true to enable CC and false to disable CC. This property is shared by all forms of
+     * CruiseControlType(s).
+     *
+     * When CC is enabled, the ADAS system in the vehicle should be turned on and responding to
+     * commands.
+     *
+     * In general, CRUISE_CONTROL_ENABLED should always return true or false. If the feature is not
+     * available due to some temporary state, such as the vehicle speed being too low, that
+     * information must be conveyed through the ErrorState values in the CRUISE_CONTROL_STATE
+     * property.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
-    ADAPTIVE_CRUISE_CONTROL_ENABLED =
+    CRUISE_CONTROL_ENABLED =
             0x100F + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
 
     /**
-     * Enable or disable hands on detection (HOD).
+     * Current type of Cruise Control (CC).
+     *
+     * When CRUISE_CONTROL_ENABLED is true, this property returns the type of CC that is currently
+     * enabled (for example, standard CC, adaptive CC, predictive CC, etc.). Generally, this
+     * property should return a valid state defined in the CruiseControlType or ErrorState. For
+     * example, if the feature is not available due to some temporary state, that information should
+     * be conveyed through ErrorState.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of CruiseControlType (including OTHER, which is not recommended) and
+     * ErrorState are supported.
+     *
+     * Trying to write CruiseControlType#OTHER or an ErrorState to this property will throw an
+     * IllegalArgumentException.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     * @data_enum CruiseControlType
+     * @data_enum ErrorState
+     */
+    CRUISE_CONTROL_TYPE =
+            0x1010 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Current state of Cruise Control (CC).
+     *
+     * This property returns the current state of CC. Generally, this property should return a valid
+     * state defined in the CruiseControlState or ErrorState. For example, if the feature is not
+     * available due to some temporary state, that information should be conveyed through
+     * ErrorState.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of CruiseControlState (including OTHER, which is not recommended) and
+     * ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum CruiseControlState
+     * @data_enum ErrorState
+     */
+    CRUISE_CONTROL_STATE =
+            0x1011 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Write Cruise Control (CC) commands.
+     *
+     * See CruiseControlCommand for the details about each supported command.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of CruiseControlState are supported. Any unsupported commands sent through
+     * this property must return StatusCode#INVALID_ARG.
+     *
+     * When this property is not available because CC is disabled (i.e. CRUISE_CONTROL_ENABLED is
+     * false), this property must return StatusCode#NOT_AVAILABLE_DISABLED.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.WRITE
+     * @data_enum CruiseControlCommand
+     */
+    CRUISE_CONTROL_COMMAND =
+            0x1012 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Current target speed for Cruise Control (CC).
+     *
+     * OEMs should set the minInt32Value and maxInt32Value values for this property to define the
+     * min and max target speed values. These values must be non-negative.
+     *
+     * The maxFloatValue represents the upper bound of the target speed.
+     * The minFloatValue represents the lower bound of the target speed.
+     *
+     * When this property is not available because CC is disabled (i.e. CRUISE_CONTROL_ENABLED is
+     * false), this property must return StatusCode#NOT_AVAILABLE_DISABLED.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @unit VehicleUnit:METER_PER_SEC
+     */
+    CRUISE_CONTROL_TARGET_SPEED =
+            0x1013 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
+
+    /**
+     * Current target time gap for Adaptive Cruise Control (ACC) or Predictive Cruise Control in
+     * milliseconds.
+     *
+     * This property should specify the target time gap to a leading vehicle. This gap is defined as
+     * the time to travel the distance between the leading vehicle's rear-most point to the ACC
+     * vehicle's front-most point. The actual time gap from a leading vehicle can be above or below
+     * this value.
+     *
+     * The possible values to set for the target time gap should be specified in configArray in
+     * ascending order. All values must be positive. If the property is writable, all values must be
+     * writable.
+     *
+     * When this property is not available because CC is disabled (i.e. CRUISE_CONTROL_ENABLED is
+     * false), this property must return StatusCode#NOT_AVAILABLE_DISABLED.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     * @unit VehicleUnit:MILLI_SECS
+     */
+    ADAPTIVE_CRUISE_CONTROL_TARGET_TIME_GAP =
+            0x1014 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Measured distance from leading vehicle when using Adaptive Cruise Control (ACC) or
+     * Predictive Cruise Control.
+     *
+     * Returns the measured distance in millimeters between the rear-most point of the leading
+     * vehicle and the front-most point of the ACC vehicle.
+     *
+     * The minInt32Value should be 0.
+     * The maxInt32Value should be populated with the maximum range the distance sensor can support.
+     * This value should be non-negative.
+     *
+     * When no lead vehicle is detected (that is, when there is no leading vehicle or the leading
+     * vehicle is too far away for the sensor to detect), this property should return
+     * StatusCode.NOT_AVAILABLE.
+     *
+     * When this property is not available because CC is disabled (i.e. CRUISE_CONTROL_ENABLED is
+     * false), this property must return StatusCode#NOT_AVAILABLE_DISABLED.
+     *
+     * @change_mode VehiclePropertyChangeMode.CONTINUOUS
+     * @access VehiclePropertyAccess.READ
+     * @unit VehicleUnit:MILLIMETER
+     */
+    ADAPTIVE_CRUISE_CONTROL_LEAD_VEHICLE_MEASURED_DISTANCE =
+            0x1015 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Enable or disable Hands On Detection (HOD).
      *
      * Set true to enable HOD and false to disable HOD. When HOD is enabled, a system inside the
      * vehicle should be monitoring the presence of the driver's hands on the steering wheel and
      * send a warning if it detects that the driver's hands are no longer on the steering wheel.
      *
-     * This property is defined as read_write, but OEMs have the option to implement it as read
-     * only.
+     * In general, HANDS_ON_DETECTION_ENABLED should always return true or false. If the feature is
+     * not available due to some temporary state, that information must be conveyed through the
+     * ErrorState values in the HANDS_ON_DETECTION_STATE property.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      */
     HANDS_ON_DETECTION_ENABLED =
-            0x1015 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+            0x1016 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
 
     /**
-     * Enable or disable driver attention monitoring.
+     * Hands On Detection (HOD) driver state.
      *
-     * Set true to enable driver attention monitoring and false to disable driver attention
-     * monitoring. When driver attention monitoring is enabled, a system inside the vehicle should
-     * be monitoring the attention level of the driver and should send a warning if it detects that
-     * the driver is distracted.
+     * Returns whether the driver's hands are on the steering wheel. Generally, this property should
+     * return a valid state defined in the HandsOnDetectionDriverState or ErrorState. For example,
+     * if the feature is not available due to some temporary state, that information should be
+     * conveyed through ErrorState.
      *
-     * This property is defined as read_write, but OEMs have the option to implement it as read
-     * only.
+     * If the vehicle wants to send a warning to the user because the driver's hands have been off
+     * the steering wheel for too long, the warning should be surfaced through
+     * HANDS_ON_DETECTION_WARNING.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both HandsOnDetectionDriverState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
-     * @access VehiclePropertyAccess.READ_WRITE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum HandsOnDetectionDriverState
+     * @data_enum ErrorState
      */
-    DRIVER_ATTENTION_MONITORING_ENABLED =
-            0x1018 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+    HANDS_ON_DETECTION_DRIVER_STATE =
+            0x1017 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+
+    /**
+     * Hands On Detection (HOD) warning.
+     *
+     * Returns whether a warning is being sent to the driver for having their hands off the wheel
+     * for too long a duration.
+     *
+     * Generally, this property should return a valid state defined in HandsOnDetectionWarning or
+     * ErrorState. For example, if the feature is not available due to some temporary state, that
+     * information should be conveyed through an ErrorState.
+     *
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of both HandsOnDetectionWarning (including OTHER, which is not recommended)
+     * and ErrorState are supported.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum HandsOnDetectionWarning
+     * @data_enum ErrorState
+     */
+    HANDS_ON_DETECTION_WARNING =
+            0x1018 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
 
     /***************************************************************************
      * End of ADAS Properties

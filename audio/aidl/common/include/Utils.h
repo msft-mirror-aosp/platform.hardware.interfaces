@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <array>
 #include <initializer_list>
+#include <regex>
 #include <type_traits>
 
 #include <aidl/android/media/audio/common/AudioChannelLayout.h>
@@ -29,7 +30,7 @@
 #include <aidl/android/media/audio/common/AudioOutputFlags.h>
 #include <aidl/android/media/audio/common/PcmType.h>
 
-namespace android::hardware::audio::common {
+namespace aidl::android::hardware::audio::common {
 
 // Some values are reserved for use by the system code only.
 // HALs must not accept or emit values outside from the provided list.
@@ -98,15 +99,57 @@ constexpr size_t getFrameSizeInBytes(
     return 0;
 }
 
+constexpr bool isDefaultAudioFormat(
+        const ::aidl::android::media::audio::common::AudioFormatDescription& desc) {
+    return desc.type == ::aidl::android::media::audio::common::AudioFormatType::DEFAULT &&
+           desc.pcm == ::aidl::android::media::audio::common::PcmType::DEFAULT;
+}
+
 constexpr bool isTelephonyDeviceType(
         ::aidl::android::media::audio::common::AudioDeviceType device) {
     return device == ::aidl::android::media::audio::common::AudioDeviceType::IN_TELEPHONY_RX ||
            device == ::aidl::android::media::audio::common::AudioDeviceType::OUT_TELEPHONY_TX;
 }
 
+constexpr bool isUsbInputDeviceType(::aidl::android::media::audio::common::AudioDeviceType type) {
+    switch (type) {
+        case ::aidl::android::media::audio::common::AudioDeviceType::IN_DOCK:
+        case ::aidl::android::media::audio::common::AudioDeviceType::IN_ACCESSORY:
+        case ::aidl::android::media::audio::common::AudioDeviceType::IN_DEVICE:
+        case ::aidl::android::media::audio::common::AudioDeviceType::IN_HEADSET:
+            return true;
+        default:
+            return false;
+    }
+}
+
+constexpr bool isUsbOutputtDeviceType(::aidl::android::media::audio::common::AudioDeviceType type) {
+    switch (type) {
+        case ::aidl::android::media::audio::common::AudioDeviceType::OUT_DOCK:
+        case ::aidl::android::media::audio::common::AudioDeviceType::OUT_ACCESSORY:
+        case ::aidl::android::media::audio::common::AudioDeviceType::OUT_DEVICE:
+        case ::aidl::android::media::audio::common::AudioDeviceType::OUT_HEADSET:
+            return true;
+        default:
+            return false;
+    }
+}
+
 constexpr bool isValidAudioMode(::aidl::android::media::audio::common::AudioMode mode) {
     return std::find(kValidAudioModes.begin(), kValidAudioModes.end(), mode) !=
            kValidAudioModes.end();
+}
+
+static inline bool maybeVendorExtension(const std::string& s) {
+    // Only checks whether the string starts with the "vendor prefix".
+    static const std::string vendorPrefix = "VX_";
+    return s.size() > vendorPrefix.size() && s.substr(0, vendorPrefix.size()) == vendorPrefix;
+}
+
+static inline bool isVendorExtension(const std::string& s) {
+    // Must be the same as defined in {Playback|Record}TrackMetadata.aidl
+    static const std::regex vendorExtension("VX_[A-Z0-9]{3,}_[_A-Z0-9]+");
+    return std::regex_match(s.begin(), s.end(), vendorExtension);
 }
 
 // The helper functions defined below are only applicable to the case when an enum type
@@ -139,4 +182,4 @@ constexpr U makeBitPositionFlagMask(std::initializer_list<E> flags) {
     return result;
 }
 
-}  // namespace android::hardware::audio::common
+}  // namespace aidl::android::hardware::audio::common

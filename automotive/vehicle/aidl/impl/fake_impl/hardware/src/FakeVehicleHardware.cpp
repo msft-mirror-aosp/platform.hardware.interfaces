@@ -15,6 +15,7 @@
  */
 
 #define LOG_TAG "FakeVehicleHardware"
+#define ATRACE_TAG ATRACE_TAG_HAL
 #define FAKE_VEHICLEHARDWARE_DEBUG false  // STOPSHIP if true.
 
 #include "FakeVehicleHardware.h"
@@ -33,6 +34,7 @@
 #include <android-base/strings.h>
 #include <utils/Log.h>
 #include <utils/SystemClock.h>
+#include <utils/Trace.h>
 
 #include <dirent.h>
 #include <inttypes.h>
@@ -65,6 +67,7 @@ using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyGroup;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyStatus;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyType;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropValue;
+using ::aidl::android::hardware::automotive::vehicle::VehicleUnit;
 
 using ::android::base::EqualsIgnoreCase;
 using ::android::base::Error;
@@ -85,7 +88,8 @@ constexpr char OVERRIDE_CONFIG_DIR[] = "/vendor/etc/automotive/vhaloverride/";
 // overwrite the default configs.
 constexpr char OVERRIDE_PROPERTY[] = "persist.vendor.vhal_init_value_override";
 constexpr char POWER_STATE_REQ_CONFIG_PROPERTY[] = "ro.vendor.fake_vhal.ap_power_state_req.config";
-
+// The value to be returned if VENDOR_PROPERTY_ID is set as the property
+constexpr int VENDOR_ERROR_CODE = 0x00ab0005;
 // A list of supported options for "--set" command.
 const std::unordered_set<std::string> SET_PROP_OPTIONS = {
         // integer.
@@ -295,16 +299,115 @@ VhalResult<void> FakeVehicleHardware::setApPowerStateReport(const VehiclePropVal
     return {};
 }
 
-bool FakeVehicleHardware::isHvacPropAndHvacNotAvailable(int32_t propId) const {
+int FakeVehicleHardware::getHvacTempNumIncrements(int requestedTemp, int minTemp, int maxTemp,
+                                                  int increment) {
+    requestedTemp = std::max(requestedTemp, minTemp);
+    requestedTemp = std::min(requestedTemp, maxTemp);
+    int numIncrements = (requestedTemp - minTemp) / increment;
+    return numIncrements;
+}
+
+void FakeVehicleHardware::updateHvacTemperatureValueSuggestionInput(
+        const std::vector<int>& hvacTemperatureSetConfigArray,
+        std::vector<float>* hvacTemperatureValueSuggestionInput) {
+    int minTempInCelsius = hvacTemperatureSetConfigArray[0];
+    int maxTempInCelsius = hvacTemperatureSetConfigArray[1];
+    int incrementInCelsius = hvacTemperatureSetConfigArray[2];
+
+    int minTempInFahrenheit = hvacTemperatureSetConfigArray[3];
+    int maxTempInFahrenheit = hvacTemperatureSetConfigArray[4];
+    int incrementInFahrenheit = hvacTemperatureSetConfigArray[5];
+
+    // The HVAC_TEMPERATURE_SET config array values are temperature values that have been multiplied
+    // by 10 and converted to integers. Therefore, requestedTemp must also be multiplied by 10 and
+    // converted to an integer in order for them to be the same units.
+    int requestedTemp = static_cast<int>((*hvacTemperatureValueSuggestionInput)[0] * 10.0f);
+    int numIncrements =
+            (*hvacTemperatureValueSuggestionInput)[1] == toInt(VehicleUnit::CELSIUS)
+                    ? getHvacTempNumIncrements(requestedTemp, minTempInCelsius, maxTempInCelsius,
+                                               incrementInCelsius)
+                    : getHvacTempNumIncrements(requestedTemp, minTempInFahrenheit,
+                                               maxTempInFahrenheit, incrementInFahrenheit);
+
+    int suggestedTempInCelsius = minTempInCelsius + incrementInCelsius * numIncrements;
+    int suggestedTempInFahrenheit = minTempInFahrenheit + incrementInFahrenheit * numIncrements;
+    // HVAC_TEMPERATURE_VALUE_SUGGESTION specifies the temperature values to be in the original
+    // floating point form so we divide by 10 and convert to float.
+    (*hvacTemperatureValueSuggestionInput)[2] = static_cast<float>(suggestedTempInCelsius) / 10.0f;
+    (*hvacTemperatureValueSuggestionInput)[3] =
+            static_cast<float>(suggestedTempInFahrenheit) / 10.0f;
+}
+
+VhalResult<void> FakeVehicleHardware::setHvacTemperatureValueSuggestion(
+        const VehiclePropValue& hvacTemperatureValueSuggestion) {
+    auto hvacTemperatureSetConfigResult =
+            mServerSidePropStore->getConfig(toInt(VehicleProperty::HVAC_TEMPERATURE_SET));
+
+    if (!hvacTemperatureSetConfigResult.ok()) {
+        return StatusError(getErrorCode(hvacTemperatureSetConfigResult)) << StringPrintf(
+                       "Failed to set HVAC_TEMPERATURE_VALUE_SUGGESTION because"
+                       " HVAC_TEMPERATURE_SET could not be retrieved. Error: %s",
+                       getErrorMsg(hvacTemperatureSetConfigResult).c_str());
+    }
+
+    const auto& originalInput = hvacTemperatureValueSuggestion.value.floatValues;
+    if (originalInput.size() != 4) {
+        return StatusError(StatusCode::INVALID_ARG) << StringPrintf(
+                       "Failed to set HVAC_TEMPERATURE_VALUE_SUGGESTION because float"
+                       " array value is not size 4.");
+    }
+
+    bool isTemperatureUnitSpecified = originalInput[1] == toInt(VehicleUnit::CELSIUS) ||
+                                      originalInput[1] == toInt(VehicleUnit::FAHRENHEIT);
+    if (!isTemperatureUnitSpecified) {
+        return StatusError(StatusCode::INVALID_ARG) << StringPrintf(
+                       "Failed to set HVAC_TEMPERATURE_VALUE_SUGGESTION because float"
+                       " value at index 1 is not any of %d or %d, which corresponds to"
+                       " VehicleUnit#CELSIUS and VehicleUnit#FAHRENHEIT respectively.",
+                       toInt(VehicleUnit::CELSIUS), toInt(VehicleUnit::FAHRENHEIT));
+    }
+
+    auto updatedValue = mValuePool->obtain(hvacTemperatureValueSuggestion);
+    const auto& hvacTemperatureSetConfigArray = hvacTemperatureSetConfigResult.value()->configArray;
+    auto& hvacTemperatureValueSuggestionInput = updatedValue->value.floatValues;
+
+    updateHvacTemperatureValueSuggestionInput(hvacTemperatureSetConfigArray,
+                                              &hvacTemperatureValueSuggestionInput);
+
+    updatedValue->timestamp = elapsedRealtimeNano();
+    auto writeResult = mServerSidePropStore->writeValue(std::move(updatedValue),
+                                                        /* updateStatus = */ true,
+                                                        VehiclePropertyStore::EventMode::ALWAYS);
+    if (!writeResult.ok()) {
+        return StatusError(getErrorCode(writeResult))
+               << StringPrintf("failed to write value into property store, error: %s",
+                               getErrorMsg(writeResult).c_str());
+    }
+
+    return {};
+}
+
+bool FakeVehicleHardware::isHvacPropAndHvacNotAvailable(int32_t propId, int32_t areaId) const {
     std::unordered_set<int32_t> powerProps(std::begin(HVAC_POWER_PROPERTIES),
                                            std::end(HVAC_POWER_PROPERTIES));
     if (powerProps.count(propId)) {
-        auto hvacPowerOnResult =
-                mServerSidePropStore->readValue(toInt(VehicleProperty::HVAC_POWER_ON), HVAC_ALL);
-
-        if (hvacPowerOnResult.ok() && hvacPowerOnResult.value()->value.int32Values.size() == 1 &&
-            hvacPowerOnResult.value()->value.int32Values[0] == 0) {
-            return true;
+        auto hvacPowerOnResults =
+                mServerSidePropStore->readValuesForProperty(toInt(VehicleProperty::HVAC_POWER_ON));
+        if (!hvacPowerOnResults.ok()) {
+            ALOGW("failed to get HVAC_POWER_ON 0x%x, error: %s",
+                  toInt(VehicleProperty::HVAC_POWER_ON), getErrorMsg(hvacPowerOnResults).c_str());
+            return false;
+        }
+        auto& hvacPowerOnValues = hvacPowerOnResults.value();
+        for (size_t j = 0; j < hvacPowerOnValues.size(); j++) {
+            auto hvacPowerOnValue = std::move(hvacPowerOnValues[j]);
+            if ((hvacPowerOnValue->areaId & areaId) == areaId) {
+                if (hvacPowerOnValue->value.int32Values.size() == 1 &&
+                    hvacPowerOnValue->value.int32Values[0] == 0) {
+                    return true;
+                }
+                break;
+            }
         }
     }
     return false;
@@ -366,7 +469,7 @@ FakeVehicleHardware::ValueResultType FakeVehicleHardware::maybeGetSpecialValue(
         return getUserHalProp(value);
     }
 
-    if (isHvacPropAndHvacNotAvailable(propId)) {
+    if (isHvacPropAndHvacNotAvailable(propId, value.areaId)) {
         *isSpecialValue = true;
         return StatusError(StatusCode::NOT_AVAILABLE) << "hvac not available";
     }
@@ -389,6 +492,9 @@ FakeVehicleHardware::ValueResultType FakeVehicleHardware::maybeGetSpecialValue(
         case ECHO_REVERSE_BYTES:
             *isSpecialValue = true;
             return getEchoReverseBytes(value);
+        case VENDOR_PROPERTY_ID:
+            *isSpecialValue = true;
+            return StatusError((StatusCode)VENDOR_ERROR_CODE);
         default:
             // Do nothing.
             break;
@@ -413,7 +519,7 @@ FakeVehicleHardware::ValueResultType FakeVehicleHardware::getEchoReverseBytes(
     return std::move(gotValue);
 }
 
-void FakeVehicleHardware::sendHvacPropertiesCurrentValues() {
+void FakeVehicleHardware::sendHvacPropertiesCurrentValues(int32_t areaId) {
     for (size_t i = 0; i < sizeof(HVAC_POWER_PROPERTIES) / sizeof(int32_t); i++) {
         int powerPropId = HVAC_POWER_PROPERTIES[i];
         auto powerPropResults = mServerSidePropStore->readValuesForProperty(powerPropId);
@@ -425,11 +531,13 @@ void FakeVehicleHardware::sendHvacPropertiesCurrentValues() {
         auto& powerPropValues = powerPropResults.value();
         for (size_t j = 0; j < powerPropValues.size(); j++) {
             auto powerPropValue = std::move(powerPropValues[j]);
-            powerPropValue->status = VehiclePropertyStatus::AVAILABLE;
-            powerPropValue->timestamp = elapsedRealtimeNano();
-            // This will trigger a property change event for the current hvac property value.
-            mServerSidePropStore->writeValue(std::move(powerPropValue), /*updateStatus=*/true,
-                                             VehiclePropertyStore::EventMode::ALWAYS);
+            if ((powerPropValue->areaId & areaId) == powerPropValue->areaId) {
+                powerPropValue->status = VehiclePropertyStatus::AVAILABLE;
+                powerPropValue->timestamp = elapsedRealtimeNano();
+                // This will trigger a property change event for the current hvac property value.
+                mServerSidePropStore->writeValue(std::move(powerPropValue), /*updateStatus=*/true,
+                                                 VehiclePropertyStore::EventMode::ALWAYS);
+            }
         }
     }
 }
@@ -449,10 +557,10 @@ VhalResult<void> FakeVehicleHardware::maybeSetSpecialValue(const VehiclePropValu
         value.value.int32Values[0] == 1) {
         // If we are turning HVAC power on, send current hvac property values through on change
         // event.
-        sendHvacPropertiesCurrentValues();
+        sendHvacPropertiesCurrentValues(value.areaId);
     }
 
-    if (isHvacPropAndHvacNotAvailable(propId)) {
+    if (isHvacPropAndHvacNotAvailable(propId, value.areaId)) {
         *isSpecialValue = true;
         return StatusError(StatusCode::NOT_AVAILABLE) << "hvac not available";
     }
@@ -469,6 +577,12 @@ VhalResult<void> FakeVehicleHardware::maybeSetSpecialValue(const VehiclePropValu
         case OBD2_FREEZE_FRAME_CLEAR:
             *isSpecialValue = true;
             return mFakeObd2Frame->clearObd2FreezeFrames(value);
+        case VENDOR_PROPERTY_ID:
+            *isSpecialValue = true;
+            return StatusError((StatusCode)VENDOR_ERROR_CODE);
+        case toInt(VehicleProperty::HVAC_TEMPERATURE_VALUE_SUGGESTION):
+            *isSpecialValue = true;
+            return setHvacTemperatureValueSuggestion(value);
 
 #ifdef ENABLE_VEHICLE_HAL_TEST_PROPERTIES
         case toInt(VehicleProperty::CLUSTER_REPORT_STATE):
@@ -1621,11 +1735,15 @@ void FakeVehicleHardware::PendingRequestHandler<FakeVehicleHardware::GetValuesCa
     std::unordered_map<std::shared_ptr<const GetValuesCallback>, std::vector<GetValueResult>>
             callbackToResults;
     for (const auto& rwc : mRequests.flush()) {
+        ATRACE_BEGIN("FakeVehicleHardware:handleGetValueRequest");
         auto result = mHardware->handleGetValueRequest(rwc.request);
+        ATRACE_END();
         callbackToResults[rwc.callback].push_back(std::move(result));
     }
     for (const auto& [callback, results] : callbackToResults) {
+        ATRACE_BEGIN("FakeVehicleHardware:call get value result callback");
         (*callback)(std::move(results));
+        ATRACE_END();
     }
 }
 
@@ -1635,11 +1753,15 @@ void FakeVehicleHardware::PendingRequestHandler<FakeVehicleHardware::SetValuesCa
     std::unordered_map<std::shared_ptr<const SetValuesCallback>, std::vector<SetValueResult>>
             callbackToResults;
     for (const auto& rwc : mRequests.flush()) {
+        ATRACE_BEGIN("FakeVehicleHardware:handleSetValueRequest");
         auto result = mHardware->handleSetValueRequest(rwc.request);
+        ATRACE_END();
         callbackToResults[rwc.callback].push_back(std::move(result));
     }
     for (const auto& [callback, results] : callbackToResults) {
+        ATRACE_BEGIN("FakeVehicleHardware:call set value result callback");
         (*callback)(std::move(results));
+        ATRACE_END();
     }
 }
 

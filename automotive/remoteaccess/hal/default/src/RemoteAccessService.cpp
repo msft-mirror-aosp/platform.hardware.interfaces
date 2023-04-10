@@ -36,6 +36,8 @@ namespace {
 using ::aidl::android::hardware::automotive::remoteaccess::ApState;
 using ::aidl::android::hardware::automotive::remoteaccess::IRemoteTaskCallback;
 using ::aidl::android::hardware::automotive::vehicle::VehicleProperty;
+using ::android::base::Error;
+using ::android::base::Result;
 using ::android::base::ScopedLockAssertion;
 using ::android::base::StringAppendF;
 using ::android::base::StringPrintf;
@@ -48,13 +50,16 @@ using ::grpc::StatusCode;
 using ::ndk::ScopedAStatus;
 
 const std::string WAKEUP_SERVICE_NAME = "com.google.vehicle.wakeup";
+const std::string PROCESSOR_ID = "application_processor";
 constexpr char COMMAND_SET_AP_STATE[] = "--set-ap-state";
 constexpr char COMMAND_START_DEBUG_CALLBACK[] = "--start-debug-callback";
 constexpr char COMMAND_STOP_DEBUG_CALLBACK[] = "--stop-debug-callback";
 constexpr char COMMAND_SHOW_TASK[] = "--show-task";
-constexpr char COMMAND_GET_DEVICE_ID[] = "--get-device-id";
+constexpr char COMMAND_GET_VEHICLE_ID[] = "--get-vehicle-id";
+constexpr char COMMAND_INJECT_TASK[] = "--inject-task";
+constexpr char COMMAND_STATUS[] = "--status";
 
-std::vector<uint8_t> stringToBytes(const std::string& s) {
+std::vector<uint8_t> stringToBytes(std::string_view s) {
     const char* data = s.data();
     return std::vector<uint8_t>(data, data + s.size());
 }
@@ -78,6 +83,10 @@ bool checkBoolFlag(const char* flag) {
 
 void dprintErrorStatus(int fd, const char* detail, const ScopedAStatus& status) {
     dprintf(fd, "%s, code: %d, error: %s\n", detail, status.getStatus(), status.getMessage());
+}
+
+std::string boolToString(bool x) {
+    return x ? "true" : "false";
 }
 
 }  // namespace
@@ -125,6 +134,33 @@ void RemoteAccessService::maybeStopTaskLoop() {
     mTaskLoopRunning = false;
 }
 
+void RemoteAccessService::updateGrpcConnected(bool connected) {
+    std::lock_guard<std::mutex> lockGuard(mLock);
+    mGrpcConnected = connected;
+}
+
+Result<void> RemoteAccessService::deliverRemoteTaskThroughCallback(const std::string& clientId,
+                                                                   std::string_view taskData) {
+    std::shared_ptr<IRemoteTaskCallback> callback;
+    {
+        std::lock_guard<std::mutex> lockGuard(mLock);
+        callback = mRemoteTaskCallback;
+        mClientIdToTaskCount[clientId] += 1;
+    }
+    if (callback == nullptr) {
+        return Error() << "No callback registered, task ignored";
+    }
+    ALOGD("Calling onRemoteTaskRequested callback for client ID: %s", clientId.c_str());
+    ScopedAStatus callbackStatus =
+            callback->onRemoteTaskRequested(clientId, stringToBytes(taskData));
+    if (!callbackStatus.isOk()) {
+        return Error() << "Failed to call onRemoteTaskRequested callback, status: "
+                       << callbackStatus.getStatus()
+                       << ", message: " << callbackStatus.getMessage();
+    }
+    return {};
+}
+
 void RemoteAccessService::runTaskLoop() {
     GetRemoteTasksRequest request = {};
     std::unique_ptr<ClientReaderInterface<GetRemoteTasksResponse>> reader;
@@ -134,28 +170,19 @@ void RemoteAccessService::runTaskLoop() {
             mGetRemoteTasksContext.reset(new ClientContext());
             reader = mGrpcStub->GetRemoteTasks(mGetRemoteTasksContext.get(), request);
         }
+        updateGrpcConnected(true);
         GetRemoteTasksResponse response;
         while (reader->Read(&response)) {
             ALOGI("Receiving one task from remote task client");
 
-            std::shared_ptr<IRemoteTaskCallback> callback;
-            {
-                std::lock_guard<std::mutex> lockGuard(mLock);
-                callback = mRemoteTaskCallback;
-            }
-            if (callback == nullptr) {
-                ALOGD("No callback registered, task ignored");
+            if (auto result =
+                        deliverRemoteTaskThroughCallback(response.clientid(), response.data());
+                !result.ok()) {
+                ALOGE("%s", result.error().message().c_str());
                 continue;
             }
-            ALOGD("Calling onRemoteTaskRequested callback for client ID: %s",
-                  response.clientid().c_str());
-            ScopedAStatus callbackStatus = callback->onRemoteTaskRequested(
-                    response.clientid(), stringToBytes(response.data()));
-            if (!callbackStatus.isOk()) {
-                ALOGE("Failed to call onRemoteTaskRequested callback, status: %d, message: %s",
-                      callbackStatus.getStatus(), callbackStatus.getMessage());
-            }
         }
+        updateGrpcConnected(false);
         Status status = reader->Finish();
         mGetRemoteTasksContext.reset();
 
@@ -176,23 +203,23 @@ void RemoteAccessService::runTaskLoop() {
     }
 }
 
-ScopedAStatus RemoteAccessService::getDeviceId(std::string* deviceId) {
+ScopedAStatus RemoteAccessService::getVehicleId(std::string* vehicleId) {
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     auto vhalClient = IVhalClient::tryCreate();
     if (vhalClient == nullptr) {
         ALOGE("Failed to connect to VHAL");
         return ScopedAStatus::fromServiceSpecificErrorWithMessage(
-                /*errorCode=*/0, "Failed to connect to VHAL to get device ID");
+                /*errorCode=*/0, "Failed to connect to VHAL to get vehicle ID");
     }
-    return getDeviceIdWithClient(*vhalClient.get(), deviceId);
+    return getVehicleIdWithClient(*vhalClient.get(), vehicleId);
 #else
     // Don't use VHAL client in fuzzing since IPC is not allowed.
     return ScopedAStatus::ok();
 #endif
 }
 
-ScopedAStatus RemoteAccessService::getDeviceIdWithClient(IVhalClient& vhalClient,
-                                                         std::string* deviceId) {
+ScopedAStatus RemoteAccessService::getVehicleIdWithClient(IVhalClient& vhalClient,
+                                                          std::string* vehicleId) {
     auto result = vhalClient.getValueSync(
             *vhalClient.createHalPropValue(toInt(VehicleProperty::INFO_VIN)));
     if (!result.ok()) {
@@ -200,7 +227,12 @@ ScopedAStatus RemoteAccessService::getDeviceIdWithClient(IVhalClient& vhalClient
                 /*errorCode=*/0,
                 ("failed to get INFO_VIN from VHAL: " + result.error().message()).c_str());
     }
-    *deviceId = (*result)->getStringValue();
+    *vehicleId = (*result)->getStringValue();
+    return ScopedAStatus::ok();
+}
+
+ScopedAStatus RemoteAccessService::getProcessorId(std::string* processorId) {
+    *processorId = PROCESSOR_ID;
     return ScopedAStatus::ok();
 }
 
@@ -246,15 +278,17 @@ bool RemoteAccessService::checkDumpPermission() {
 }
 
 void RemoteAccessService::dumpHelp(int fd) {
-    dprintf(fd, "%s",
-            (std::string("RemoteAccess HAL debug interface, Usage: \n") + COMMAND_SET_AP_STATE +
-             " [0/1](isReadyForRemoteTask) [0/1](isWakeupRequired)  Set the new AP state\n" +
-             COMMAND_START_DEBUG_CALLBACK +
-             " Start a debug callback that will record the received tasks\n" +
-             COMMAND_STOP_DEBUG_CALLBACK + " Stop the debug callback\n" + COMMAND_SHOW_TASK +
-             " Show tasks received by debug callback\n" + COMMAND_GET_DEVICE_ID +
-             " Get device id\n")
-                    .c_str());
+    dprintf(fd,
+            "RemoteAccess HAL debug interface, Usage: \n"
+            "%s [0/1](isReadyForRemoteTask) [0/1](isWakeupRequired): Set the new AP state\n"
+            "%s: Start a debug callback that will record the received tasks\n"
+            "%s: Stop the debug callback\n"
+            "%s: Show tasks received by debug callback\n"
+            "%s: Get vehicle id\n"
+            "%s [client_id] [task_data]: Inject a task\n"
+            "%s: Show status\n",
+            COMMAND_SET_AP_STATE, COMMAND_START_DEBUG_CALLBACK, COMMAND_STOP_DEBUG_CALLBACK,
+            COMMAND_SHOW_TASK, COMMAND_GET_VEHICLE_ID, COMMAND_INJECT_TASK, COMMAND_STATUS);
 }
 
 binder_status_t RemoteAccessService::dump(int fd, const char** args, uint32_t numArgs) {
@@ -265,6 +299,7 @@ binder_status_t RemoteAccessService::dump(int fd, const char** args, uint32_t nu
 
     if (numArgs == 0) {
         dumpHelp(fd);
+        printCurrentStatus(fd);
         return STATUS_OK;
     }
 
@@ -316,19 +351,58 @@ binder_status_t RemoteAccessService::dump(int fd, const char** args, uint32_t nu
             dprintf(fd, "Debug callback is not currently used, use \"%s\" first.\n",
                     COMMAND_START_DEBUG_CALLBACK);
         }
-    } else if (!strcmp(args[0], COMMAND_GET_DEVICE_ID)) {
-        std::string deviceId;
-        auto status = getDeviceId(&deviceId);
+    } else if (!strcmp(args[0], COMMAND_GET_VEHICLE_ID)) {
+        std::string vehicleId;
+        auto status = getVehicleId(&vehicleId);
         if (!status.isOk()) {
-            dprintErrorStatus(fd, "Failed to get device ID", status);
+            dprintErrorStatus(fd, "Failed to get vehicle ID", status);
         } else {
-            dprintf(fd, "Device Id: %s\n", deviceId.c_str());
+            dprintf(fd, "Vehicle Id: %s\n", vehicleId.c_str());
         }
+    } else if (!strcmp(args[0], COMMAND_INJECT_TASK)) {
+        if (numArgs < 3) {
+            dumpHelp(fd);
+            return STATUS_OK;
+        }
+        debugInjectTask(fd, args[1], args[2]);
+    } else if (!strcmp(args[0], COMMAND_STATUS)) {
+        printCurrentStatus(fd);
     } else {
         dumpHelp(fd);
     }
 
     return STATUS_OK;
+}
+
+void RemoteAccessService::printCurrentStatus(int fd) {
+    std::lock_guard<std::mutex> lockGuard(mLock);
+    dprintf(fd,
+            "\nRemoteAccess HAL status \n"
+            "Remote task callback registered: %s\n"
+            "Task receiving GRPC connection established: %s\n"
+            "Received task count by clientId: \n%s\n",
+            boolToString(mRemoteTaskCallback.get()).c_str(), boolToString(mGrpcConnected).c_str(),
+            clientIdToTaskCountToStringLocked().c_str());
+}
+
+void RemoteAccessService::debugInjectTask(int fd, std::string_view clientId,
+                                          std::string_view taskData) {
+    std::string clientIdCopy = std::string(clientId);
+    if (auto result = deliverRemoteTaskThroughCallback(clientIdCopy, taskData); !result.ok()) {
+        dprintf(fd, "Failed to inject task: %s", result.error().message().c_str());
+        return;
+    }
+    dprintf(fd, "Task for client: %s, data: [%s] successfully injected\n", clientId.data(),
+            taskData.data());
+}
+
+std::string RemoteAccessService::clientIdToTaskCountToStringLocked() {
+    // Print the table header
+    std::string output = "| ClientId | Count |\n";
+    for (const auto& [clientId, taskCount] : mClientIdToTaskCount) {
+        output += StringPrintf("  %-9s  %-6zu\n", clientId.c_str(), taskCount);
+    }
+    return output;
 }
 
 ScopedAStatus DebugRemoteTaskCallback::onRemoteTaskRequested(const std::string& clientId,

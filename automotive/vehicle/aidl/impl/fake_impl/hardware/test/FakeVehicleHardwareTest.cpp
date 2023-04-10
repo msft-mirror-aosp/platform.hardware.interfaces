@@ -57,6 +57,7 @@ using ::aidl::android::hardware::automotive::vehicle::VehiclePropConfig;
 using ::aidl::android::hardware::automotive::vehicle::VehicleProperty;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyStatus;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropValue;
+using ::aidl::android::hardware::automotive::vehicle::VehicleUnit;
 using ::android::base::expected;
 using ::android::base::ScopedLockAssertion;
 using ::android::base::StringPrintf;
@@ -406,6 +407,11 @@ TEST_F(FakeVehicleHardwareTest, testGetDefaultValues) {
 
         if (propId == ECHO_REVERSE_BYTES) {
             // Ignore ECHO_REVERSE_BYTES, it has special logic.
+            continue;
+        }
+
+        if (propId == VENDOR_PROPERTY_ID) {
+            // Ignore VENDOR_PROPERTY_ID, it has special logic.
             continue;
         }
 
@@ -1142,67 +1148,100 @@ TEST_F(FakeVehicleHardwareTest, testSetVehicleMapService) {
 }
 
 TEST_F(FakeVehicleHardwareTest, testGetHvacPropNotAvailable) {
-    StatusCode status = setValue(VehiclePropValue{.prop = toInt(VehicleProperty::HVAC_POWER_ON),
-                                                  .areaId = HVAC_ALL,
-                                                  .value.int32Values = {0}});
+    int seatAreaIds[5] = {SEAT_1_LEFT, SEAT_1_RIGHT, SEAT_2_LEFT, SEAT_2_CENTER, SEAT_2_RIGHT};
+    for (int areaId : seatAreaIds) {
+        StatusCode status = setValue(VehiclePropValue{.prop = toInt(VehicleProperty::HVAC_POWER_ON),
+                                                      .areaId = areaId,
+                                                      .value.int32Values = {0}});
 
-    ASSERT_EQ(status, StatusCode::OK);
+        ASSERT_EQ(status, StatusCode::OK);
 
-    for (size_t i = 0; i < sizeof(HVAC_POWER_PROPERTIES) / sizeof(int32_t); i++) {
-        int powerPropId = HVAC_POWER_PROPERTIES[i];
-        auto getValueResult = getValue(VehiclePropValue{
-                .prop = powerPropId,
-                .areaId = HVAC_ALL,
-        });
+        for (size_t i = 0; i < sizeof(HVAC_POWER_PROPERTIES) / sizeof(int32_t); i++) {
+            int powerPropId = HVAC_POWER_PROPERTIES[i];
+            for (int powerDependentAreaId : seatAreaIds) {
+                auto getValueResult = getValue(VehiclePropValue{
+                        .prop = powerPropId,
+                        .areaId = powerDependentAreaId,
+                });
 
-        EXPECT_FALSE(getValueResult.ok());
-        EXPECT_EQ(getValueResult.error(), StatusCode::NOT_AVAILABLE);
+                if (areaId == powerDependentAreaId) {
+                    EXPECT_FALSE(getValueResult.ok());
+                    EXPECT_EQ(getValueResult.error(), StatusCode::NOT_AVAILABLE);
+                } else {
+                    EXPECT_TRUE(getValueResult.ok());
+                }
+            }
+        }
+
+        // Resetting HVAC_POWER_ON at areaId back to ON state to ensure that there's no dependence
+        // on this value from any power dependent property values other than those with the same
+        // areaId.
+        setValue(VehiclePropValue{.prop = toInt(VehicleProperty::HVAC_POWER_ON),
+                                  .areaId = areaId,
+                                  .value.int32Values = {1}});
     }
 }
 
 TEST_F(FakeVehicleHardwareTest, testSetHvacPropNotAvailable) {
-    StatusCode status = setValue(VehiclePropValue{.prop = toInt(VehicleProperty::HVAC_POWER_ON),
-                                                  .areaId = HVAC_ALL,
-                                                  .value.int32Values = {0}});
+    int seatAreaIds[5] = {SEAT_1_LEFT, SEAT_1_RIGHT, SEAT_2_LEFT, SEAT_2_CENTER, SEAT_2_RIGHT};
+    for (int areaId : seatAreaIds) {
+        StatusCode status = setValue(VehiclePropValue{.prop = toInt(VehicleProperty::HVAC_POWER_ON),
+                                                      .areaId = areaId,
+                                                      .value.int32Values = {0}});
 
-    ASSERT_EQ(status, StatusCode::OK);
+        ASSERT_EQ(status, StatusCode::OK);
 
-    for (size_t i = 0; i < sizeof(HVAC_POWER_PROPERTIES) / sizeof(int32_t); i++) {
-        int powerPropId = HVAC_POWER_PROPERTIES[i];
-        status = setValue(VehiclePropValue{
-                .prop = powerPropId,
-                .areaId = HVAC_ALL,
-        });
+        for (size_t i = 0; i < sizeof(HVAC_POWER_PROPERTIES) / sizeof(int32_t); i++) {
+            int powerPropId = HVAC_POWER_PROPERTIES[i];
+            for (int powerDependentAreaId : seatAreaIds) {
+                StatusCode status = setValue(VehiclePropValue{.prop = powerPropId,
+                                                              .areaId = powerDependentAreaId,
+                                                              .value.int32Values = {1}});
 
-        EXPECT_EQ(status, StatusCode::NOT_AVAILABLE);
+                if (areaId == powerDependentAreaId) {
+                    EXPECT_EQ(status, StatusCode::NOT_AVAILABLE);
+                } else {
+                    EXPECT_EQ(status, StatusCode::OK);
+                }
+            }
+        }
+
+        // Resetting HVAC_POWER_ON at areaId back to ON state to ensure that there's no dependence
+        // on this value from any power dependent property values other than those with the same
+        // areaId.
+        setValue(VehiclePropValue{.prop = toInt(VehicleProperty::HVAC_POWER_ON),
+                                  .areaId = areaId,
+                                  .value.int32Values = {1}});
     }
 }
 
 TEST_F(FakeVehicleHardwareTest, testHvacPowerOnSendCurrentHvacPropValues) {
-    StatusCode status = setValue(VehiclePropValue{.prop = toInt(VehicleProperty::HVAC_POWER_ON),
-                                                  .areaId = HVAC_ALL,
-                                                  .value.int32Values = {0}});
+    int seatAreaIds[5] = {SEAT_1_LEFT, SEAT_1_RIGHT, SEAT_2_LEFT, SEAT_2_CENTER, SEAT_2_RIGHT};
+    for (int areaId : seatAreaIds) {
+        StatusCode status = setValue(VehiclePropValue{.prop = toInt(VehicleProperty::HVAC_POWER_ON),
+                                                      .areaId = areaId,
+                                                      .value.int32Values = {0}});
 
-    ASSERT_EQ(status, StatusCode::OK);
+        ASSERT_EQ(status, StatusCode::OK);
 
-    clearChangedProperties();
+        clearChangedProperties();
+        setValue(VehiclePropValue{.prop = toInt(VehicleProperty::HVAC_POWER_ON),
+                                  .areaId = areaId,
+                                  .value.int32Values = {1}});
 
-    status = setValue(VehiclePropValue{.prop = toInt(VehicleProperty::HVAC_POWER_ON),
-                                       .areaId = HVAC_ALL,
-                                       .value.int32Values = {1}});
+        auto events = getChangedProperties();
+        // If we turn HVAC power on, we expect to receive one property event for every HVAC prop
+        // areas plus one event for HVAC_POWER_ON.
+        std::vector<int32_t> changedPropIds;
+        for (size_t i = 0; i < sizeof(HVAC_POWER_PROPERTIES) / sizeof(int32_t); i++) {
+            changedPropIds.push_back(HVAC_POWER_PROPERTIES[i]);
+        }
+        changedPropIds.push_back(toInt(VehicleProperty::HVAC_POWER_ON));
 
-    auto events = getChangedProperties();
-    // If we turn HVAC power on, we expect to receive one property event for every HVAC prop areas
-    // plus one event for HVAC_POWER_ON.
-    std::vector<int32_t> changedPropIds;
-    for (size_t i = 0; i < sizeof(HVAC_POWER_PROPERTIES) / sizeof(int32_t); i++) {
-        changedPropIds.push_back(HVAC_POWER_PROPERTIES[i]);
-    }
-    changedPropIds.push_back(toInt(VehicleProperty::HVAC_POWER_ON));
-    ASSERT_EQ(events.size(), changedPropIds.size());
-    for (const auto& event : events) {
-        EXPECT_EQ(event.areaId, HVAC_ALL);
-        EXPECT_THAT(event.prop, AnyOfArray(changedPropIds));
+        for (const auto& event : events) {
+            EXPECT_EQ(event.areaId, areaId);
+            EXPECT_THAT(event.prop, AnyOfArray(changedPropIds));
+        }
     }
 }
 
@@ -2201,6 +2240,359 @@ TEST_F(FakeVehicleHardwareTest, testUpdateSampleRate) {
         ASSERT_GE(value.timestamp, timestamp);
         ASSERT_EQ(value.prop, propSteering);
         ASSERT_EQ(value.areaId, areaId);
+    }
+}
+
+TEST_F(FakeVehicleHardwareTest, testSetHvacTemperatureValueSuggestion) {
+    float CELSIUS = static_cast<float>(toInt(VehicleUnit::CELSIUS));
+    float FAHRENHEIT = static_cast<float>(toInt(VehicleUnit::FAHRENHEIT));
+
+    VehiclePropValue floatArraySizeFour = {
+            .prop = toInt(VehicleProperty::HVAC_TEMPERATURE_VALUE_SUGGESTION),
+            .areaId = HVAC_ALL,
+            .value.floatValues = {0, CELSIUS, 0, 0},
+    };
+    StatusCode status = setValue(floatArraySizeFour);
+    EXPECT_EQ(status, StatusCode::OK);
+
+    VehiclePropValue floatArraySizeZero = {
+            .prop = toInt(VehicleProperty::HVAC_TEMPERATURE_VALUE_SUGGESTION),
+            .areaId = HVAC_ALL,
+    };
+    status = setValue(floatArraySizeZero);
+    EXPECT_EQ(status, StatusCode::INVALID_ARG);
+
+    VehiclePropValue floatArraySizeFive = {
+            .prop = toInt(VehicleProperty::HVAC_TEMPERATURE_VALUE_SUGGESTION),
+            .areaId = HVAC_ALL,
+            .value.floatValues = {0, CELSIUS, 0, 0, 0},
+    };
+    status = setValue(floatArraySizeFive);
+    EXPECT_EQ(status, StatusCode::INVALID_ARG);
+
+    VehiclePropValue invalidUnit = {
+            .prop = toInt(VehicleProperty::HVAC_TEMPERATURE_VALUE_SUGGESTION),
+            .areaId = HVAC_ALL,
+            .value.floatValues = {0, 0, 0, 0},
+    };
+    status = setValue(floatArraySizeFive);
+    EXPECT_EQ(status, StatusCode::INVALID_ARG);
+    clearChangedProperties();
+
+    // Config array values from HVAC_TEMPERATURE_SET in DefaultProperties.json
+    auto configs = getHardware()->getAllPropertyConfigs();
+    VehiclePropConfig* hvacTemperatureSetConfig = nullptr;
+    for (auto& config : configs) {
+        if (config.prop == toInt(VehicleProperty::HVAC_TEMPERATURE_SET)) {
+            hvacTemperatureSetConfig = &config;
+            break;
+        }
+    }
+    EXPECT_NE(hvacTemperatureSetConfig, nullptr);
+
+    auto& hvacTemperatureSetConfigArray = hvacTemperatureSetConfig->configArray;
+    // The HVAC_TEMPERATURE_SET config array values are temperature values that have been multiplied
+    // by 10 and converted to integers. HVAC_TEMPERATURE_VALUE_SUGGESTION specifies the temperature
+    // values to be in the original floating point form so we divide by 10 and convert to float.
+    float minTempInCelsius = hvacTemperatureSetConfigArray[0] / 10.0f;
+    float maxTempInCelsius = hvacTemperatureSetConfigArray[1] / 10.0f;
+    float incrementInCelsius = hvacTemperatureSetConfigArray[2] / 10.0f;
+    float minTempInFahrenheit = hvacTemperatureSetConfigArray[3] / 10.0f;
+    float maxTempInFahrenheit = hvacTemperatureSetConfigArray[4] / 10.0f;
+    float incrementInFahrenheit = hvacTemperatureSetConfigArray[5] / 10.0f;
+
+    auto testCases = {
+            SetSpecialValueTestCase{
+                    .name = "min_celsius_temperature",
+                    .valuesToSet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {minTempInCelsius, CELSIUS, 0, 0},
+                                    },
+                            },
+                    .expectedValuesToGet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {minTempInCelsius, CELSIUS,
+                                                                  minTempInCelsius,
+                                                                  minTempInFahrenheit},
+                                    },
+                            },
+            },
+            SetSpecialValueTestCase{
+                    .name = "min_fahrenheit_temperature",
+                    .valuesToSet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {minTempInFahrenheit, FAHRENHEIT,
+                                                                  0, 0},
+                                    },
+                            },
+                    .expectedValuesToGet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {minTempInFahrenheit, FAHRENHEIT,
+                                                                  minTempInCelsius,
+                                                                  minTempInFahrenheit},
+                                    },
+                            },
+            },
+            SetSpecialValueTestCase{
+                    .name = "max_celsius_temperature",
+                    .valuesToSet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {maxTempInCelsius, CELSIUS, 0, 0},
+                                    },
+                            },
+                    .expectedValuesToGet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {maxTempInCelsius, CELSIUS,
+                                                                  maxTempInCelsius,
+                                                                  maxTempInFahrenheit},
+                                    },
+                            },
+            },
+            SetSpecialValueTestCase{
+                    .name = "max_fahrenheit_temperature",
+                    .valuesToSet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {maxTempInFahrenheit, FAHRENHEIT,
+                                                                  0, 0},
+                                    },
+                            },
+                    .expectedValuesToGet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {maxTempInFahrenheit, FAHRENHEIT,
+                                                                  maxTempInCelsius,
+                                                                  maxTempInFahrenheit},
+                                    },
+                            },
+            },
+            SetSpecialValueTestCase{
+                    .name = "below_min_celsius_temperature",
+                    .valuesToSet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {minTempInCelsius - 1, CELSIUS, 0,
+                                                                  0},
+                                    },
+                            },
+                    .expectedValuesToGet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {minTempInCelsius - 1, CELSIUS,
+                                                                  minTempInCelsius,
+                                                                  minTempInFahrenheit},
+                                    },
+                            },
+            },
+            SetSpecialValueTestCase{
+                    .name = "below_min_fahrenheit_temperature",
+                    .valuesToSet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {minTempInFahrenheit - 1,
+                                                                  FAHRENHEIT, 0, 0},
+                                    },
+                            },
+                    .expectedValuesToGet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {minTempInFahrenheit - 1,
+                                                                  FAHRENHEIT, minTempInCelsius,
+                                                                  minTempInFahrenheit},
+                                    },
+                            },
+            },
+            SetSpecialValueTestCase{
+                    .name = "above_max_celsius_temperature",
+                    .valuesToSet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {maxTempInCelsius + 1, CELSIUS, 0,
+                                                                  0},
+                                    },
+                            },
+                    .expectedValuesToGet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {maxTempInCelsius + 1, CELSIUS,
+                                                                  maxTempInCelsius,
+                                                                  maxTempInFahrenheit},
+                                    },
+                            },
+            },
+            SetSpecialValueTestCase{
+                    .name = "above_max_fahrenheit_temperature",
+                    .valuesToSet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {maxTempInFahrenheit + 1,
+                                                                  FAHRENHEIT, 0, 0},
+                                    },
+                            },
+                    .expectedValuesToGet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {maxTempInFahrenheit + 1,
+                                                                  FAHRENHEIT, maxTempInCelsius,
+                                                                  maxTempInFahrenheit},
+                                    },
+                            },
+            },
+            SetSpecialValueTestCase{
+                    .name = "inbetween_value_celsius",
+                    .valuesToSet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {minTempInCelsius +
+                                                                          incrementInCelsius * 2.5f,
+                                                                  CELSIUS, 0, 0},
+                                    },
+                            },
+                    .expectedValuesToGet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues =
+                                                    {minTempInCelsius + incrementInCelsius * 2.5f,
+                                                     CELSIUS,
+                                                     minTempInCelsius + incrementInCelsius * 2,
+                                                     minTempInFahrenheit +
+                                                             incrementInFahrenheit * 2},
+                                    },
+                            },
+            },
+            SetSpecialValueTestCase{
+                    .name = "inbetween_value_fahrenheit",
+                    .valuesToSet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues = {minTempInFahrenheit +
+                                                                          incrementInFahrenheit *
+                                                                                  2.5f,
+                                                                  FAHRENHEIT, 0, 0},
+                                    },
+                            },
+                    .expectedValuesToGet =
+                            {
+                                    VehiclePropValue{
+                                            .prop = toInt(
+                                                    VehicleProperty::
+                                                            HVAC_TEMPERATURE_VALUE_SUGGESTION),
+                                            .areaId = HVAC_ALL,
+                                            .value.floatValues =
+                                                    {minTempInFahrenheit +
+                                                             incrementInFahrenheit * 2.5f,
+                                                     FAHRENHEIT,
+                                                     minTempInCelsius + incrementInCelsius * 2,
+                                                     minTempInFahrenheit +
+                                                             incrementInFahrenheit * 2},
+                                    },
+                            },
+            },
+    };
+
+    for (auto& tc : testCases) {
+        StatusCode status = setValue(tc.valuesToSet[0]);
+        EXPECT_EQ(status, StatusCode::OK);
+
+        auto events = getChangedProperties();
+        EXPECT_EQ(events.size(), static_cast<size_t>(1));
+        events[0].timestamp = 0;
+
+        EXPECT_EQ(events[0], (tc.expectedValuesToGet[0]))
+                << "Failed Test: " << tc.name << "\n"
+                << "Received - prop: " << events[0].prop << ", areaId: " << events[0].areaId
+                << ", floatValues: {" << events[0].value.floatValues[0] << ", "
+                << events[0].value.floatValues[1] << ", " << events[0].value.floatValues[2] << ", "
+                << events[0].value.floatValues[3] << "}\n"
+                << "Expected - prop: " << tc.expectedValuesToGet[0].prop
+                << ", areaId: " << tc.expectedValuesToGet[0].areaId << ", floatValues: {"
+                << tc.expectedValuesToGet[0].value.floatValues[0] << ", "
+                << tc.expectedValuesToGet[0].value.floatValues[1] << ", "
+                << tc.expectedValuesToGet[0].value.floatValues[2] << ", "
+                << tc.expectedValuesToGet[0].value.floatValues[3] << "}\n";
+        clearChangedProperties();
     }
 }
 

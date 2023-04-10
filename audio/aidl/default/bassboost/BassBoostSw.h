@@ -22,7 +22,6 @@
 #include <memory>
 
 #include "effect-impl/EffectImpl.h"
-#include "effect-impl/EffectUUID.h"
 
 namespace aidl::android::hardware::audio::effect {
 
@@ -43,8 +42,7 @@ class BassBoostSwContext final : public EffectContext {
 class BassBoostSw final : public EffectImpl {
   public:
     static const std::string kEffectName;
-    static const bool kStrengthSupported;
-    static const BassBoost::Capability kCapability;
+    static const Capability kCapability;
     static const Descriptor kDescriptor;
     BassBoostSw() { LOG(DEBUG) << __func__; }
     ~BassBoostSw() {
@@ -65,6 +63,7 @@ class BassBoostSw final : public EffectImpl {
     IEffect::Status effectProcessImpl(float* in, float* out, int samples) override;
 
   private:
+    static const std::vector<Range::BassBoostRange> kRanges;
     std::shared_ptr<BassBoostSwContext> mContext;
     ndk::ScopedAStatus getParameterBassBoost(const BassBoost::Tag& tag,
                                              Parameter::Specific* specific);

@@ -41,13 +41,12 @@ interface IWifiStaIface {
   void enableNdOffload(in boolean enable);
   android.hardware.wifi.StaApfPacketFilterCapabilities getApfPacketFilterCapabilities();
   android.hardware.wifi.StaBackgroundScanCapabilities getBackgroundScanCapabilities();
-  android.hardware.wifi.IWifiStaIface.StaIfaceCapabilityMask getCapabilities();
+  int getFeatureSet();
   android.hardware.wifi.WifiDebugRxPacketFateReport[] getDebugRxPacketFates();
   android.hardware.wifi.WifiDebugTxPacketFateReport[] getDebugTxPacketFates();
   byte[6] getFactoryMacAddress();
   android.hardware.wifi.StaLinkLayerStats getLinkLayerStats();
   android.hardware.wifi.StaRoamingCapabilities getRoamingCapabilities();
-  int[] getValidFrequenciesForBand(in android.hardware.wifi.WifiBand band);
   void installApfPacketFilter(in byte[] program);
   byte[] readApfPacketFilterData();
   void registerEventCallback(in android.hardware.wifi.IWifiStaIfaceEventCallback callback);
@@ -63,21 +62,20 @@ interface IWifiStaIface {
   void stopSendingKeepAlivePackets(in int cmdId);
   void setDtimMultiplier(in int multiplier);
   @Backing(type="int") @VintfStability
-  enum StaIfaceCapabilityMask {
-    APF = (1 << 0),
-    BACKGROUND_SCAN = (1 << 1),
-    LINK_LAYER_STATS = (1 << 2),
-    RSSI_MONITOR = (1 << 3),
-    CONTROL_ROAMING = (1 << 4),
-    PROBE_IE_ALLOWLIST = (1 << 5),
-    SCAN_RAND = (1 << 6),
-    STA_5G = (1 << 7),
-    HOTSPOT = (1 << 8),
-    PNO = (1 << 9),
-    TDLS = (1 << 10),
-    TDLS_OFFCHANNEL = (1 << 11),
-    ND_OFFLOAD = (1 << 12),
-    KEEP_ALIVE = (1 << 13),
-    DEBUG_PACKET_FATE = (1 << 14),
+  enum FeatureSetMask {
+    APF = (1 << 0) /* 1 */,
+    BACKGROUND_SCAN = (1 << 1) /* 2 */,
+    LINK_LAYER_STATS = (1 << 2) /* 4 */,
+    RSSI_MONITOR = (1 << 3) /* 8 */,
+    CONTROL_ROAMING = (1 << 4) /* 16 */,
+    PROBE_IE_ALLOWLIST = (1 << 5) /* 32 */,
+    SCAN_RAND = (1 << 6) /* 64 */,
+    STA_5G = (1 << 7) /* 128 */,
+    HOTSPOT = (1 << 8) /* 256 */,
+    PNO = (1 << 9) /* 512 */,
+    TDLS = (1 << 10) /* 1024 */,
+    TDLS_OFFCHANNEL = (1 << 11) /* 2048 */,
+    ND_OFFLOAD = (1 << 12) /* 4096 */,
+    KEEP_ALIVE = (1 << 13) /* 8192 */,
   }
 }

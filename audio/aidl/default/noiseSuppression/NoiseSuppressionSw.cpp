@@ -18,23 +18,24 @@
 #include <cstddef>
 #include <memory>
 #define LOG_TAG "AHAL_NoiseSuppressionSw"
-#include <Utils.h>
-#include <unordered_set>
 
+#define LOG_TAG "AHAL_NoiseSuppressionSw"
 #include <android-base/logging.h>
 #include <fmq/AidlMessageQueue.h>
+#include <system/audio_effects/effect_uuid.h>
 
 #include "NoiseSuppressionSw.h"
 
 using aidl::android::hardware::audio::effect::Descriptor;
+using aidl::android::hardware::audio::effect::getEffectImplUuidNoiseSuppressionSw;
+using aidl::android::hardware::audio::effect::getEffectTypeUuidNoiseSuppression;
 using aidl::android::hardware::audio::effect::IEffect;
-using aidl::android::hardware::audio::effect::kNoiseSuppressionSwImplUUID;
 using aidl::android::hardware::audio::effect::NoiseSuppressionSw;
 using aidl::android::media::audio::common::AudioUuid;
 
 extern "C" binder_exception_t createEffect(const AudioUuid* in_impl_uuid,
                                            std::shared_ptr<IEffect>* instanceSpp) {
-    if (!in_impl_uuid || *in_impl_uuid != kNoiseSuppressionSwImplUUID) {
+    if (!in_impl_uuid || *in_impl_uuid != getEffectImplUuidNoiseSuppressionSw()) {
         LOG(ERROR) << __func__ << "uuid not supported";
         return EX_ILLEGAL_ARGUMENT;
     }
@@ -49,7 +50,7 @@ extern "C" binder_exception_t createEffect(const AudioUuid* in_impl_uuid,
 }
 
 extern "C" binder_exception_t queryEffect(const AudioUuid* in_impl_uuid, Descriptor* _aidl_return) {
-    if (!in_impl_uuid || *in_impl_uuid != kNoiseSuppressionSwImplUUID) {
+    if (!in_impl_uuid || *in_impl_uuid != getEffectImplUuidNoiseSuppressionSw()) {
         LOG(ERROR) << __func__ << "uuid not supported";
         return EX_ILLEGAL_ARGUMENT;
     }
@@ -60,18 +61,15 @@ extern "C" binder_exception_t queryEffect(const AudioUuid* in_impl_uuid, Descrip
 namespace aidl::android::hardware::audio::effect {
 
 const std::string NoiseSuppressionSw::kEffectName = "NoiseSuppressionSw";
-const NoiseSuppression::Capability NoiseSuppressionSw::kCapability;
 const Descriptor NoiseSuppressionSw::kDescriptor = {
-        .common = {.id = {.type = kNoiseSuppressionTypeUUID,
-                          .uuid = kNoiseSuppressionSwImplUUID,
+        .common = {.id = {.type = getEffectTypeUuidNoiseSuppression(),
+                          .uuid = getEffectImplUuidNoiseSuppressionSw(),
                           .proxy = std::nullopt},
                    .flags = {.type = Flags::Type::INSERT,
                              .insert = Flags::Insert::FIRST,
                              .volume = Flags::Volume::CTRL},
                    .name = NoiseSuppressionSw::kEffectName,
-                   .implementor = "The Android Open Source Project"},
-        .capability =
-                Capability::make<Capability::noiseSuppression>(NoiseSuppressionSw::kCapability)};
+                   .implementor = "The Android Open Source Project"}};
 
 ndk::ScopedAStatus NoiseSuppressionSw::getDescriptor(Descriptor* _aidl_return) {
     LOG(DEBUG) << __func__ << kDescriptor.toString();
@@ -90,10 +88,15 @@ ndk::ScopedAStatus NoiseSuppressionSw::setParameterSpecific(const Parameter::Spe
     switch (tag) {
         case NoiseSuppression::level: {
             RETURN_IF(mContext->setLevel(param.get<NoiseSuppression::level>()) != RetCode::SUCCESS,
-                      EX_ILLEGAL_ARGUMENT, "levelSupported");
+                      EX_ILLEGAL_ARGUMENT, "levelNotSupported");
             return ndk::ScopedAStatus::ok();
         }
-        default: {
+        case NoiseSuppression::type: {
+            RETURN_IF(mContext->setType(param.get<NoiseSuppression::type>()) != RetCode::SUCCESS,
+                      EX_ILLEGAL_ARGUMENT, "typeNotSupported");
+            return ndk::ScopedAStatus::ok();
+        }
+        case NoiseSuppression::vendor: {
             LOG(ERROR) << __func__ << " unsupported tag: " << toString(tag);
             return ndk::ScopedAStatus::fromExceptionCodeWithMessage(
                     EX_ILLEGAL_ARGUMENT, "NoiseSuppressionTagNotSupported");
@@ -111,10 +114,11 @@ ndk::ScopedAStatus NoiseSuppressionSw::getParameterSpecific(const Parameter::Id&
         case NoiseSuppression::Id::commonTag:
             return getParameterNoiseSuppression(specificId.get<NoiseSuppression::Id::commonTag>(),
                                                 specific);
-        default:
+        case NoiseSuppression::Id::vendorExtensionTag: {
             LOG(ERROR) << __func__ << " unsupported tag: " << toString(tag);
             return ndk::ScopedAStatus::fromExceptionCodeWithMessage(
                     EX_ILLEGAL_ARGUMENT, "NoiseSuppressionTagNotSupported");
+        }
     }
 }
 
@@ -127,7 +131,11 @@ ndk::ScopedAStatus NoiseSuppressionSw::getParameterNoiseSuppression(
             param.set<NoiseSuppression::level>(mContext->getLevel());
             break;
         }
-        default: {
+        case NoiseSuppression::type: {
+            param.set<NoiseSuppression::type>(mContext->getType());
+            break;
+        }
+        case NoiseSuppression::vendor: {
             LOG(ERROR) << __func__ << " unsupported tag: " << toString(tag);
             return ndk::ScopedAStatus::fromExceptionCodeWithMessage(
                     EX_ILLEGAL_ARGUMENT, "NoiseSuppressionTagNotSupported");
@@ -175,6 +183,11 @@ RetCode NoiseSuppressionSwContext::setLevel(NoiseSuppression::Level level) {
 
 NoiseSuppression::Level NoiseSuppressionSwContext::getLevel() {
     return mLevel;
+}
+
+RetCode NoiseSuppressionSwContext::setType(NoiseSuppression::Type type) {
+    mType = type;
+    return RetCode::SUCCESS;
 }
 
 }  // namespace aidl::android::hardware::audio::effect

@@ -16,10 +16,11 @@
 
 package android.hardware.wifi;
 
+import android.hardware.wifi.NanCipherSuiteType;
 import android.hardware.wifi.NanPairingAkm;
 
 /**
- * The security sssociation info after Aware Pairing setup.
+ * The security association info after Aware Pairing setup.
  */
 @VintfStability
 parcelable NpkSecurityAssociation {
@@ -36,7 +37,12 @@ parcelable NpkSecurityAssociation {
      */
     byte[32] npk;
     /**
-     * The AKM is used for key exchange in this security sssociation
+     * The AKM is used for key exchange in this security association
      */
     NanPairingAkm akm;
+    /**
+     * Cipher type for pairing. Must be one of |NanCipherSuiteType.PUBLIC_KEY_PASN_128_MASK| or
+     * |NanCipherSuiteType.PUBLIC_KEY_PASN_256_MASK|.
+     */
+    NanCipherSuiteType cipherType;
 }

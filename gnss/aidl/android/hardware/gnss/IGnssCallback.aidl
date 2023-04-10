@@ -49,7 +49,13 @@ interface IGnssCallback {
     /** Capability bit mask indicating that GNSS supports single-shot fixes */
     const int CAPABILITY_SINGLE_SHOT = 1 << 3;
 
-    /** Capability bit mask indicating that GNSS supports on demand time injection */
+    /**
+     * Capability bit indicating that the platform should periodically inject
+     * time to GNSS in addition to on-demand and occasional time updates.
+     *
+     * <p>Note:<em>The naming of "on demand" should be "periodic" instead.  This
+     * is the result of a historic implementation bug, b/73893222.</em>
+     */
     const int CAPABILITY_ON_DEMAND_TIME = 1 << 4;
 
     /** Capability bit mask indicating that GNSS supports Geofencing  */
@@ -208,9 +214,12 @@ interface IGnssCallback {
     /**
      * Callback for the HAL to pass a vector of GnssSvInfo back to the client.
      *
-     * If GnssMeasurement is registered, the SvStatus report interval is the same as the measurement
-     * interval, i.e., the interval the measurement engine runs at. If GnssMeasurement is not
-     * registered, the SvStatus interval is the same as the location interval.
+     * If only GnssMeasurement is registered, the SvStatus reporting interval must be
+     * the same as the measurement interval, i.e., the interval the measurement
+     * engine runs at. If only location is registered, the SvStatus interval must
+     * be the same as the location interval. If both GnssMeasurement and location
+     * are registered, then the SvStatus interval is the same as the lesser interval
+     * between the two.
      *
      * @param svInfo SV status information from HAL.
      */

@@ -32,10 +32,10 @@
 #include <aidl/android/hardware/audio/core/BnStreamOut.h>
 #include <aidl/android/hardware/audio/core/IStreamCallback.h>
 #include <aidl/android/hardware/audio/core/IStreamOutEventCallback.h>
-#include <aidl/android/hardware/audio/core/MicrophoneInfo.h>
 #include <aidl/android/hardware/audio/core/StreamDescriptor.h>
 #include <aidl/android/media/audio/common/AudioDevice.h>
 #include <aidl/android/media/audio/common/AudioOffloadInfo.h>
+#include <aidl/android/media/audio/common/MicrophoneInfo.h>
 #include <fmq/AidlMessageQueue.h>
 #include <system/thread_defs.h>
 #include <utils/Errors.h>
@@ -77,7 +77,8 @@ class StreamContext {
     StreamContext(std::unique_ptr<CommandMQ> commandMQ, std::unique_ptr<ReplyMQ> replyMQ,
                   const ::aidl::android::media::audio::common::AudioFormatDescription& format,
                   const ::aidl::android::media::audio::common::AudioChannelLayout& channelLayout,
-                  std::unique_ptr<DataMQ> dataMQ, std::shared_ptr<IStreamCallback> asyncCallback,
+                  int sampleRate, std::unique_ptr<DataMQ> dataMQ,
+                  std::shared_ptr<IStreamCallback> asyncCallback,
                   std::shared_ptr<IStreamOutEventCallback> outEventCallback,
                   DebugParameters debugParameters)
         : mCommandMQ(std::move(commandMQ)),
@@ -85,6 +86,7 @@ class StreamContext {
           mReplyMQ(std::move(replyMQ)),
           mFormat(format),
           mChannelLayout(channelLayout),
+          mSampleRate(sampleRate),
           mDataMQ(std::move(dataMQ)),
           mAsyncCallback(asyncCallback),
           mOutEventCallback(outEventCallback),
@@ -95,6 +97,7 @@ class StreamContext {
           mReplyMQ(std::move(other.mReplyMQ)),
           mFormat(other.mFormat),
           mChannelLayout(other.mChannelLayout),
+          mSampleRate(other.mSampleRate),
           mDataMQ(std::move(other.mDataMQ)),
           mAsyncCallback(std::move(other.mAsyncCallback)),
           mOutEventCallback(std::move(other.mOutEventCallback)),
@@ -105,6 +108,7 @@ class StreamContext {
         mReplyMQ = std::move(other.mReplyMQ);
         mFormat = std::move(other.mFormat);
         mChannelLayout = std::move(other.mChannelLayout);
+        mSampleRate = other.mSampleRate;
         mDataMQ = std::move(other.mDataMQ);
         mAsyncCallback = std::move(other.mAsyncCallback);
         mOutEventCallback = std::move(other.mOutEventCallback);
@@ -131,6 +135,7 @@ class StreamContext {
     }
     ReplyMQ* getReplyMQ() const { return mReplyMQ.get(); }
     int getTransientStateDelayMs() const { return mDebugParameters.transientStateDelayMs; }
+    int getSampleRate() const { return mSampleRate; }
     bool isValid() const;
     void reset();
 
@@ -140,6 +145,7 @@ class StreamContext {
     std::unique_ptr<ReplyMQ> mReplyMQ;
     ::aidl::android::media::audio::common::AudioFormatDescription mFormat;
     ::aidl::android::media::audio::common::AudioChannelLayout mChannelLayout;
+    int mSampleRate;
     std::unique_ptr<DataMQ> mDataMQ;
     std::shared_ptr<IStreamCallback> mAsyncCallback;
     std::shared_ptr<IStreamOutEventCallback> mOutEventCallback;  // Only used by output streams
@@ -151,6 +157,11 @@ struct DriverInterface {
     virtual ~DriverInterface() = default;
     // This function is called once, on the main thread, before starting the worker thread.
     virtual ::android::status_t init() = 0;
+    // This function is called from Binder pool thread. It must be done in a thread-safe manner
+    // if this method and other methods in this interface share data.
+    virtual ::android::status_t setConnectedDevices(
+            const std::vector<::aidl::android::media::audio::common::AudioDevice>&
+                    connectedDevices) = 0;
     // All the functions below are called on the worker thread.
     virtual ::android::status_t drain(StreamDescriptor::DrainMode mode) = 0;
     virtual ::android::status_t flush() = 0;
@@ -283,6 +294,7 @@ using StreamOutWorker = StreamWorkerImpl<StreamOutWorkerLogic>;
 struct StreamCommonInterface {
     virtual ~StreamCommonInterface() = default;
     virtual ndk::ScopedAStatus close() = 0;
+    virtual ndk::ScopedAStatus prepareToClose() = 0;
     virtual ndk::ScopedAStatus updateHwAvSyncId(int32_t in_hwAvSyncId) = 0;
     virtual ndk::ScopedAStatus getVendorParameters(const std::vector<std::string>& in_ids,
                                                    std::vector<VendorParameter>* _aidl_return) = 0;
@@ -305,6 +317,11 @@ class StreamCommon : public BnStreamCommon {
     ndk::ScopedAStatus close() override {
         auto delegate = mDelegate.lock();
         return delegate != nullptr ? delegate->close()
+                                   : ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
+    }
+    ndk::ScopedAStatus prepareToClose() override {
+        auto delegate = mDelegate.lock();
+        return delegate != nullptr ? delegate->prepareToClose()
                                    : ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
     }
     ndk::ScopedAStatus updateHwAvSyncId(int32_t in_hwAvSyncId) override {
@@ -348,6 +365,7 @@ template <class Metadata>
 class StreamCommonImpl : public StreamCommonInterface {
   public:
     ndk::ScopedAStatus close() override;
+    ndk::ScopedAStatus prepareToClose() override;
     ndk::ScopedAStatus updateHwAvSyncId(int32_t in_hwAvSyncId) override;
     ndk::ScopedAStatus getVendorParameters(const std::vector<std::string>& in_ids,
                                            std::vector<VendorParameter>* _aidl_return) override;
@@ -370,6 +388,7 @@ class StreamCommonImpl : public StreamCommonInterface {
             const std::vector<::aidl::android::media::audio::common::AudioDevice>& devices) {
         mWorker->setIsConnected(!devices.empty());
         mConnectedDevices = devices;
+        mDriver->setConnectedDevices(devices);
     }
     ndk::ScopedAStatus updateMetadata(const Metadata& metadata);
 
@@ -401,7 +420,8 @@ class StreamIn : public StreamCommonImpl<::aidl::android::hardware::audio::commo
                 getStreamCommon(_aidl_return);
     }
     ndk::ScopedAStatus getActiveMicrophones(
-            std::vector<MicrophoneDynamicInfo>* _aidl_return) override;
+            std::vector<::aidl::android::media::audio::common::MicrophoneDynamicInfo>* _aidl_return)
+            override;
     ndk::ScopedAStatus getMicrophoneDirection(MicrophoneDirection* _aidl_return) override;
     ndk::ScopedAStatus setMicrophoneDirection(MicrophoneDirection in_direction) override;
     ndk::ScopedAStatus getMicrophoneFieldDimension(float* _aidl_return) override;
@@ -422,7 +442,7 @@ class StreamIn : public StreamCommonImpl<::aidl::android::hardware::audio::commo
     StreamIn(const ::aidl::android::hardware::audio::common::SinkMetadata& sinkMetadata,
              StreamContext&& context, const DriverInterface::CreateInstance& createDriver,
              const StreamWorkerInterface::CreateInstance& createWorker,
-             const std::vector<MicrophoneInfo>& microphones);
+             const std::vector<::aidl::android::media::audio::common::MicrophoneInfo>& microphones);
     void createStreamCommon(const std::shared_ptr<StreamIn>& myPtr) {
         StreamCommonImpl<
                 ::aidl::android::hardware::audio::common::SinkMetadata>::createStreamCommon(myPtr);
@@ -433,7 +453,8 @@ class StreamIn : public StreamCommonImpl<::aidl::android::hardware::audio::commo
   public:
     using CreateInstance = std::function<ndk::ScopedAStatus(
             const ::aidl::android::hardware::audio::common::SinkMetadata& sinkMetadata,
-            StreamContext&& context, const std::vector<MicrophoneInfo>& microphones,
+            StreamContext&& context,
+            const std::vector<::aidl::android::media::audio::common::MicrophoneInfo>& microphones,
             std::shared_ptr<StreamIn>* result)>;
 };
 
@@ -449,6 +470,9 @@ class StreamOut : public StreamCommonImpl<::aidl::android::hardware::audio::comm
         return StreamCommonImpl<::aidl::android::hardware::audio::common::SourceMetadata>::
                 updateMetadata(in_sourceMetadata);
     }
+    ndk::ScopedAStatus updateOffloadMetadata(
+            const ::aidl::android::hardware::audio::common::AudioOffloadMetadata&
+                    in_offloadMetadata) override;
     ndk::ScopedAStatus getHwVolume(std::vector<float>* _aidl_return) override;
     ndk::ScopedAStatus setHwVolume(const std::vector<float>& in_channelVolumes) override;
     ndk::ScopedAStatus getAudioDescriptionMixLevel(float* _aidl_return) override;
@@ -486,6 +510,7 @@ class StreamOut : public StreamCommonImpl<::aidl::android::hardware::audio::comm
                       offloadInfo);
 
     std::optional<::aidl::android::media::audio::common::AudioOffloadInfo> mOffloadInfo;
+    std::optional<::aidl::android::hardware::audio::common::AudioOffloadMetadata> mOffloadMetadata;
 
   public:
     using CreateInstance = std::function<ndk::ScopedAStatus(

@@ -14,27 +14,31 @@
  * limitations under the License.
  */
 
+#include <algorithm>
 #include <cstddef>
+
 #define LOG_TAG "AHAL_VirtualizerSw"
 #include <Utils.h>
-#include <algorithm>
-#include <unordered_set>
-
 #include <android-base/logging.h>
 #include <fmq/AidlMessageQueue.h>
+#include <system/audio_effects/effect_uuid.h>
 
 #include "VirtualizerSw.h"
 
 using aidl::android::hardware::audio::effect::Descriptor;
+using aidl::android::hardware::audio::effect::getEffectImplUuidVirtualizerSw;
+using aidl::android::hardware::audio::effect::getEffectTypeUuidVirtualizer;
 using aidl::android::hardware::audio::effect::IEffect;
-using aidl::android::hardware::audio::effect::kVirtualizerSwImplUUID;
 using aidl::android::hardware::audio::effect::State;
 using aidl::android::hardware::audio::effect::VirtualizerSw;
+using aidl::android::media::audio::common::AudioChannelLayout;
+using aidl::android::media::audio::common::AudioDeviceDescription;
+using aidl::android::media::audio::common::AudioDeviceType;
 using aidl::android::media::audio::common::AudioUuid;
 
 extern "C" binder_exception_t createEffect(const AudioUuid* in_impl_uuid,
                                            std::shared_ptr<IEffect>* instanceSpp) {
-    if (!in_impl_uuid || *in_impl_uuid != kVirtualizerSwImplUUID) {
+    if (!in_impl_uuid || *in_impl_uuid != getEffectImplUuidVirtualizerSw()) {
         LOG(ERROR) << __func__ << "uuid not supported";
         return EX_ILLEGAL_ARGUMENT;
     }
@@ -49,7 +53,7 @@ extern "C" binder_exception_t createEffect(const AudioUuid* in_impl_uuid,
 }
 
 extern "C" binder_exception_t queryEffect(const AudioUuid* in_impl_uuid, Descriptor* _aidl_return) {
-    if (!in_impl_uuid || *in_impl_uuid != kVirtualizerSwImplUUID) {
+    if (!in_impl_uuid || *in_impl_uuid != getEffectImplUuidVirtualizerSw()) {
         LOG(ERROR) << __func__ << "uuid not supported";
         return EX_ILLEGAL_ARGUMENT;
     }
@@ -60,19 +64,26 @@ extern "C" binder_exception_t queryEffect(const AudioUuid* in_impl_uuid, Descrip
 namespace aidl::android::hardware::audio::effect {
 
 const std::string VirtualizerSw::kEffectName = "VirtualizerSw";
-const bool VirtualizerSw::kStrengthSupported = true;
-const Virtualizer::Capability VirtualizerSw::kCapability = {
-        .maxStrengthPm = 1000, .strengthSupported = kStrengthSupported};
+
+const std::vector<Range::VirtualizerRange> VirtualizerSw::kRanges = {
+        MAKE_RANGE(Virtualizer, strengthPm, 0, 1000),
+        /* speakerAngle is get-only, set min > max */
+        MAKE_RANGE(Virtualizer, speakerAngles, {Virtualizer::ChannelAngle({.channel = 1})},
+                   {Virtualizer::ChannelAngle({.channel = 0})})};
+
+const Capability VirtualizerSw::kCapability = {
+        .range = Range::make<Range::virtualizer>(VirtualizerSw::kRanges)};
+
 const Descriptor VirtualizerSw::kDescriptor = {
-        .common = {.id = {.type = kVirtualizerTypeUUID,
-                          .uuid = kVirtualizerSwImplUUID,
-                          .proxy = kVirtualizerProxyUUID},
+        .common = {.id = {.type = getEffectTypeUuidVirtualizer(),
+                          .uuid = getEffectImplUuidVirtualizerSw(),
+                          .proxy = getEffectImplUuidVirtualizerProxy()},
                    .flags = {.type = Flags::Type::INSERT,
                              .insert = Flags::Insert::FIRST,
                              .volume = Flags::Volume::CTRL},
                    .name = VirtualizerSw::kEffectName,
                    .implementor = "The Android Open Source Project"},
-        .capability = Capability::make<Capability::virtualizer>(VirtualizerSw::kCapability)};
+        .capability = VirtualizerSw::kCapability};
 
 ndk::ScopedAStatus VirtualizerSw::getDescriptor(Descriptor* _aidl_return) {
     LOG(DEBUG) << __func__ << kDescriptor.toString();
@@ -85,18 +96,25 @@ ndk::ScopedAStatus VirtualizerSw::setParameterSpecific(const Parameter::Specific
               "EffectNotSupported");
 
     auto& vrParam = specific.get<Parameter::Specific::virtualizer>();
+    RETURN_IF(!inRange(vrParam, kRanges), EX_ILLEGAL_ARGUMENT, "outOfRange");
     auto tag = vrParam.getTag();
 
     switch (tag) {
         case Virtualizer::strengthPm: {
-            RETURN_IF(!kStrengthSupported, EX_ILLEGAL_ARGUMENT, "SettingStrengthNotSupported");
-
             RETURN_IF(mContext->setVrStrength(vrParam.get<Virtualizer::strengthPm>()) !=
                               RetCode::SUCCESS,
-                      EX_ILLEGAL_ARGUMENT, "strengthPmNotSupported");
+                      EX_ILLEGAL_ARGUMENT, "setStrengthPmFailed");
             return ndk::ScopedAStatus::ok();
         }
-        default: {
+        case Virtualizer::device: {
+            RETURN_IF(mContext->setForcedDevice(vrParam.get<Virtualizer::device>()) !=
+                              RetCode::SUCCESS,
+                      EX_ILLEGAL_ARGUMENT, "setDeviceFailed");
+            return ndk::ScopedAStatus::ok();
+        }
+        case Virtualizer::speakerAngles:
+            FALLTHROUGH_INTENDED;
+        case Virtualizer::vendor: {
             LOG(ERROR) << __func__ << " unsupported tag: " << toString(tag);
             return ndk::ScopedAStatus::fromExceptionCodeWithMessage(EX_ILLEGAL_ARGUMENT,
                                                                     "VirtualizerTagNotSupported");
@@ -113,10 +131,13 @@ ndk::ScopedAStatus VirtualizerSw::getParameterSpecific(const Parameter::Id& id,
     switch (vrIdTag) {
         case Virtualizer::Id::commonTag:
             return getParameterVirtualizer(vrId.get<Virtualizer::Id::commonTag>(), specific);
-        default:
+        case Virtualizer::Id::speakerAnglesPayload:
+            return getSpeakerAngles(vrId.get<Virtualizer::Id::speakerAnglesPayload>(), specific);
+        case Virtualizer::Id::vendorExtensionTag: {
             LOG(ERROR) << __func__ << " unsupported tag: " << toString(tag);
             return ndk::ScopedAStatus::fromExceptionCodeWithMessage(EX_ILLEGAL_ARGUMENT,
                                                                     "VirtualizerTagNotSupported");
+        }
     }
 }
 
@@ -130,7 +151,13 @@ ndk::ScopedAStatus VirtualizerSw::getParameterVirtualizer(const Virtualizer::Tag
             vrParam.set<Virtualizer::strengthPm>(mContext->getVrStrength());
             break;
         }
-        default: {
+        case Virtualizer::device: {
+            vrParam.set<Virtualizer::device>(mContext->getForcedDevice());
+            break;
+        }
+        case Virtualizer::speakerAngles:
+            FALLTHROUGH_INTENDED;
+        case Virtualizer::vendor: {
             LOG(ERROR) << __func__ << " unsupported tag: " << toString(tag);
             return ndk::ScopedAStatus::fromExceptionCodeWithMessage(EX_ILLEGAL_ARGUMENT,
                                                                     "VirtualizerTagNotSupported");
@@ -138,6 +165,31 @@ ndk::ScopedAStatus VirtualizerSw::getParameterVirtualizer(const Virtualizer::Tag
     }
 
     specific->set<Parameter::Specific::virtualizer>(vrParam);
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus VirtualizerSw::getSpeakerAngles(const Virtualizer::SpeakerAnglesPayload payload,
+                                                   Parameter::Specific* specific) {
+    std::vector<Virtualizer::ChannelAngle> angles;
+    const auto chNum = ::aidl::android::hardware::audio::common::getChannelCount(payload.layout);
+    if (chNum == 1) {
+        angles = {{.channel = (int32_t)AudioChannelLayout::CHANNEL_FRONT_LEFT,
+                   .azimuthDegree = 0,
+                   .elevationDegree = 0}};
+    } else if (chNum == 2) {
+        angles = {{.channel = (int32_t)AudioChannelLayout::CHANNEL_FRONT_LEFT,
+                   .azimuthDegree = -90,
+                   .elevationDegree = 0},
+                  {.channel = (int32_t)AudioChannelLayout::CHANNEL_FRONT_RIGHT,
+                   .azimuthDegree = 90,
+                   .elevationDegree = 0}};
+    } else {
+        return ndk::ScopedAStatus::fromExceptionCodeWithMessage(EX_ILLEGAL_ARGUMENT,
+                                                                "supportUpTo2Ch");
+    }
+
+    Virtualizer param = Virtualizer::make<Virtualizer::speakerAngles>(angles);
+    specific->set<Parameter::Specific::virtualizer>(param);
     return ndk::ScopedAStatus::ok();
 }
 
@@ -173,11 +225,6 @@ IEffect::Status VirtualizerSw::effectProcessImpl(float* in, float* out, int samp
 }
 
 RetCode VirtualizerSwContext::setVrStrength(int strength) {
-    if (strength < 0 || strength > VirtualizerSw::kCapability.maxStrengthPm) {
-        LOG(ERROR) << __func__ << " invalid strength: " << strength;
-        return RetCode::ERROR_ILLEGAL_PARAMETER;
-    }
-    // TODO : Add implementation to apply new strength
     mStrength = strength;
     return RetCode::SUCCESS;
 }

@@ -14,27 +14,27 @@
  * limitations under the License.
  */
 
-#include <cstddef>
-#define LOG_TAG "AHAL_VolumeSw"
-#include <Utils.h>
 #include <algorithm>
-#include <unordered_set>
+#include <cstddef>
 
+#define LOG_TAG "AHAL_VolumeSw"
 #include <android-base/logging.h>
 #include <fmq/AidlMessageQueue.h>
+#include <system/audio_effects/effect_uuid.h>
 
 #include "VolumeSw.h"
 
 using aidl::android::hardware::audio::effect::Descriptor;
+using aidl::android::hardware::audio::effect::getEffectImplUuidVolumeSw;
+using aidl::android::hardware::audio::effect::getEffectTypeUuidVolume;
 using aidl::android::hardware::audio::effect::IEffect;
-using aidl::android::hardware::audio::effect::kVolumeSwImplUUID;
 using aidl::android::hardware::audio::effect::State;
 using aidl::android::hardware::audio::effect::VolumeSw;
 using aidl::android::media::audio::common::AudioUuid;
 
 extern "C" binder_exception_t createEffect(const AudioUuid* in_impl_uuid,
                                            std::shared_ptr<IEffect>* instanceSpp) {
-    if (!in_impl_uuid || *in_impl_uuid != kVolumeSwImplUUID) {
+    if (!in_impl_uuid || *in_impl_uuid != getEffectImplUuidVolumeSw()) {
         LOG(ERROR) << __func__ << "uuid not supported";
         return EX_ILLEGAL_ARGUMENT;
     }
@@ -49,7 +49,7 @@ extern "C" binder_exception_t createEffect(const AudioUuid* in_impl_uuid,
 }
 
 extern "C" binder_exception_t queryEffect(const AudioUuid* in_impl_uuid, Descriptor* _aidl_return) {
-    if (!in_impl_uuid || *in_impl_uuid != kVolumeSwImplUUID) {
+    if (!in_impl_uuid || *in_impl_uuid != getEffectImplUuidVolumeSw()) {
         LOG(ERROR) << __func__ << "uuid not supported";
         return EX_ILLEGAL_ARGUMENT;
     }
@@ -60,17 +60,21 @@ extern "C" binder_exception_t queryEffect(const AudioUuid* in_impl_uuid, Descrip
 namespace aidl::android::hardware::audio::effect {
 
 const std::string VolumeSw::kEffectName = "VolumeSw";
-const Volume::Capability VolumeSw::kCapability = {.minLevelDb = -9600, .maxLevelDb = 0};
+
+const std::vector<Range::VolumeRange> VolumeSw::kRanges = {MAKE_RANGE(Volume, levelDb, -9600, 0)};
+
+const Capability VolumeSw::kCapability = {.range = Range::make<Range::volume>(VolumeSw::kRanges)};
+
 const Descriptor VolumeSw::kDescriptor = {
-        .common = {.id = {.type = kVolumeTypeUUID,
-                          .uuid = kVolumeSwImplUUID,
+        .common = {.id = {.type = getEffectTypeUuidVolume(),
+                          .uuid = getEffectImplUuidVolumeSw(),
                           .proxy = std::nullopt},
                    .flags = {.type = Flags::Type::INSERT,
                              .insert = Flags::Insert::FIRST,
                              .volume = Flags::Volume::CTRL},
                    .name = VolumeSw::kEffectName,
                    .implementor = "The Android Open Source Project"},
-        .capability = Capability::make<Capability::volume>(VolumeSw::kCapability)};
+        .capability = VolumeSw::kCapability};
 
 ndk::ScopedAStatus VolumeSw::getDescriptor(Descriptor* _aidl_return) {
     LOG(DEBUG) << __func__ << kDescriptor.toString();
@@ -83,6 +87,7 @@ ndk::ScopedAStatus VolumeSw::setParameterSpecific(const Parameter::Specific& spe
               "EffectNotSupported");
 
     auto& volParam = specific.get<Parameter::Specific::volume>();
+    RETURN_IF(!inRange(volParam, kRanges), EX_ILLEGAL_ARGUMENT, "outOfRange");
     auto tag = volParam.getTag();
 
     switch (tag) {
@@ -177,11 +182,6 @@ IEffect::Status VolumeSw::effectProcessImpl(float* in, float* out, int samples) 
 }
 
 RetCode VolumeSwContext::setVolLevel(int level) {
-    if (level < VolumeSw::kCapability.minLevelDb || level > VolumeSw::kCapability.maxLevelDb) {
-        LOG(ERROR) << __func__ << " invalid level " << level;
-        return RetCode::ERROR_ILLEGAL_PARAMETER;
-    }
-    // TODO : Add implementation to apply new level
     mLevel = level;
     return RetCode::SUCCESS;
 }

@@ -16,13 +16,15 @@
 
 #pragma once
 
-#include <aidl/android/hardware/audio/effect/BnEffect.h>
-#include <fmq/AidlMessageQueue.h>
 #include <cstdlib>
 #include <memory>
+#include <vector>
+
+#include <Utils.h>
+#include <aidl/android/hardware/audio/effect/BnEffect.h>
+#include <fmq/AidlMessageQueue.h>
 
 #include "effect-impl/EffectImpl.h"
-#include "effect-impl/EffectUUID.h"
 
 namespace aidl::android::hardware::audio::effect {
 
@@ -30,7 +32,7 @@ class DynamicsProcessingSwContext final : public EffectContext {
   public:
     DynamicsProcessingSwContext(int statusDepth, const Parameter::Common& common)
         : EffectContext(statusDepth, common),
-          mChannelCount(::android::hardware::audio::common::getChannelCount(
+          mChannelCount(::aidl::android::hardware::audio::common::getChannelCount(
                   common.input.base.channelMask)),
           mPreEqChCfgs(mChannelCount, {.channel = kInvalidChannelId}),
           mPostEqChCfgs(mChannelCount, {.channel = kInvalidChannelId}),
@@ -86,8 +88,6 @@ class DynamicsProcessingSwContext final : public EffectContext {
     std::vector<DynamicsProcessing::EqBandConfig> mPreEqChBands;
     std::vector<DynamicsProcessing::EqBandConfig> mPostEqChBands;
     std::vector<DynamicsProcessing::MbcBandConfig> mMbcChBands;
-
-    bool validateCutoffFrequency(float freq);
     bool validateStageEnablement(const DynamicsProcessing::StageEnablement& enablement);
     bool validateEngineConfig(const DynamicsProcessing::EngineArchitecture& engine);
     bool validateEqBandConfig(const DynamicsProcessing::EqBandConfig& band, int maxChannel,
@@ -104,7 +104,7 @@ class DynamicsProcessingSwContext final : public EffectContext {
 class DynamicsProcessingSw final : public EffectImpl {
   public:
     static const std::string kEffectName;
-    static const DynamicsProcessing::Capability kCapability;
+    static const Capability kCapability;
     static const Descriptor kDescriptor;
     DynamicsProcessingSw() { LOG(DEBUG) << __func__; }
     ~DynamicsProcessingSw() {
@@ -125,6 +125,11 @@ class DynamicsProcessingSw final : public EffectImpl {
     std::string getEffectName() override { return kEffectName; };
 
   private:
+    static const DynamicsProcessing::EqBandConfig kEqBandConfigMin;
+    static const DynamicsProcessing::EqBandConfig kEqBandConfigMax;
+    static const Range::DynamicsProcessingRange kPreEqBandRange;
+    static const Range::DynamicsProcessingRange kPostEqBandRange;
+    static const std::vector<Range::DynamicsProcessingRange> kRanges;
     std::shared_ptr<DynamicsProcessingSwContext> mContext;
     ndk::ScopedAStatus getParameterDynamicsProcessing(const DynamicsProcessing::Tag& tag,
                                                       Parameter::Specific* specific);

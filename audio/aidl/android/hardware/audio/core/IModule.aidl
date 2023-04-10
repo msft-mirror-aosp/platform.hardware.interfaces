@@ -21,12 +21,13 @@ import android.hardware.audio.common.SourceMetadata;
 import android.hardware.audio.core.AudioPatch;
 import android.hardware.audio.core.AudioRoute;
 import android.hardware.audio.core.IBluetooth;
+import android.hardware.audio.core.IBluetoothA2dp;
+import android.hardware.audio.core.IBluetoothLe;
 import android.hardware.audio.core.IStreamCallback;
 import android.hardware.audio.core.IStreamIn;
 import android.hardware.audio.core.IStreamOut;
 import android.hardware.audio.core.IStreamOutEventCallback;
 import android.hardware.audio.core.ITelephony;
-import android.hardware.audio.core.MicrophoneInfo;
 import android.hardware.audio.core.ModuleDebug;
 import android.hardware.audio.core.StreamDescriptor;
 import android.hardware.audio.core.VendorParameter;
@@ -39,6 +40,7 @@ import android.media.audio.common.AudioOffloadInfo;
 import android.media.audio.common.AudioPort;
 import android.media.audio.common.AudioPortConfig;
 import android.media.audio.common.Float;
+import android.media.audio.common.MicrophoneInfo;
 
 /**
  * Each instance of IModule corresponds to a separate audio module. The system
@@ -103,6 +105,34 @@ interface IModule {
     @nullable IBluetooth getBluetooth();
 
     /**
+     * Retrieve the interface to control Bluetooth A2DP.
+     *
+     * If the HAL module supports A2DP Profile functionality for Bluetooth, it
+     * must return an instance of the IBluetoothA2dp interface. The same
+     * instance must be returned during the lifetime of the HAL module. If the
+     * HAL module does not support BT A2DP, a null must be returned, without
+     * throwing any errors.
+     *
+     * @return An instance of the IBluetoothA2dp interface implementation.
+     * @throws EX_ILLEGAL_STATE If there was an error creating an instance.
+     */
+    @nullable IBluetoothA2dp getBluetoothA2dp();
+
+    /**
+     * Retrieve the interface to control Bluetooth LE.
+     *
+     * If the HAL module supports LE Profile functionality for Bluetooth, it
+     * must return an instance of the IBluetoothLe interface. The same
+     * instance must be returned during the lifetime of the HAL module. If the
+     * HAL module does not support BT LE, a null must be returned, without
+     * throwing any errors.
+     *
+     * @return An instance of the IBluetoothLe interface implementation.
+     * @throws EX_ILLEGAL_STATE If there was an error creating an instance.
+     */
+    @nullable IBluetoothLe getBluetoothLe();
+
+    /**
      * Set a device port of an external device into connected state.
      *
      * This method is used to inform the HAL module that an external device has
@@ -161,6 +191,19 @@ interface IModule {
      * an error if it is lacking required information, for example, when no
      * device address is specified for a point-to-multipoint external device
      * connection.
+     *
+     * Since not all modules have a DSP that could perform sample rate and
+     * format conversions, behavior related to mix port configurations may vary.
+     * For modules with a DSP, mix ports can be pre-configured and have a fixed
+     * set of audio profiles supported by the DSP. For modules without a DSP,
+     * audio profiles of mix ports may change after connecting an external
+     * device. The typical case is that the mix port has an empty set of
+     * profiles when no external devices are connected, and after external
+     * device connection it receives the same set of profiles as the device
+     * ports that they can be routed to. The client will re-query current port
+     * configurations using 'getAudioPorts'. All mix ports that can be routed to
+     * the connected device port must have a non-empty set of audio profiles
+     * after successful connection of an external device.
      *
      * Handling of a disconnect is done in a reverse order:
      *  1. Reset port configuration using the 'resetAudioPortConfig' method.
@@ -596,6 +639,7 @@ interface IModule {
      * @param mute Whether the output from the module is muted.
      * @throws EX_UNSUPPORTED_OPERATION If muting of combined output
      *                                  is not supported by the module.
+     * @throws EX_ILLEGAL_STATE If any error happens while muting of combined output.
      */
     void setMasterMute(boolean mute);
 
@@ -627,6 +671,8 @@ interface IModule {
      *                             accepted range.
      * @throws EX_UNSUPPORTED_OPERATION If attenuation of combined output
      *                                  is not supported by the module.
+     * @throws EX_ILLEGAL_STATE If any error happens while updating attenuation of
+                                combined output.
      */
     void setMasterVolume(float volume);
 
@@ -824,7 +870,7 @@ interface IModule {
     AudioMMapPolicyInfo[] getMmapPolicyInfos(AudioMMapPolicyType mmapPolicyType);
 
     /**
-     * Indicates if this module supports variable latency control for instance
+     * Indicates if this module supports variable latency control, for instance,
      * over Bluetooth A2DP or LE Audio links.
      *
      * If supported, all instances of IStreamOut interface returned by this module must
@@ -833,4 +879,31 @@ interface IModule {
      * @return Whether the module supports variable latency control.
      */
     boolean supportsVariableLatency();
+
+    /**
+     * Default value for number of bursts per aaudio mixer cycle. This is a suggested value
+     * to return for the HAL module, unless it is known that a better option exists.
+     */
+    const int DEFAULT_AAUDIO_MIXER_BURST_COUNT = 2;
+    /**
+     * Get the number of bursts per aaudio mixer cycle.
+     *
+     * @return The number of burst per aaudio mixer cycle.
+     * @throw EX_UNSUPPORTED_OPERATION If the module does not support aaudio MMAP.
+     */
+    int getAAudioMixerBurstCount();
+
+    /**
+     * Default value for minimum duration in microseconds for a MMAP hardware burst. This
+     * is a suggested value to return for the HAL module, unless it is known that a better
+     * option exists.
+     */
+    const int DEFAULT_AAUDIO_HARDWARE_BURST_MIN_DURATION_US = 1000;
+    /**
+     * Get the minimum duration in microseconds for a MMAP hardware burst.
+     *
+     * @return The minimum number of microseconds for a MMAP hardware burst.
+     * @throw EX_UNSUPPORTED_OPERATION If the module does not support aaudio MMAP.
+     */
+    int getAAudioHardwareBurstMinUsec();
 }

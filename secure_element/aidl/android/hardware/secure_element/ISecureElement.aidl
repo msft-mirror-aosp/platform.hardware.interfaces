@@ -117,11 +117,17 @@ interface ISecureElement {
      * closed by this operation.
      * HAL service must send onStateChange() with connected equal to true
      * after resetting and all the re-initialization has been successfully completed.
+     *
+     * @throws ServiceSpecificException on error with the following code:
+     *  - FAILED if the service was unable to reset the secure element.
      */
     void reset();
 
     /**
      * Transmits an APDU command (as per ISO/IEC 7816) to the SE.
+     *
+     * @throws ServiceSpecificException with code CHANNEL_NOT_AVAILABLE
+     *  if there was an error in communicating with the secure element.
      *
      * @param data APDU command to be sent
      * @return response to the command

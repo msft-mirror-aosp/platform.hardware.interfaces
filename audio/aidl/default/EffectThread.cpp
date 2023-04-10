@@ -34,19 +34,20 @@ EffectThread::~EffectThread() {
 };
 
 RetCode EffectThread::createThread(std::shared_ptr<EffectContext> context, const std::string& name,
-                                   const int priority) {
+                                   int priority, int sleepUs /* kSleepTimeUs */) {
     if (mThread.joinable()) {
-        LOG(WARNING) << __func__ << " thread already created, no-op";
+        LOG(WARNING) << "-" << mName << "-" << __func__ << " thread already created, no-op";
         return RetCode::SUCCESS;
     }
     mName = name;
     mPriority = priority;
+    mSleepTimeUs = sleepUs;
     {
         std::lock_guard lg(mThreadMutex);
         mThreadContext = std::move(context);
     }
     mThread = std::thread(&EffectThread::threadLoop, this);
-    LOG(DEBUG) << __func__ << " " << name << " priority " << mPriority << " done";
+    LOG(DEBUG) << "-" << mName << "-" << __func__ << " priority " << mPriority << " done";
     return RetCode::SUCCESS;
 }
 
@@ -65,45 +66,37 @@ RetCode EffectThread::destroyThread() {
         std::lock_guard lg(mThreadMutex);
         mThreadContext.reset();
     }
-    LOG(DEBUG) << __func__ << " done";
+    LOG(DEBUG) << "-" << mName << "-" << __func__ << " done";
     return RetCode::SUCCESS;
 }
 
 RetCode EffectThread::startThread() {
-    if (!mThread.joinable()) {
-        LOG(ERROR) << __func__ << " thread already destroyed";
-        return RetCode::ERROR_THREAD;
-    }
-
-    {
-        std::lock_guard lg(mThreadMutex);
-        if (!mStop) {
-            LOG(WARNING) << __func__ << " already start";
-            return RetCode::SUCCESS;
-        }
-        mStop = false;
-    }
-
-    mCv.notify_one();
-    LOG(DEBUG) << __func__ << " done";
-    return RetCode::SUCCESS;
+    return handleStartStop(false /* stop */);
 }
 
 RetCode EffectThread::stopThread() {
+    return handleStartStop(true /* stop */);
+}
+
+RetCode EffectThread::handleStartStop(bool stop) {
     if (!mThread.joinable()) {
-        LOG(ERROR) << __func__ << " thread already destroyed";
+        LOG(ERROR) << "-" << mName << "-" << __func__ << ": "
+                   << " thread already destroyed";
         return RetCode::ERROR_THREAD;
     }
 
     {
         std::lock_guard lg(mThreadMutex);
-        if (mStop) {
-            LOG(WARNING) << __func__ << " already stop";
+        if (stop == mStop) {
+            LOG(WARNING) << "-" << mName << "-" << __func__ << ": "
+                         << " already " << (stop ? "stop" : "start");
             return RetCode::SUCCESS;
         }
-        mStop = true;
+        mStop = stop;
     }
-    LOG(DEBUG) << __func__ << " done";
+
+    mCv.notify_one();
+    LOG(DEBUG) << ": " << mName << (stop ? " stop done" : " start done");
     return RetCode::SUCCESS;
 }
 
@@ -111,52 +104,42 @@ void EffectThread::threadLoop() {
     pthread_setname_np(pthread_self(), mName.substr(0, kMaxTaskNameLen - 1).c_str());
     setpriority(PRIO_PROCESS, 0, mPriority);
     while (true) {
-        bool needExit = false;
-        {
-            std::unique_lock l(mThreadMutex);
-            mCv.wait(l, [&]() REQUIRES(mThreadMutex) {
-                needExit = mExit;
-                return mExit || !mStop;
-            });
-        }
-        if (needExit) {
+        std::unique_lock l(mThreadMutex);
+        ::android::base::ScopedLockAssertion lock_assertion(mThreadMutex);
+        mCv.wait(l, [&]() REQUIRES(mThreadMutex) { return mExit || !mStop; });
+        if (mExit) {
             LOG(WARNING) << __func__ << " EXIT!";
             return;
         }
-
-        process();
+        process_l();
     }
 }
 
-void EffectThread::process() {
-    std::shared_ptr<EffectContext> context;
-    {
-        std::lock_guard lg(mThreadMutex);
-        context = mThreadContext;
-        RETURN_VALUE_IF(!context, void(), "nullContext");
-    }
-    std::shared_ptr<EffectContext::StatusMQ> statusMQ = context->getStatusFmq();
-    std::shared_ptr<EffectContext::DataMQ> inputMQ = context->getInputDataFmq();
-    std::shared_ptr<EffectContext::DataMQ> outputMQ = context->getOutputDataFmq();
-    auto buffer = context->getWorkBuffer();
+void EffectThread::process_l() {
+    RETURN_VALUE_IF(!mThreadContext, void(), "nullContext");
+    std::shared_ptr<EffectContext::StatusMQ> statusMQ = mThreadContext->getStatusFmq();
+    std::shared_ptr<EffectContext::DataMQ> inputMQ = mThreadContext->getInputDataFmq();
+    std::shared_ptr<EffectContext::DataMQ> outputMQ = mThreadContext->getOutputDataFmq();
+    auto buffer = mThreadContext->getWorkBuffer();
 
     // Only this worker will read from input data MQ and write to output data MQ.
     auto readSamples = inputMQ->availableToRead(), writeSamples = outputMQ->availableToWrite();
     if (readSamples && writeSamples) {
         auto processSamples = std::min(readSamples, writeSamples);
-        LOG(DEBUG) << __func__ << " available to read " << readSamples << " available to write "
-                   << writeSamples << " process " << processSamples;
+        LOG(DEBUG) << "-" << mName << "-" << __func__ << ": "
+                   << " available to read " << readSamples << " available to write " << writeSamples
+                   << " process " << processSamples;
 
         inputMQ->read(buffer, processSamples);
 
-        // call effectProcessImpl without lock
         IEffect::Status status = effectProcessImpl(buffer, buffer, processSamples);
         outputMQ->write(buffer, status.fmqProduced);
         statusMQ->writeBlocking(&status, 1);
-        LOG(DEBUG) << __func__ << " done processing, effect consumed " << status.fmqConsumed
-                   << " produced " << status.fmqProduced;
+        LOG(DEBUG) << "-" << mName << "-" << __func__ << ": "
+                   << " done processing, effect consumed " << status.fmqConsumed << " produced "
+                   << status.fmqProduced;
     } else {
-        // TODO: maybe add some sleep here to avoid busy waiting
+        usleep(mSleepTimeUs);
     }
 }
 

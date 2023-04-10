@@ -46,6 +46,7 @@ interface IWifiNanIfaceEventCallback {
   oneway void eventPublishTerminated(in byte sessionId, in android.hardware.wifi.NanStatus status);
   oneway void eventSubscribeTerminated(in byte sessionId, in android.hardware.wifi.NanStatus status);
   oneway void eventTransmitFollowup(in char id, in android.hardware.wifi.NanStatus status);
+  oneway void eventSuspensionModeChanged(in android.hardware.wifi.NanSuspensionModeChangeInd event);
   oneway void notifyCapabilitiesResponse(in char id, in android.hardware.wifi.NanStatus status, in android.hardware.wifi.NanCapabilities capabilities);
   oneway void notifyConfigResponse(in char id, in android.hardware.wifi.NanStatus status);
   oneway void notifyCreateDataInterfaceResponse(in char id, in android.hardware.wifi.NanStatus status);
@@ -70,4 +71,5 @@ interface IWifiNanIfaceEventCallback {
   oneway void eventBootstrappingConfirm(in android.hardware.wifi.NanBootstrappingConfirmInd event);
   oneway void notifyInitiateBootstrappingResponse(in char id, in android.hardware.wifi.NanStatus status, in int bootstrappingInstanceId);
   oneway void notifyRespondToBootstrappingIndicationResponse(in char id, in android.hardware.wifi.NanStatus status);
+  oneway void notifyTerminatePairingResponse(in char id, in android.hardware.wifi.NanStatus status);
 }

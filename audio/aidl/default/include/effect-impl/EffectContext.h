@@ -15,10 +15,10 @@
  */
 
 #pragma once
-#include <Utils.h>
 #include <memory>
 #include <vector>
 
+#include <Utils.h>
 #include <android-base/logging.h>
 #include <fmq/AidlMessageQueue.h>
 
@@ -37,7 +37,6 @@ class EffectContext {
             DataMQ;
 
     EffectContext(size_t statusDepth, const Parameter::Common& common) {
-        mSessionId = common.session;
         auto& input = common.input;
         auto& output = common.output;
 
@@ -47,9 +46,9 @@ class EffectContext {
         LOG_ALWAYS_FATAL_IF(output.base.format.pcm !=
                                     aidl::android::media::audio::common::PcmType::FLOAT_32_BIT,
                             "outputFormatNotFloat");
-        mInputFrameSize = ::android::hardware::audio::common::getFrameSizeInBytes(
+        mInputFrameSize = ::aidl::android::hardware::audio::common::getFrameSizeInBytes(
                 input.base.format, input.base.channelMask);
-        mOutputFrameSize = ::android::hardware::audio::common::getFrameSizeInBytes(
+        mOutputFrameSize = ::aidl::android::hardware::audio::common::getFrameSizeInBytes(
                 output.base.format, output.base.channelMask);
         // in/outBuffer size in float (FMQ data format defined for DataMQ)
         size_t inBufferSizeInFloat = input.frameCount * mInputFrameSize / sizeof(float);
@@ -63,6 +62,7 @@ class EffectContext {
             LOG(ERROR) << __func__ << " created invalid FMQ";
         }
         mWorkBuffer.reserve(std::max(inBufferSizeInFloat, outBufferSizeInFloat));
+        mCommon = common;
     }
     virtual ~EffectContext() {}
 
@@ -88,7 +88,8 @@ class EffectContext {
     }
     size_t getInputFrameSize() { return mInputFrameSize; }
     size_t getOutputFrameSize() { return mOutputFrameSize; }
-    int getSessionId() { return mSessionId; }
+    int getSessionId() { return mCommon.session; }
+    int getIoHandle() { return mCommon.ioHandle; }
 
     virtual RetCode setOutputDevice(
             const std::vector<aidl::android::media::audio::common::AudioDeviceDescription>&
@@ -96,6 +97,7 @@ class EffectContext {
         mOutputDevice = device;
         return RetCode::SUCCESS;
     }
+
     virtual std::vector<aidl::android::media::audio::common::AudioDeviceDescription>
     getOutputDevice() {
         return mOutputDevice;
@@ -131,7 +133,6 @@ class EffectContext {
 
   protected:
     // common parameters
-    int mSessionId = INVALID_AUDIO_SESSION_ID;
     size_t mInputFrameSize;
     size_t mOutputFrameSize;
     Parameter::Common mCommon;

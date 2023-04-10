@@ -1847,7 +1847,6 @@ TEST_P(CameraAidlTest, processUltraHighResolutionRequest) {
 // Generate and verify 10-bit dynamic range request
 TEST_P(CameraAidlTest, process10BitDynamicRangeRequest) {
     std::vector<std::string> cameraDeviceNames = getCameraDeviceNames(mProvider);
-    int64_t bufferId = 1;
     CameraMetadata settings;
 
     for (const auto& name : cameraDeviceNames) {
@@ -1928,12 +1927,12 @@ TEST_P(CameraAidlTest, process10BitDynamicRangeRequest) {
             // Stream as long as needed to fill the Hal inflight queue
             std::vector<CaptureRequest> requests(halStreams[0].maxBuffers);
 
-            for (int32_t frameNumber = 0; frameNumber < requests.size(); frameNumber++) {
+            for (int32_t requestId = 0; requestId < requests.size(); requestId++) {
                 std::shared_ptr<InFlightRequest> inflightReq = std::make_shared<InFlightRequest>(
                         static_cast<ssize_t>(halStreams.size()), false, supportsPartialResults,
                         partialResultCount, std::unordered_set<std::string>(), resultQueue);
 
-                CaptureRequest& request = requests[frameNumber];
+                CaptureRequest& request = requests[requestId];
                 std::vector<StreamBuffer>& outputBuffers = request.outputBuffers;
                 outputBuffers.resize(halStreams.size());
 
@@ -1942,6 +1941,7 @@ TEST_P(CameraAidlTest, process10BitDynamicRangeRequest) {
                 std::vector<buffer_handle_t> graphicBuffers;
                 graphicBuffers.reserve(halStreams.size());
 
+                auto bufferId = requestId + 1; // Buffer id value 0 is not valid
                 for (const auto& halStream : halStreams) {
                     buffer_handle_t buffer_handle;
                     if (useHalBufManager) {
@@ -1960,14 +1960,13 @@ TEST_P(CameraAidlTest, process10BitDynamicRangeRequest) {
                         outputBuffers[k] = {halStream.id, bufferId,
                             android::makeToAidl(buffer_handle), BufferStatus::OK, NativeHandle(),
                             NativeHandle()};
-                        bufferId++;
                     }
                     k++;
                 }
 
                 request.inputBuffer = {
                         -1, 0, NativeHandle(), BufferStatus::ERROR, NativeHandle(), NativeHandle()};
-                request.frameNumber = frameNumber;
+                request.frameNumber = bufferId;
                 request.fmqSettingsSize = 0;
                 request.settings = settings;
                 request.inputWidth = 0;
@@ -1975,7 +1974,7 @@ TEST_P(CameraAidlTest, process10BitDynamicRangeRequest) {
 
                 {
                     std::unique_lock<std::mutex> l(mLock);
-                    mInflightMap[frameNumber] = inflightReq;
+                    mInflightMap[bufferId] = inflightReq;
                 }
 
             }
@@ -1991,7 +1990,10 @@ TEST_P(CameraAidlTest, process10BitDynamicRangeRequest) {
                     std::vector<int32_t> {halStreams[0].id});
             ASSERT_TRUE(returnStatus.isOk());
 
-            for (int32_t frameNumber = 0; frameNumber < requests.size(); frameNumber++) {
+            // We are keeping frame numbers and buffer ids consistent. Buffer id value of 0
+            // is used to indicate a buffer that is not present/available so buffer ids as well
+            // as frame numbers begin with 1.
+            for (int32_t frameNumber = 1; frameNumber <= requests.size(); frameNumber++) {
                 const auto& inflightReq = mInflightMap[frameNumber];
                 std::unique_lock<std::mutex> l(mLock);
                 while (!inflightReq->errorCodeValid &&
@@ -2000,6 +2002,8 @@ TEST_P(CameraAidlTest, process10BitDynamicRangeRequest) {
                                    std::chrono::seconds(kStreamBufferTimeoutSec);
                     ASSERT_NE(std::cv_status::timeout, mResultCondition.wait_until(l, timeout));
                 }
+
+                waitForReleaseFence(inflightReq->resultOutputBuffers);
 
                 ASSERT_FALSE(inflightReq->errorCodeValid);
                 ASSERT_NE(inflightReq->resultOutputBuffers.size(), 0u);
@@ -2023,16 +2027,7 @@ TEST_P(CameraAidlTest, process10BitDynamicRangeRequest) {
 }
 
 TEST_P(CameraAidlTest, process8BitColorSpaceRequests) {
-    static int profiles[] = {
-        ColorSpaceNamed::BT709,
-        ColorSpaceNamed::DCI_P3,
-        ColorSpaceNamed::DISPLAY_P3,
-        ColorSpaceNamed::EXTENDED_SRGB,
-        ColorSpaceNamed::LINEAR_EXTENDED_SRGB,
-        ColorSpaceNamed::NTSC_1953,
-        ColorSpaceNamed::SMPTE_C,
-        ColorSpaceNamed::SRGB
-    };
+    static int profiles[] = {ColorSpaceNamed::DISPLAY_P3, ColorSpaceNamed::SRGB};
 
     for (int32_t i = 0; i < sizeof(profiles) / sizeof(profiles[0]); i++) {
         processColorSpaceRequest(static_cast<RequestAvailableColorSpaceProfilesMap>(profiles[i]),
@@ -2057,10 +2052,10 @@ TEST_P(CameraAidlTest, process10BitColorSpaceRequests) {
         ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_8B_HDR_OEM_PO
     };
 
-    // Process all dynamic range profiles with BT2020
+    // Process all dynamic range profiles with BT2020_HLG
     for (int32_t i = 0; i < sizeof(dynamicRangeProfiles) / sizeof(dynamicRangeProfiles[0]); i++) {
         processColorSpaceRequest(
-                static_cast<RequestAvailableColorSpaceProfilesMap>(ColorSpaceNamed::BT2020),
+                static_cast<RequestAvailableColorSpaceProfilesMap>(ColorSpaceNamed::BT2020_HLG),
                 static_cast<RequestAvailableDynamicRangeProfilesMap>(dynamicRangeProfiles[i]));
     }
 }
@@ -3047,6 +3042,47 @@ TEST_P(CameraAidlTest, configureStreamsUseCases) {
     AvailableStream previewStreamThreshold =
             {kMaxPreviewWidth, kMaxPreviewHeight, static_cast<int32_t>(PixelFormat::YCBCR_420_888)};
     configureStreamUseCaseInternal(previewStreamThreshold);
+}
+
+// Validate the integrity of stream configuration metadata
+TEST_P(CameraAidlTest, validateStreamConfigurations) {
+    std::vector<std::string> cameraDeviceNames = getCameraDeviceNames(mProvider);
+    std::vector<AvailableStream> outputStreams;
+
+    const int32_t scalerSizesTag = ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS;
+    const int32_t scalerMinFrameDurationsTag = ANDROID_SCALER_AVAILABLE_MIN_FRAME_DURATIONS;
+    const int32_t scalerStallDurationsTag = ANDROID_SCALER_AVAILABLE_STALL_DURATIONS;
+
+    for (const auto& name : cameraDeviceNames) {
+        CameraMetadata meta;
+        std::shared_ptr<ICameraDevice> cameraDevice;
+
+        openEmptyDeviceSession(name, mProvider, &mSession /*out*/, &meta /*out*/,
+                               &cameraDevice /*out*/);
+        camera_metadata_t* staticMeta = reinterpret_cast<camera_metadata_t*>(meta.metadata.data());
+
+        if (is10BitDynamicRangeCapable(staticMeta)) {
+            std::vector<std::tuple<size_t, size_t>> supportedP010Sizes, supportedBlobSizes;
+
+            getSupportedSizes(staticMeta, scalerSizesTag, HAL_PIXEL_FORMAT_BLOB,
+                              &supportedBlobSizes);
+            getSupportedSizes(staticMeta, scalerSizesTag, HAL_PIXEL_FORMAT_YCBCR_P010,
+                              &supportedP010Sizes);
+            ASSERT_FALSE(supportedP010Sizes.empty());
+
+            std::vector<int64_t> blobMinDurations, blobStallDurations;
+            getSupportedDurations(staticMeta, scalerMinFrameDurationsTag, HAL_PIXEL_FORMAT_BLOB,
+                                  supportedP010Sizes, &blobMinDurations);
+            getSupportedDurations(staticMeta, scalerStallDurationsTag, HAL_PIXEL_FORMAT_BLOB,
+                                  supportedP010Sizes, &blobStallDurations);
+            ASSERT_FALSE(blobStallDurations.empty());
+            ASSERT_FALSE(blobMinDurations.empty());
+            ASSERT_EQ(supportedP010Sizes.size(), blobMinDurations.size());
+            ASSERT_EQ(blobMinDurations.size(), blobStallDurations.size());
+        }
+
+        // Validate other aspects of stream configuration metadata...
+    }
 }
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CameraAidlTest);

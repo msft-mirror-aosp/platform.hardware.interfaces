@@ -80,7 +80,7 @@
             "property": "VehicleProperty::INFO_MODEL_YEAR",
             "defaultValue": {
                 "int32Values": [
-                    2020
+                    2023
                 ]
             }
         },
@@ -1329,22 +1329,26 @@
         },
         {
             "property": "VehicleProperty::SEAT_OCCUPANCY",
+            "defaultValue": {
+                "int32Values": [
+                    "VehicleSeatOccupancyState::VACANT"
+                ]
+            },
             "areas": [
                 {
-                    "defaultValue": {
-                        "int32Values": [
-                            "VehicleSeatOccupancyState::VACANT"
-                        ]
-                    },
                     "areaId": "Constants::SEAT_1_LEFT"
                 },
                 {
-                    "defaultValue": {
-                        "int32Values": [
-                            "VehicleSeatOccupancyState::VACANT"
-                        ]
-                    },
                     "areaId": "Constants::SEAT_1_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER"
                 }
             ]
         },
@@ -1854,7 +1858,19 @@
             },
             "areas": [
                 {
-                    "areaId": "Constants::HVAC_ALL"
+                    "areaId": "Constants::SEAT_1_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER"
                 }
             ]
         },
@@ -1867,7 +1883,19 @@
             },
             "areas": [
                 {
-                    "areaId": "Constants::HVAC_ALL"
+                    "areaId": "Constants::SEAT_1_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER"
                 }
             ],
             "configArray": [
@@ -1918,7 +1946,19 @@
             },
             "areas": [
                 {
-                    "areaId": "Constants::HVAC_ALL"
+                    "areaId": "Constants::SEAT_1_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER"
                 }
             ]
         },
@@ -1931,7 +1971,19 @@
             },
             "areas": [
                 {
-                    "areaId": "Constants::HVAC_ALL"
+                    "areaId": "Constants::SEAT_1_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER"
                 }
             ]
         },
@@ -1944,7 +1996,19 @@
             },
             "areas": [
                 {
-                    "areaId": "Constants::HVAC_ALL"
+                    "areaId": "Constants::SEAT_1_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER"
                 }
             ]
         },
@@ -1957,7 +2021,19 @@
             },
             "areas": [
                 {
-                    "areaId": "Constants::HVAC_ALL"
+                    "areaId": "Constants::SEAT_1_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER"
                 }
             ]
         },
@@ -1970,7 +2046,19 @@
             },
             "areas": [
                 {
-                    "areaId": "Constants::HVAC_ALL"
+                    "areaId": "Constants::SEAT_1_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER"
                 }
             ]
         },
@@ -1983,7 +2071,19 @@
             },
             "areas": [
                 {
-                    "areaId": "Constants::HVAC_ALL"
+                    "areaId": "Constants::SEAT_1_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER"
                 }
             ]
         },
@@ -2009,7 +2109,27 @@
             },
             "areas": [
                 {
-                    "areaId": "Constants::HVAC_ALL",
+                    "areaId": "Constants::SEAT_1_LEFT",
+                    "minInt32Value": 1,
+                    "maxInt32Value": 7
+                },
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT",
+                    "minInt32Value": 1,
+                    "maxInt32Value": 7
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT",
+                    "minInt32Value": 1,
+                    "maxInt32Value": 7
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT",
+                    "minInt32Value": 1,
+                    "maxInt32Value": 7
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER",
                     "minInt32Value": 1,
                     "maxInt32Value": 7
                 }
@@ -2024,7 +2144,19 @@
             },
             "areas": [
                 {
-                    "areaId": "Constants::HVAC_ALL"
+                    "areaId": "Constants::SEAT_1_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER"
                 }
             ]
         },
@@ -2043,7 +2175,19 @@
             },
             "areas": [
                 {
-                    "areaId": "Constants::HVAC_ALL"
+                    "areaId": "Constants::SEAT_1_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER"
                 }
             ]
         },
@@ -2062,6 +2206,21 @@
                 },
                 {
                     "areaId": "Constants::SEAT_1_RIGHT",
+                    "minInt32Value": 0,
+                    "maxInt32Value": 3
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT",
+                    "minInt32Value": 0,
+                    "maxInt32Value": 3
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT",
+                    "minInt32Value": 0,
+                    "maxInt32Value": 3
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER",
                     "minInt32Value": 0,
                     "maxInt32Value": 3
                 }
@@ -2101,6 +2260,21 @@
                     "areaId": "Constants::SEAT_1_RIGHT",
                     "minInt32Value": -2,
                     "maxInt32Value": 2
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT",
+                    "minInt32Value": -2,
+                    "maxInt32Value": 2
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT",
+                    "minInt32Value": -2,
+                    "maxInt32Value": 2
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER",
+                    "minInt32Value": -2,
+                    "maxInt32Value": 2
                 }
             ],
             "comment": "+ve values for heating and -ve for cooling"
@@ -2122,45 +2296,59 @@
         },
         {
             "property": "VehicleProperty::HVAC_TEMPERATURE_CURRENT",
+            "defaultValue": {
+                "floatValues": [
+                    19.1
+                ]
+            },
             "areas": [
                 {
-                    "defaultValue": {
-                        "floatValues": [
-                            17.3
-                        ]
-                    },
-                    "areaId": 49
+                    "areaId": "Constants::SEAT_1_LEFT"
                 },
                 {
-                    "defaultValue": {
-                        "floatValues": [
-                            19.1
-                        ]
-                    },
-                    "areaId": 68
+                    "areaId": "Constants::SEAT_1_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT"
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER"
                 }
             ]
         },
         {
             "property": "VehicleProperty::HVAC_TEMPERATURE_SET",
+            "defaultValue": {
+                "floatValues": [
+                    17.0
+                ]
+            },
             "areas": [
                 {
-                    "defaultValue": {
-                        "floatValues": [
-                            16.0
-                        ]
-                    },
-                    "areaId": 49,
+                    "areaId": "Constants::SEAT_1_LEFT",
                     "minFloatValue": 16.0,
                     "maxFloatValue": 28.0
                 },
                 {
-                    "defaultValue": {
-                        "floatValues": [
-                            20.0
-                        ]
-                    },
-                    "areaId": 68,
+                    "areaId": "Constants::SEAT_1_RIGHT",
+                    "minFloatValue": 16.0,
+                    "maxFloatValue": 28.0
+                },
+                {
+                    "areaId": "Constants::SEAT_2_LEFT",
+                    "minFloatValue": 16.0,
+                    "maxFloatValue": 28.0
+                },
+                {
+                    "areaId": "Constants::SEAT_2_RIGHT",
+                    "minFloatValue": 16.0,
+                    "maxFloatValue": 28.0
+                },
+                {
+                    "areaId": "Constants::SEAT_2_CENTER",
                     "minFloatValue": 16.0,
                     "maxFloatValue": 28.0
                 }
@@ -2183,7 +2371,7 @@
                     66.19999694824219,
                     "VehicleUnit::FAHRENHEIT",
                     19.0,
-                    66.5
+                    66.0
                 ]
             }
         },
@@ -2649,6 +2837,92 @@
             ]
         },
         {
+            "property": "VehicleProperty::WINDSHIELD_WIPERS_PERIOD",
+            "defaultValue": {
+                "int32Values": [
+                    0
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": "VehicleAreaWindow::FRONT_WINDSHIELD",
+                    "minInt32Value": 0,
+                    "maxInt32Value": 3000
+                },
+                {
+                    "areaId": "VehicleAreaWindow::REAR_WINDSHIELD",
+                    "minInt32Value": 0,
+                    "maxInt32Value": 3000
+                }
+            ]
+        },
+        {
+            "property": "VehicleProperty::WINDSHIELD_WIPERS_STATE",
+            "defaultValue": {
+                "int32Values": [
+                    "WindshieldWipersState::OFF"
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": "VehicleAreaWindow::FRONT_WINDSHIELD",
+                    "supportedEnumValues": [
+                        "WindshieldWipersState::OFF",
+                        "WindshieldWipersState::ON",
+                        "WindshieldWipersState::SERVICE"
+                    ]
+                },
+                {
+                    "areaId": "VehicleAreaWindow::REAR_WINDSHIELD",
+                    "supportedEnumValues": [
+                        "WindshieldWipersState::OFF",
+                        "WindshieldWipersState::ON"
+                    ]
+                }
+            ]
+        },
+        {
+            "property": "VehicleProperty::WINDSHIELD_WIPERS_SWITCH",
+            "defaultValue": {
+                "int32Values": [
+                    "WindshieldWipersSwitch::OFF"
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": "VehicleAreaWindow::FRONT_WINDSHIELD",
+                    "supportedEnumValues": [
+                        "WindshieldWipersSwitch::OFF",
+                        "WindshieldWipersSwitch::MIST",
+                        "WindshieldWipersSwitch::INTERMITTENT_LEVEL_1",
+                        "WindshieldWipersSwitch::INTERMITTENT_LEVEL_2",
+                        "WindshieldWipersSwitch::INTERMITTENT_LEVEL_3",
+                        "WindshieldWipersSwitch::INTERMITTENT_LEVEL_4",
+                        "WindshieldWipersSwitch::INTERMITTENT_LEVEL_5",
+                        "WindshieldWipersSwitch::CONTINUOUS_LEVEL_1",
+                        "WindshieldWipersSwitch::CONTINUOUS_LEVEL_2",
+                        "WindshieldWipersSwitch::CONTINUOUS_LEVEL_3",
+                        "WindshieldWipersSwitch::CONTINUOUS_LEVEL_4",
+                        "WindshieldWipersSwitch::CONTINUOUS_LEVEL_5",
+                        "WindshieldWipersSwitch::AUTO",
+                        "WindshieldWipersSwitch::SERVICE"
+                    ]
+                },
+                {
+                    "areaId": "VehicleAreaWindow::REAR_WINDSHIELD",
+                    "supportedEnumValues": [
+                        "WindshieldWipersSwitch::OFF",
+                        "WindshieldWipersSwitch::INTERMITTENT_LEVEL_1",
+                        "WindshieldWipersSwitch::INTERMITTENT_LEVEL_2",
+                        "WindshieldWipersSwitch::CONTINUOUS_LEVEL_1",
+                        "WindshieldWipersSwitch::CONTINUOUS_LEVEL_2",
+                        "WindshieldWipersSwitch::AUTO",
+                        "WindshieldWipersSwitch::SERVICE"
+                    ]
+                }
+            ]
+        },
+        {
             "property": "VehicleProperty::STEERING_WHEEL_DEPTH_POS",
             "defaultValue": {
                 "int32Values": [
@@ -2731,6 +3005,34 @@
                     0
                 ]
             }
+        },
+        {
+            "property": "VehicleProperty::GLOVE_BOX_DOOR_POS",
+            "defaultValue": {
+                "int32Values": [
+                    0
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT",
+                    "minInt32Value": 0,
+                    "maxInt32Value": 10
+                }
+            ]
+        },
+        {
+            "property": "VehicleProperty::GLOVE_BOX_LOCKED",
+            "defaultValue": {
+                "int32Values": [
+                    0
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": "Constants::SEAT_1_RIGHT"
+                }
+            ]
         },
         {
             "property": "VehicleProperty::WHEEL_TICK",
@@ -3016,6 +3318,14 @@
             "property": "VehicleProperty::VEHICLE_MAP_SERVICE"
         },
         {
+            "property": "VehicleProperty::LOCATION_CHARACTERIZATION",
+            "defaultValue": {
+                "int32Values": [
+                    "LocationCharacterization::RAW_GNSS_ONLY"
+                ]
+            }
+        },
+        {
             "property": "VehicleProperty::ELECTRONIC_TOLL_COLLECTION_CARD_TYPE",
             "defaultValue": {
                 "int32Values": [
@@ -3040,12 +3350,147 @@
             }
         },
         {
-            "property": "VehicleProperty::ADAPTIVE_CRUISE_CONTROL_ENABLED",
+            "property": "VehicleProperty::EMERGENCY_LANE_KEEP_ASSIST_STATE",
+            "defaultValue": {
+                "int32Values": [
+                    "EmergencyLaneKeepAssistState::ENABLED"
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": 0,
+                    "supportedEnumValues": [
+                        "ErrorState::NOT_AVAILABLE_SAFETY",
+                        "ErrorState::NOT_AVAILABLE_SPEED_HIGH",
+                        "ErrorState::NOT_AVAILABLE_SPEED_LOW",
+                        "ErrorState::NOT_AVAILABLE_DISABLED",
+                        "EmergencyLaneKeepAssistState::ENABLED",
+                        "EmergencyLaneKeepAssistState::WARNING_LEFT",
+                        "EmergencyLaneKeepAssistState::WARNING_RIGHT",
+                        "EmergencyLaneKeepAssistState::ACTIVATED_STEER_LEFT",
+                        "EmergencyLaneKeepAssistState::ACTIVATED_STEER_RIGHT",
+                        "EmergencyLaneKeepAssistState::USER_OVERRIDE"
+                    ]
+                }
+            ]
+        },
+        {
+            "property": "VehicleProperty::CRUISE_CONTROL_ENABLED",
             "defaultValue": {
                 "int32Values": [
                     1
                 ]
             }
+        },
+        {
+            "property": "VehicleProperty::CRUISE_CONTROL_TYPE",
+            "defaultValue": {
+                "int32Values": [
+                    "CruiseControlType::STANDARD"
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": 0,
+                    "supportedEnumValues": [
+                        "ErrorState::NOT_AVAILABLE_SAFETY",
+                        "ErrorState::NOT_AVAILABLE_SPEED_HIGH",
+                        "ErrorState::NOT_AVAILABLE_SPEED_LOW",
+                        "ErrorState::NOT_AVAILABLE_DISABLED",
+                        "CruiseControlType::STANDARD",
+                        "CruiseControlType::ADAPTIVE",
+                        "CruiseControlType::PREDICTIVE"
+                    ]
+                }
+            ]
+        },
+        {
+            "property": "VehicleProperty::CRUISE_CONTROL_STATE",
+            "defaultValue": {
+                "int32Values": [
+                    "CruiseControlState::ENABLED"
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": 0,
+                    "supportedEnumValues": [
+                        "ErrorState::NOT_AVAILABLE_SAFETY",
+                        "ErrorState::NOT_AVAILABLE_SPEED_HIGH",
+                        "ErrorState::NOT_AVAILABLE_SPEED_LOW",
+                        "ErrorState::NOT_AVAILABLE_DISABLED",
+                        "CruiseControlState::ENABLED",
+                        "CruiseControlState::ACTIVATED",
+                        "CruiseControlState::USER_OVERRIDE",
+                        "CruiseControlState::SUSPENDED",
+                        "CruiseControlState::FORCED_DEACTIVATION_WARNING"
+                    ]
+                }
+            ]
+        },
+        {
+            "property": "VehicleProperty::CRUISE_CONTROL_COMMAND",
+            "areas": [
+                {
+                    "areaId": 0,
+                    "supportedEnumValues": [
+                        "CruiseControlCommand::ACTIVATE",
+                        "CruiseControlCommand::SUSPEND",
+                        "CruiseControlCommand::INCREASE_TARGET_SPEED",
+                        "CruiseControlCommand::DECREASE_TARGET_SPEED",
+                        "CruiseControlCommand::INCREASE_TARGET_TIME_GAP",
+                        "CruiseControlCommand::DECREASE_TARGET_TIME_GAP"
+                    ]
+                }
+            ]
+        },
+        {
+            "property": "VehicleProperty::CRUISE_CONTROL_TARGET_SPEED",
+            "defaultValue": {
+                "floatValues": [
+                    25.0
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": 0,
+                    "minFloatValue": 20.0,
+                    "maxFloatValue": 35.0
+                }
+            ]
+        },
+        {
+            "property": "VehicleProperty::ADAPTIVE_CRUISE_CONTROL_TARGET_TIME_GAP",
+            "defaultValue": {
+                "int32Values": [
+                    1200
+                ]
+            },
+            "configArray": [
+                1200,
+                1400,
+                1600,
+                1800,
+                2000,
+                2200
+            ]
+        },
+        {
+            "property": "VehicleProperty::ADAPTIVE_CRUISE_CONTROL_LEAD_VEHICLE_MEASURED_DISTANCE",
+            "defaultValue": {
+                "int32Values": [
+                    100000
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": 0,
+                    "minInt32Value": 0,
+                    "maxInt32Value": 200000
+                }
+            ],
+            "maxSampleRate": 10.0,
+            "minSampleRate": 1.0
         },
         {
             "property": "VehicleProperty::HANDS_ON_DETECTION_ENABLED",
@@ -3056,12 +3501,40 @@
             }
         },
         {
-            "property": "VehicleProperty::DRIVER_ATTENTION_MONITORING_ENABLED",
+            "property": "VehicleProperty::HANDS_ON_DETECTION_DRIVER_STATE",
             "defaultValue": {
                 "int32Values": [
-                    1
+                    "HandsOnDetectionDriverState::HANDS_ON"
                 ]
-            }
+            },
+            "areas": [
+                {
+                    "areaId": 0,
+                    "supportedEnumValues": [
+                        "ErrorState::NOT_AVAILABLE_DISABLED",
+                        "HandsOnDetectionDriverState::HANDS_ON",
+                        "HandsOnDetectionDriverState::HANDS_OFF"
+                    ]
+                }
+            ]
+        },
+        {
+            "property": "VehicleProperty::HANDS_ON_DETECTION_WARNING",
+            "defaultValue": {
+                "int32Values": [
+                    "HandsOnDetectionWarning::NO_WARNING"
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": 0,
+                    "supportedEnumValues": [
+                        "ErrorState::NOT_AVAILABLE_DISABLED",
+                        "HandsOnDetectionWarning::NO_WARNING",
+                        "HandsOnDetectionWarning::WARNING"
+                    ]
+                }
+            ]
         },
         {
             "property": "VehicleProperty::INITIAL_USER_INFO"
@@ -3166,7 +3639,7 @@
             "property": "VehicleProperty::AUTOMATIC_EMERGENCY_BRAKING_STATE",
             "defaultValue": {
                 "int32Values": [
-                    "AutomaticEmergencyBrakingState::ENABLED"
+                    "ErrorState::NOT_AVAILABLE_DISABLED"
                 ]
             },
             "areas": [
@@ -3174,6 +3647,7 @@
                     "areaId": 0,
                     "supportedEnumValues": [
                         "ErrorState::NOT_AVAILABLE_SAFETY",
+                        "ErrorState::NOT_AVAILABLE_POOR_VISIBILITY",
                         "ErrorState::NOT_AVAILABLE_SPEED_HIGH",
                         "ErrorState::NOT_AVAILABLE_SPEED_LOW",
                         "ErrorState::NOT_AVAILABLE_DISABLED",
@@ -3188,41 +3662,157 @@
             "property": "VehicleProperty::FORWARD_COLLISION_WARNING_ENABLED",
             "defaultValue": {
                 "int32Values": [
-                    0
+                    1
                 ]
             }
+        },
+        {
+            "property": "VehicleProperty::FORWARD_COLLISION_WARNING_STATE",
+            "defaultValue": {
+                "int32Values": [
+                    "ForwardCollisionWarningState::NO_WARNING"
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": 0,
+                    "supportedEnumValues": [
+                        "ErrorState::NOT_AVAILABLE_SAFETY",
+                        "ErrorState::NOT_AVAILABLE_POOR_VISIBILITY",
+                        "ErrorState::NOT_AVAILABLE_SPEED_HIGH",
+                        "ErrorState::NOT_AVAILABLE_SPEED_LOW",
+                        "ErrorState::NOT_AVAILABLE_DISABLED",
+                        "ForwardCollisionWarningState::NO_WARNING",
+                        "ForwardCollisionWarningState::WARNING"
+                    ]
+                }
+            ]
         },
         {
             "property": "VehicleProperty::BLIND_SPOT_WARNING_ENABLED",
             "defaultValue": {
                 "int32Values": [
-                    0
+                    1
                 ]
             }
+        },
+        {
+            "property": "VehicleProperty::BLIND_SPOT_WARNING_STATE",
+            "defaultValue": {
+                "int32Values": [
+                    "BlindSpotWarningState::NO_WARNING"
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": "Constants::MIRROR_DRIVER_LEFT_RIGHT",
+                    "supportedEnumValues": [
+                        "ErrorState::NOT_AVAILABLE_SAFETY",
+                        "ErrorState::NOT_AVAILABLE_POOR_VISIBILITY",
+                        "ErrorState::NOT_AVAILABLE_SPEED_HIGH",
+                        "ErrorState::NOT_AVAILABLE_SPEED_LOW",
+                        "ErrorState::NOT_AVAILABLE_DISABLED",
+                        "BlindSpotWarningState::NO_WARNING",
+                        "BlindSpotWarningState::WARNING"
+                    ]
+                }
+            ]
         },
         {
             "property": "VehicleProperty::LANE_DEPARTURE_WARNING_ENABLED",
             "defaultValue": {
                 "int32Values": [
-                    0
+                    1
                 ]
             }
+        },
+        {
+            "property": "VehicleProperty::LANE_DEPARTURE_WARNING_STATE",
+            "defaultValue": {
+                "int32Values": [
+                    "LaneDepartureWarningState::NO_WARNING"
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": 0,
+                    "supportedEnumValues": [
+                        "ErrorState::NOT_AVAILABLE_SAFETY",
+                        "ErrorState::NOT_AVAILABLE_SPEED_HIGH",
+                        "ErrorState::NOT_AVAILABLE_SPEED_LOW",
+                        "ErrorState::NOT_AVAILABLE_DISABLED",
+                        "LaneDepartureWarningState::NO_WARNING",
+                        "LaneDepartureWarningState::WARNING_LEFT",
+                        "LaneDepartureWarningState::WARNING_RIGHT"
+                    ]
+                }
+            ]
         },
         {
             "property": "VehicleProperty::LANE_KEEP_ASSIST_ENABLED",
             "defaultValue": {
                 "int32Values": [
-                    0
+                    1
                 ]
             }
+        },
+        {
+            "property": "VehicleProperty::LANE_KEEP_ASSIST_STATE",
+            "defaultValue": {
+                "int32Values": [
+                    "LaneKeepAssistState::ENABLED"
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": 0,
+                    "supportedEnumValues": [
+                        "ErrorState::NOT_AVAILABLE_SAFETY",
+                        "ErrorState::NOT_AVAILABLE_SPEED_HIGH",
+                        "ErrorState::NOT_AVAILABLE_SPEED_LOW",
+                        "ErrorState::NOT_AVAILABLE_DISABLED",
+                        "LaneKeepAssistState::ENABLED",
+                        "LaneKeepAssistState::ACTIVATED_STEER_LEFT",
+                        "LaneKeepAssistState::ACTIVATED_STEER_RIGHT",
+                        "LaneKeepAssistState::USER_OVERRIDE"
+                    ]
+                }
+            ]
         },
         {
             "property": "VehicleProperty::LANE_CENTERING_ASSIST_ENABLED",
             "defaultValue": {
                 "int32Values": [
-                    0
+                    1
                 ]
             }
+        },
+        {
+            "property": "VehicleProperty::LANE_CENTERING_ASSIST_COMMAND"
+        },
+        {
+            "property": "VehicleProperty::LANE_CENTERING_ASSIST_STATE",
+            "defaultValue": {
+                "int32Values": [
+                    "LaneCenteringAssistState::ENABLED"
+                ]
+            },
+            "areas": [
+                {
+                    "areaId": 0,
+                    "supportedEnumValues": [
+                        "ErrorState::NOT_AVAILABLE_SAFETY",
+                        "ErrorState::NOT_AVAILABLE_SPEED_HIGH",
+                        "ErrorState::NOT_AVAILABLE_SPEED_LOW",
+                        "ErrorState::NOT_AVAILABLE_DISABLED",
+                        "LaneCenteringAssistState::ENABLED",
+                        "LaneCenteringAssistState::ACTIVATION_REQUESTED",
+                        "LaneCenteringAssistState::ACTIVATED",
+                        "LaneCenteringAssistState::USER_OVERRIDE",
+                        "LaneCenteringAssistState::FORCED_DEACTIVATION_WARNING"
+                    ]
+                }
+            ]
         }
     ]
 }

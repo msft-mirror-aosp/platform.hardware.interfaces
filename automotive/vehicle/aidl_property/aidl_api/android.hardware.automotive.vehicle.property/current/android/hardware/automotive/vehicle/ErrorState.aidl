@@ -32,11 +32,12 @@
 // later when a module using the interface is updated, e.g., Mainline modules.
 
 package android.hardware.automotive.vehicle;
-@VintfStability
+@Backing(type="int") @VintfStability
 enum ErrorState {
-  OTHER_ERROR_STATE = (-1),
-  NOT_AVAILABLE_DISABLED = (-2),
-  NOT_AVAILABLE_SPEED_LOW = (-3),
-  NOT_AVAILABLE_SPEED_HIGH = (-4),
-  NOT_AVAILABLE_SAFETY = (-5),
+  OTHER_ERROR_STATE = (-1) /* -1 */,
+  NOT_AVAILABLE_DISABLED = (-2) /* -2 */,
+  NOT_AVAILABLE_SPEED_LOW = (-3) /* -3 */,
+  NOT_AVAILABLE_SPEED_HIGH = (-4) /* -4 */,
+  NOT_AVAILABLE_POOR_VISIBILITY = (-5) /* -5 */,
+  NOT_AVAILABLE_SAFETY = (-6) /* -6 */,
 }

@@ -22,7 +22,6 @@
 #include <memory>
 
 #include "effect-impl/EffectImpl.h"
-#include "effect-impl/EffectUUID.h"
 
 namespace aidl::android::hardware::audio::effect {
 
@@ -47,7 +46,6 @@ class LoudnessEnhancerSwContext final : public EffectContext {
 class LoudnessEnhancerSw final : public EffectImpl {
   public:
     static const std::string kEffectName;
-    static const LoudnessEnhancer::Capability kCapability;
     static const Descriptor kDescriptor;
     LoudnessEnhancerSw() { LOG(DEBUG) << __func__; }
     ~LoudnessEnhancerSw() {

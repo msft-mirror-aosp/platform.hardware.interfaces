@@ -35,6 +35,7 @@
 #include <grallocusage/GrallocUsageConversion.h>
 #include <hardware/gralloc1.h>
 #include <simple_device_cb.h>
+#include <ui/Fence.h>
 #include <ui/GraphicBufferAllocator.h>
 #include <regex>
 #include <typeinfo>
@@ -141,6 +142,25 @@ void CameraAidlTest::TearDown() {
     }
 }
 
+void CameraAidlTest::waitForReleaseFence(
+        std::vector<InFlightRequest::StreamBufferAndTimestamp>& resultOutputBuffers) {
+    for (auto& bufferAndTimestamp : resultOutputBuffers) {
+        // wait for the fence timestamp and store it along with the buffer
+        android::sp<android::Fence> releaseFence = nullptr;
+        const native_handle_t* releaseFenceHandle = bufferAndTimestamp.buffer.releaseFence;
+        if (releaseFenceHandle != nullptr && releaseFenceHandle->numFds == 1 &&
+            releaseFenceHandle->data[0] >= 0) {
+            releaseFence = new android::Fence(releaseFenceHandle->data[0]);
+        }
+        if (releaseFence && releaseFence->isValid()) {
+            releaseFence->wait(/*ms*/ 300);
+            nsecs_t releaseTime = releaseFence->getSignalTime();
+            if (bufferAndTimestamp.timeStamp < releaseTime)
+                bufferAndTimestamp.timeStamp = releaseTime;
+        }
+    }
+}
+
 std::vector<std::string> CameraAidlTest::getCameraDeviceNames(
         std::shared_ptr<ICameraProvider>& provider, bool addSecureOnly) {
     std::vector<std::string> cameraDeviceNames;
@@ -169,7 +189,7 @@ std::vector<std::string> CameraAidlTest::getCameraDeviceNames(
         ScopedAStatus physicalCameraDeviceStatusChange(
                 const std::string&, const std::string&,
                 ::aidl::android::hardware::camera::common::CameraDeviceStatus) override {
-            return ndk::ScopedAStatus();
+            return ScopedAStatus::ok();
         }
 
         std::vector<std::string> externalCameraDeviceNames;
@@ -336,7 +356,7 @@ void CameraAidlTest::verifySettingsOverrideCharacteristics(const camera_metadata
     int retcode = find_camera_metadata_ro_entry(metadata,
             ANDROID_CONTROL_AVAILABLE_SETTINGS_OVERRIDES, &entry);
     bool supportSettingsOverride = false;
-    if ((0 == retcode) && (entry.count > 0)) {
+    if (0 == retcode) {
         supportSettingsOverride = true;
         bool hasOff = false;
         for (size_t i = 0; i < entry.count; i++) {
@@ -817,8 +837,6 @@ Status CameraAidlTest::getAvailableOutputStreams(const camera_metadata_t* static
                                                  std::vector<AvailableStream>& outputStreams,
                                                  const AvailableStream* threshold,
                                                  bool maxResolution) {
-    AvailableStream depthPreviewThreshold = {kMaxPreviewWidth, kMaxPreviewHeight,
-                                             static_cast<int32_t>(PixelFormat::Y16)};
     if (nullptr == staticMeta) {
         return Status::ILLEGAL_ARGUMENT;
     }
@@ -844,7 +862,11 @@ Status CameraAidlTest::getAvailableOutputStreams(const camera_metadata_t* static
     }
 
     if (foundDepth == 0 && (0 == (depthEntry.count % 4))) {
-        fillOutputStreams(&depthEntry, outputStreams, &depthPreviewThreshold,
+        AvailableStream depthPreviewThreshold = {kMaxPreviewWidth, kMaxPreviewHeight,
+                                                 static_cast<int32_t>(PixelFormat::Y16)};
+        const AvailableStream* depthThreshold =
+                isDepthOnly(staticMeta) ? &depthPreviewThreshold : threshold;
+        fillOutputStreams(&depthEntry, outputStreams, depthThreshold,
                           ANDROID_DEPTH_AVAILABLE_DEPTH_STREAM_CONFIGURATIONS_OUTPUT);
     }
 
@@ -2522,6 +2544,7 @@ void CameraAidlTest::processPreviewStabilizationCaptureRequestInternal(
         request.fmqSettingsSize = 0;
         request.settings.metadata =
                 std::vector(rawMetadata, rawMetadata + get_camera_metadata_size(releasedMetadata));
+        overrideRotateAndCrop(&request.settings);
         request.outputBuffers = std::vector<StreamBuffer>(1);
         StreamBuffer& outputBuffer = request.outputBuffers[0];
         if (useHalBufManager) {
@@ -2563,6 +2586,7 @@ void CameraAidlTest::processPreviewStabilizationCaptureRequestInternal(
                                std::chrono::seconds(kStreamBufferTimeoutSec);
                 ASSERT_NE(std::cv_status::timeout, mResultCondition.wait_until(l, timeout));
             }
+            waitForReleaseFence(inflightReq->resultOutputBuffers);
 
             ASSERT_FALSE(inflightReq->errorCodeValid);
             ASSERT_NE(inflightReq->resultOutputBuffers.size(), 0u);
@@ -3082,6 +3106,10 @@ const char* CameraAidlTest::getColorSpaceProfileString(
             return "CIE_XYZ";
         case ColorSpaceNamed::CIE_LAB:
             return "CIE_LAB";
+        case ColorSpaceNamed::BT2020_HLG:
+            return "BT2020_HLG";
+        case ColorSpaceNamed::BT2020_PQ:
+            return "BT2020_PQ";
         default:
             return "INVALID";
     }
@@ -3330,7 +3358,6 @@ void CameraAidlTest::processColorSpaceRequest(
         RequestAvailableColorSpaceProfilesMap colorSpace,
         RequestAvailableDynamicRangeProfilesMap dynamicRangeProfile) {
     std::vector<std::string> cameraDeviceNames = getCameraDeviceNames(mProvider);
-    int64_t bufferId = 1;
     CameraMetadata settings;
 
     for (const auto& name : cameraDeviceNames) {
@@ -3449,12 +3476,12 @@ void CameraAidlTest::processColorSpaceRequest(
         // Stream as long as needed to fill the Hal inflight queue
         std::vector<CaptureRequest> requests(halStreams[0].maxBuffers);
 
-        for (int32_t frameNumber = 0; frameNumber < requests.size(); frameNumber++) {
+        for (int32_t requestId = 0; requestId < requests.size(); requestId++) {
             std::shared_ptr<InFlightRequest> inflightReq = std::make_shared<InFlightRequest>(
                     static_cast<ssize_t>(halStreams.size()), false, supportsPartialResults,
                     partialResultCount, std::unordered_set<std::string>(), resultQueue);
 
-            CaptureRequest& request = requests[frameNumber];
+            CaptureRequest& request = requests[requestId];
             std::vector<StreamBuffer>& outputBuffers = request.outputBuffers;
             outputBuffers.resize(halStreams.size());
 
@@ -3463,6 +3490,7 @@ void CameraAidlTest::processColorSpaceRequest(
             std::vector<buffer_handle_t> graphicBuffers;
             graphicBuffers.reserve(halStreams.size());
 
+            auto bufferId = requestId + 1;  // Buffer id value 0 is not valid
             for (const auto& halStream : halStreams) {
                 buffer_handle_t buffer_handle;
                 if (useHalBufManager) {
@@ -3478,17 +3506,16 @@ void CameraAidlTest::processColorSpaceRequest(
 
                     inflightReq->mOutstandingBufferIds[halStream.id][bufferId] = buffer_handle;
                     graphicBuffers.push_back(buffer_handle);
-                    outputBuffers[k] = {halStream.id, bufferId,
-                        android::makeToAidl(buffer_handle), BufferStatus::OK, NativeHandle(),
-                        NativeHandle()};
-                    bufferId++;
+                    outputBuffers[k] = {
+                            halStream.id,     bufferId,       android::makeToAidl(buffer_handle),
+                            BufferStatus::OK, NativeHandle(), NativeHandle()};
                 }
                 k++;
             }
 
             request.inputBuffer = {
                     -1, 0, NativeHandle(), BufferStatus::ERROR, NativeHandle(), NativeHandle()};
-            request.frameNumber = frameNumber;
+            request.frameNumber = bufferId;
             request.fmqSettingsSize = 0;
             request.settings = settings;
             request.inputWidth = 0;
@@ -3496,9 +3523,8 @@ void CameraAidlTest::processColorSpaceRequest(
 
             {
                 std::unique_lock<std::mutex> l(mLock);
-                mInflightMap[frameNumber] = inflightReq;
+                mInflightMap[bufferId] = inflightReq;
             }
-
         }
 
         int32_t numRequestProcessed = 0;
@@ -3512,7 +3538,10 @@ void CameraAidlTest::processColorSpaceRequest(
                 std::vector<int32_t> {halStreams[0].id});
         ASSERT_TRUE(returnStatus.isOk());
 
-        for (int32_t frameNumber = 0; frameNumber < requests.size(); frameNumber++) {
+        // We are keeping frame numbers and buffer ids consistent. Buffer id value of 0
+        // is used to indicate a buffer that is not present/available so buffer ids as well
+        // as frame numbers begin with 1.
+        for (int32_t frameNumber = 1; frameNumber <= requests.size(); frameNumber++) {
             const auto& inflightReq = mInflightMap[frameNumber];
             std::unique_lock<std::mutex> l(mLock);
             while (!inflightReq->errorCodeValid &&
@@ -3698,5 +3727,50 @@ void CameraAidlTest::processZoomSettingsOverrideRequests(
         ret = mSession->close();
         mSession = nullptr;
         ASSERT_TRUE(ret.isOk());
+    }
+}
+
+void CameraAidlTest::getSupportedSizes(const camera_metadata_t* ch, uint32_t tag, int32_t format,
+                                       std::vector<std::tuple<size_t, size_t>>* sizes /*out*/) {
+    if (sizes == nullptr) {
+        return;
+    }
+
+    camera_metadata_ro_entry entry;
+    int retcode = find_camera_metadata_ro_entry(ch, tag, &entry);
+    if ((0 == retcode) && (entry.count > 0)) {
+        // Scaler entry contains 4 elements (format, width, height, type)
+        for (size_t i = 0; i < entry.count; i += 4) {
+            if ((entry.data.i32[i] == format) &&
+                (entry.data.i32[i + 3] == ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT)) {
+                sizes->push_back(std::make_tuple(entry.data.i32[i + 1], entry.data.i32[i + 2]));
+            }
+        }
+    }
+}
+
+void CameraAidlTest::getSupportedDurations(const camera_metadata_t* ch, uint32_t tag,
+                                           int32_t format,
+                                           const std::vector<std::tuple<size_t, size_t>>& sizes,
+                                           std::vector<int64_t>* durations /*out*/) {
+    if (durations == nullptr) {
+        return;
+    }
+
+    camera_metadata_ro_entry entry;
+    int retcode = find_camera_metadata_ro_entry(ch, tag, &entry);
+    if ((0 == retcode) && (entry.count > 0)) {
+        // Duration entry contains 4 elements (format, width, height, duration)
+        for (const auto& size : sizes) {
+            int64_t width = std::get<0>(size);
+            int64_t height = std::get<1>(size);
+            for (size_t i = 0; i < entry.count; i += 4) {
+                if ((entry.data.i64[i] == format) && (entry.data.i64[i + 1] == width) &&
+                    (entry.data.i64[i + 2] == height)) {
+                    durations->push_back(entry.data.i64[i + 3]);
+                    break;
+                }
+            }
+        }
     }
 }

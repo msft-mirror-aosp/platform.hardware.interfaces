@@ -17,12 +17,12 @@
 #pragma once
 
 #include <aidl/android/hardware/audio/effect/BnEffect.h>
+#include <aidl/android/hardware/audio/effect/Range.h>
 #include <fmq/AidlMessageQueue.h>
 #include <cstdlib>
 #include <memory>
 
 #include "effect-impl/EffectImpl.h"
-#include "effect-impl/EffectUUID.h"
 
 namespace aidl::android::hardware::audio::effect {
 
@@ -43,8 +43,7 @@ class AcousticEchoCancelerSwContext final : public EffectContext {
 class AcousticEchoCancelerSw final : public EffectImpl {
   public:
     static const std::string kEffectName;
-    static const bool kStrengthSupported;
-    static const AcousticEchoCanceler::Capability kCapability;
+    static const Capability kCapability;
     static const Descriptor kDescriptor;
     AcousticEchoCancelerSw() { LOG(DEBUG) << __func__; }
     ~AcousticEchoCancelerSw() {
@@ -65,6 +64,7 @@ class AcousticEchoCancelerSw final : public EffectImpl {
     IEffect::Status effectProcessImpl(float* in, float* out, int samples) override;
 
   private:
+    static const std::vector<Range::AcousticEchoCancelerRange> kRanges;
     std::shared_ptr<AcousticEchoCancelerSwContext> mContext;
     ndk::ScopedAStatus getParameterAcousticEchoCanceler(const AcousticEchoCanceler::Tag& tag,
                                                         Parameter::Specific* specific);

@@ -16,13 +16,14 @@
 
 #pragma once
 
-#include <aidl/android/hardware/audio/effect/BnEffect.h>
-#include <fmq/AidlMessageQueue.h>
 #include <cstdlib>
+#include <map>
 #include <memory>
 
+#include <aidl/android/hardware/audio/effect/BnEffect.h>
+#include <fmq/AidlMessageQueue.h>
+
 #include "effect-impl/EffectImpl.h"
-#include "effect-impl/EffectUUID.h"
 
 namespace aidl::android::hardware::audio::effect {
 
@@ -58,7 +59,6 @@ class HapticGeneratorSwContext final : public EffectContext {
 class HapticGeneratorSw final : public EffectImpl {
   public:
     static const std::string kEffectName;
-    static const HapticGenerator::Capability kCapability;
     static const Descriptor kDescriptor;
     HapticGeneratorSw() { LOG(DEBUG) << __func__; }
     ~HapticGeneratorSw() {

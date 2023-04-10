@@ -145,7 +145,9 @@ class CameraAidlTest : public ::testing::TestWithParam<std::string> {
         ACES,
         ACESCG,
         CIE_XYZ,
-        CIE_LAB
+        CIE_LAB,
+        BT2020_HLG,
+        BT2020_PQ
     };
 
     struct AvailableZSLInputOutput {
@@ -418,6 +420,13 @@ class CameraAidlTest : public ::testing::TestWithParam<std::string> {
     bool supportsCroppedRawUseCase(const camera_metadata_t *staticMeta);
     bool isPerFrameControl(const camera_metadata_t* staticMeta);
 
+    void getSupportedSizes(const camera_metadata_t* ch, uint32_t tag, int32_t format,
+                           std::vector<std::tuple<size_t, size_t>>* sizes /*out*/);
+
+    void getSupportedDurations(const camera_metadata_t* ch, uint32_t tag, int32_t format,
+                               const std::vector<std::tuple<size_t, size_t>>& sizes,
+                               std::vector<int64_t>* durations /*out*/);
+
   protected:
     // In-flight queue for tracking completion of capture requests.
     struct InFlightRequest {
@@ -552,6 +561,9 @@ class CameraAidlTest : public ::testing::TestWithParam<std::string> {
             HandleImporter& importer, const InFlightRequest& request,
             aidl::android::hardware::camera::metadata::RequestAvailableDynamicRangeProfilesMap
                     profile);
+
+    static void waitForReleaseFence(
+            std::vector<InFlightRequest::StreamBufferAndTimestamp>& resultOutputBuffers);
 
     // Map from frame number to the in-flight request state
     typedef std::unordered_map<uint32_t, std::shared_ptr<InFlightRequest>> InFlightMap;
