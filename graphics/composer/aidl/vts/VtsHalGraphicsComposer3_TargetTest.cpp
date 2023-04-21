@@ -118,6 +118,12 @@ class GraphicsComposerAidlTest : public ::testing::TestWithParam<std::string> {
                 [&](const Capability& activeCapability) { return activeCapability == capability; });
     }
 
+    int getInterfaceVersion() {
+        const auto& [versionStatus, version] = mComposerClient->getInterfaceVersion();
+        EXPECT_TRUE(versionStatus.isOk());
+        return version;
+    }
+
     const VtsDisplay& getPrimaryDisplay() const { return mDisplays[0]; }
 
     int64_t getPrimaryDisplayId() const { return getPrimaryDisplay().getDisplayId(); }
@@ -650,10 +656,10 @@ TEST_P(GraphicsComposerAidlTest, SetHdrConversionStrategy_Force) {
     }
     const auto& [status, conversionCapabilities] = mComposerClient->getHdrConversionCapabilities();
     for (auto conversionCapability : conversionCapabilities) {
-        if (conversionCapability.outputType) {
+        if (conversionCapability.outputType != common::Hdr::INVALID) {
             common::HdrConversionStrategy hdrConversionStrategy;
             hdrConversionStrategy.set<common::HdrConversionStrategy::Tag::forceHdrConversion>(
-                    conversionCapability.outputType->hdr);
+                    conversionCapability.outputType);
             const auto& [statusSet, preferredHdrOutputType] =
                     mComposerClient->setHdrConversionStrategy(hdrConversionStrategy);
             EXPECT_TRUE(statusSet.isOk());
@@ -670,8 +676,8 @@ TEST_P(GraphicsComposerAidlTest, SetHdrConversionStrategy_Auto) {
     const auto& [status, conversionCapabilities] = mComposerClient->getHdrConversionCapabilities();
     std::vector<aidl::android::hardware::graphics::common::Hdr> autoHdrTypes;
     for (auto conversionCapability : conversionCapabilities) {
-        if (conversionCapability.outputType) {
-            autoHdrTypes.push_back(conversionCapability.outputType->hdr);
+        if (conversionCapability.outputType != common::Hdr::INVALID) {
+            autoHdrTypes.push_back(conversionCapability.outputType);
         }
     }
     common::HdrConversionStrategy hdrConversionStrategy;
@@ -874,9 +880,7 @@ TEST_P(GraphicsComposerAidlTest, GetDisplayName) {
 }
 
 TEST_P(GraphicsComposerAidlTest, GetOverlaySupport) {
-    const auto& [versionStatus, version] = mComposerClient->getInterfaceVersion();
-    ASSERT_TRUE(versionStatus.isOk());
-    if (version == 1) {
+    if (getInterfaceVersion() <= 1) {
         GTEST_SUCCEED() << "Device does not support the new API for overlay support";
         return;
     }
@@ -1217,15 +1221,27 @@ class GraphicsComposerAidlCommandTest : public GraphicsComposerAidlTest {
         }
     }
 
-    sp<GraphicBuffer> allocate(::android::PixelFormat pixelFormat) {
+    bool checkIfCallbackRefreshRateChangedDebugEnabledReceived(
+            std::function<bool(RefreshRateChangedDebugData)> filter) {
+        const auto list = mComposerClient->takeListOfRefreshRateChangedDebugData();
+        return std::any_of(list.begin(), list.end(), [&](auto refreshRateChangedDebugData) {
+            return filter(refreshRateChangedDebugData);
+        });
+    }
+
+    sp<GraphicBuffer> allocate(uint32_t width, uint32_t height,
+                               ::android::PixelFormat pixelFormat) {
         return sp<GraphicBuffer>::make(
-                static_cast<uint32_t>(getPrimaryDisplay().getDisplayWidth()),
-                static_cast<uint32_t>(getPrimaryDisplay().getDisplayHeight()), pixelFormat,
-                /*layerCount*/ 1U,
-                (static_cast<uint64_t>(common::BufferUsage::CPU_WRITE_OFTEN) |
-                 static_cast<uint64_t>(common::BufferUsage::CPU_READ_OFTEN) |
-                 static_cast<uint64_t>(common::BufferUsage::COMPOSER_OVERLAY)),
+                width, height, pixelFormat, /*layerCount*/ 1U,
+                static_cast<uint64_t>(common::BufferUsage::CPU_WRITE_OFTEN) |
+                        static_cast<uint64_t>(common::BufferUsage::CPU_READ_OFTEN) |
+                        static_cast<uint64_t>(common::BufferUsage::COMPOSER_OVERLAY),
                 "VtsHalGraphicsComposer3_TargetTest");
+    }
+
+    sp<GraphicBuffer> allocate(::android::PixelFormat pixelFormat) {
+        return allocate(static_cast<uint32_t>(getPrimaryDisplay().getDisplayWidth()),
+                        static_cast<uint32_t>(getPrimaryDisplay().getDisplayHeight()), pixelFormat);
     }
 
     void sendRefreshFrame(const VtsDisplay& display, const VsyncPeriodChangeTimeline* timeline) {
@@ -1316,7 +1332,7 @@ class GraphicsComposerAidlCommandTest : public GraphicsComposerAidlTest {
         return vsyncPeriod;
     }
 
-    int64_t createOnScreenLayer() {
+    int64_t createOnScreenLayer(Composition composition = Composition::DEVICE) {
         const auto& [status, layer] =
                 mComposerClient->createLayer(getPrimaryDisplayId(), kBufferSlotCount);
         EXPECT_TRUE(status.isOk());
@@ -1324,10 +1340,23 @@ class GraphicsComposerAidlCommandTest : public GraphicsComposerAidlTest {
                           getPrimaryDisplay().getDisplayHeight()};
         FRect cropRect{0, 0, (float)getPrimaryDisplay().getDisplayWidth(),
                        (float)getPrimaryDisplay().getDisplayHeight()};
-        configureLayer(getPrimaryDisplay(), layer, Composition::DEVICE, displayFrame, cropRect);
+        configureLayer(getPrimaryDisplay(), layer, composition, displayFrame, cropRect);
         auto& writer = getWriter(getPrimaryDisplayId());
         writer.setLayerDataspace(getPrimaryDisplayId(), layer, common::Dataspace::UNKNOWN);
         return layer;
+    }
+
+    void sendBufferUpdate(int64_t layer) {
+        const auto buffer = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+        ASSERT_NE(nullptr, buffer->handle);
+
+        auto& writer = getWriter(getPrimaryDisplayId());
+        writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 0, buffer->handle,
+                              /*acquireFence*/ -1);
+
+        const sp<::android::Fence> presentFence =
+                presentAndGetFence(ComposerClientWriter::kNoTimestamp);
+        presentFence->waitForever(LOG_TAG);
     }
 
     bool hasDisplayCapability(int64_t display, DisplayCapability cap) {
@@ -1726,6 +1755,104 @@ TEST_P(GraphicsComposerAidlCommandTest, SetLayerBuffer) {
     auto& writer = getWriter(getPrimaryDisplayId());
     writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 0, handle, /*acquireFence*/ -1);
     execute();
+}
+
+TEST_P(GraphicsComposerAidlCommandTest, SetLayerBufferSlotsToClear) {
+    // Older HAL versions use a backwards compatible way of clearing buffer slots
+    const auto& [versionStatus, version] = mComposerClient->getInterfaceVersion();
+    ASSERT_TRUE(versionStatus.isOk());
+    if (version <= 1) {
+        GTEST_SUCCEED() << "HAL at version 1 or lower does not have "
+                           "LayerCommand::bufferSlotsToClear.";
+        return;
+    }
+
+    const auto& [layerStatus, layer] =
+            mComposerClient->createLayer(getPrimaryDisplayId(), kBufferSlotCount);
+    EXPECT_TRUE(layerStatus.isOk());
+    auto& writer = getWriter(getPrimaryDisplayId());
+
+    // setup 3 buffers in the buffer cache, with the last buffer being active
+    // then emulate the Android platform code that clears all 3 buffer slots
+
+    const auto buffer1 = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+    ASSERT_NE(nullptr, buffer1);
+    const auto handle1 = buffer1->handle;
+    writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 0, handle1, /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+
+    const auto buffer2 = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+    ASSERT_NE(nullptr, buffer2);
+    const auto handle2 = buffer2->handle;
+    writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 1, handle2, /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+
+    const auto buffer3 = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+    ASSERT_NE(nullptr, buffer3);
+    const auto handle3 = buffer3->handle;
+    writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 2, handle3, /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+
+    // Ensure we can clear all 3 buffer slots, even the active buffer - it is assumed the
+    // current active buffer's slot will be cleared, but still remain the active buffer and no
+    // errors will occur.
+    writer.setLayerBufferSlotsToClear(getPrimaryDisplayId(), layer, {0, 1, 2});
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+}
+
+TEST_P(GraphicsComposerAidlCommandTest, SetLayerBufferMultipleTimes) {
+    const auto& [layerStatus, layer] =
+            mComposerClient->createLayer(getPrimaryDisplayId(), kBufferSlotCount);
+    EXPECT_TRUE(layerStatus.isOk());
+    auto& writer = getWriter(getPrimaryDisplayId());
+
+    // Setup 3 buffers in the buffer cache, with the last buffer being active. Then, emulate the
+    // Android platform code that clears all 3 buffer slots by setting all but the active buffer
+    // slot to a placeholder buffer, and then restoring the active buffer.
+
+    // This is used on HALs that don't support setLayerBufferSlotsToClear (version <= 3.1).
+
+    const auto buffer1 = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+    ASSERT_NE(nullptr, buffer1);
+    const auto handle1 = buffer1->handle;
+    writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 0, handle1, /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+
+    const auto buffer2 = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+    ASSERT_NE(nullptr, buffer2);
+    const auto handle2 = buffer2->handle;
+    writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 1, handle2, /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+
+    const auto buffer3 = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+    ASSERT_NE(nullptr, buffer3);
+    const auto handle3 = buffer3->handle;
+    writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 2, handle3, /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+
+    // Older versions of the HAL clear all but the active buffer slot with a placeholder buffer,
+    // and then restoring the current active buffer at the end
+    auto clearSlotBuffer = allocate(1u, 1u, ::android::PIXEL_FORMAT_RGB_888);
+    ASSERT_NE(nullptr, clearSlotBuffer);
+    auto clearSlotBufferHandle = clearSlotBuffer->handle;
+
+    // clear buffer slots 0 and 1 with new layer commands... and then...
+    writer.setLayerBufferWithNewCommand(getPrimaryDisplayId(), layer, /* slot */ 0,
+                                        clearSlotBufferHandle, /*acquireFence*/ -1);
+    writer.setLayerBufferWithNewCommand(getPrimaryDisplayId(), layer, /* slot */ 1,
+                                        clearSlotBufferHandle, /*acquireFence*/ -1);
+    // ...reset the layer buffer to the current active buffer slot with a final new command
+    writer.setLayerBufferWithNewCommand(getPrimaryDisplayId(), layer, /*slot*/ 2, nullptr,
+                                        /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
 }
 
 TEST_P(GraphicsComposerAidlCommandTest, SetLayerSurfaceDamage) {
@@ -2268,6 +2395,196 @@ TEST_P(GraphicsComposerAidlCommandTest, SetIdleTimerEnabled_Timeout_2) {
     EXPECT_TRUE(mComposerClient->setPowerMode(getPrimaryDisplayId(), PowerMode::OFF).isOk());
 }
 
+TEST_P(GraphicsComposerAidlCommandTest, SetRefreshRateChangedCallbackDebug_Unsupported) {
+    if (getInterfaceVersion() <= 1) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is "
+                           "not supported on older version of the service";
+        return;
+    }
+    if (!hasCapability(Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG)) {
+        auto status = mComposerClient->setRefreshRateChangedCallbackDebugEnabled(
+                getPrimaryDisplayId(), /*enabled*/ true);
+        EXPECT_FALSE(status.isOk());
+        EXPECT_NO_FATAL_FAILURE(
+                assertServiceSpecificError(status, IComposerClient::EX_UNSUPPORTED));
+
+        status = mComposerClient->setRefreshRateChangedCallbackDebugEnabled(getPrimaryDisplayId(),
+                                                                            /*enabled*/ false);
+        EXPECT_FALSE(status.isOk());
+        EXPECT_NO_FATAL_FAILURE(
+                assertServiceSpecificError(status, IComposerClient::EX_UNSUPPORTED));
+    }
+}
+
+TEST_P(GraphicsComposerAidlCommandTest, SetRefreshRateChangedCallbackDebug_Enabled) {
+    if (getInterfaceVersion() <= 1) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is "
+                           "not supported on older version of the service";
+        return;
+    }
+    if (!hasCapability(Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG)) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is not supported";
+        return;
+    }
+
+    const auto displayId = getPrimaryDisplayId();
+    EXPECT_TRUE(mComposerClient->setPowerMode(displayId, PowerMode::ON).isOk());
+    // Enable the callback
+    ASSERT_TRUE(mComposerClient
+                        ->setRefreshRateChangedCallbackDebugEnabled(displayId,
+                                                                    /*enabled*/ true)
+                        .isOk());
+    std::this_thread::sleep_for(100ms);
+
+    const auto displayFilter = [displayId](auto refreshRateChangedDebugData) {
+        return displayId == refreshRateChangedDebugData.display;
+    };
+
+    // Check that we immediately got a callback
+    EXPECT_TRUE(checkIfCallbackRefreshRateChangedDebugEnabledReceived(displayFilter));
+
+    ASSERT_TRUE(mComposerClient
+                        ->setRefreshRateChangedCallbackDebugEnabled(displayId,
+                                                                    /*enabled*/ false)
+                        .isOk());
+}
+
+TEST_P(GraphicsComposerAidlCommandTest,
+       SetRefreshRateChangedCallbackDebugEnabled_noCallbackWhenIdle) {
+    if (getInterfaceVersion() <= 1) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is "
+                           "not supported on older version of the service";
+        return;
+    }
+    if (!hasCapability(Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG)) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is not supported";
+        return;
+    }
+
+    auto display = getEditablePrimaryDisplay();
+    const auto displayId = display.getDisplayId();
+
+    if (!hasDisplayCapability(displayId, DisplayCapability::DISPLAY_IDLE_TIMER)) {
+        GTEST_SUCCEED() << "DisplayCapability::DISPLAY_IDLE_TIMER is not supported";
+        return;
+    }
+
+    EXPECT_TRUE(mComposerClient->setPowerMode(displayId, PowerMode::ON).isOk());
+    EXPECT_TRUE(mComposerClient->setPeakRefreshRateConfig(&display).isOk());
+
+    ASSERT_TRUE(mComposerClient->setIdleTimerEnabled(displayId, /*timeoutMs*/ 500).isOk());
+    // Enable the callback
+    ASSERT_TRUE(mComposerClient
+                        ->setRefreshRateChangedCallbackDebugEnabled(displayId,
+                                                                    /*enabled*/ true)
+                        .isOk());
+
+    const auto displayFilter = [displayId](auto refreshRateChangedDebugData) {
+        return displayId == refreshRateChangedDebugData.display;
+    };
+
+    int retryCount = 3;
+    do {
+        // Wait for 1s so that we enter the idle state
+        std::this_thread::sleep_for(1s);
+        if (!checkIfCallbackRefreshRateChangedDebugEnabledReceived(displayFilter)) {
+            // DID NOT receive a callback, we are in the idle state.
+            break;
+        }
+    } while (--retryCount > 0);
+
+    if (retryCount == 0) {
+        GTEST_SUCCEED() << "Unable to enter the idle mode";
+        return;
+    }
+
+    // Send the REFRESH_RATE_INDICATOR update
+    ASSERT_NO_FATAL_FAILURE(
+            sendBufferUpdate(createOnScreenLayer(Composition::REFRESH_RATE_INDICATOR)));
+    std::this_thread::sleep_for(1s);
+    EXPECT_FALSE(checkIfCallbackRefreshRateChangedDebugEnabledReceived(displayFilter))
+            << "A callback should not be received for REFRESH_RATE_INDICATOR";
+
+    EXPECT_TRUE(mComposerClient
+                        ->setRefreshRateChangedCallbackDebugEnabled(displayId,
+                                                                    /*enabled*/ false)
+                        .isOk());
+}
+
+TEST_P(GraphicsComposerAidlCommandTest,
+       SetRefreshRateChangedCallbackDebugEnabled_SetActiveConfigWithConstraints) {
+    if (getInterfaceVersion() <= 1) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is "
+                           "not supported on older version of the service";
+        return;
+    }
+    if (!hasCapability(Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG)) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is not supported";
+        return;
+    }
+
+    VsyncPeriodChangeConstraints constraints;
+    constraints.seamlessRequired = false;
+    constraints.desiredTimeNanos = systemTime();
+
+    for (VtsDisplay& display : mDisplays) {
+        const auto displayId = display.getDisplayId();
+        EXPECT_TRUE(mComposerClient->setPowerMode(displayId, PowerMode::ON).isOk());
+
+        // Enable the callback
+        ASSERT_TRUE(mComposerClient
+                            ->setRefreshRateChangedCallbackDebugEnabled(displayId, /*enabled*/ true)
+                            .isOk());
+
+        forEachTwoConfigs(displayId, [&](int32_t config1, int32_t config2) {
+            const int32_t vsyncPeriod1 = display.getDisplayConfig(config1).vsyncPeriod;
+            const int32_t vsyncPeriod2 = display.getDisplayConfig(config2).vsyncPeriod;
+
+            if (vsyncPeriod1 == vsyncPeriod2) {
+                return;  // continue
+            }
+
+            EXPECT_TRUE(mComposerClient->setActiveConfig(&display, config1).isOk());
+            sendRefreshFrame(display, nullptr);
+
+            const auto& [status, timeline] =
+                    mComposerClient->setActiveConfigWithConstraints(&display, config2, constraints);
+            EXPECT_TRUE(status.isOk());
+
+            if (timeline.refreshRequired) {
+                sendRefreshFrame(display, &timeline);
+            }
+
+            const auto callbackFilter = [displayId,
+                                         vsyncPeriod2](auto refreshRateChangedDebugData) {
+                constexpr int kVsyncThreshold = 1000;
+                return displayId == refreshRateChangedDebugData.display &&
+                       std::abs(vsyncPeriod2 - refreshRateChangedDebugData.vsyncPeriodNanos) <=
+                               kVsyncThreshold;
+            };
+
+            int retryCount = 3;
+            do {
+                std::this_thread::sleep_for(100ms);
+                if (checkIfCallbackRefreshRateChangedDebugEnabledReceived(callbackFilter)) {
+                    GTEST_SUCCEED() << "Received a callback successfully";
+                    break;
+                }
+            } while (--retryCount > 0);
+
+            if (retryCount == 0) {
+                GTEST_FAIL() << "failed to get a callback for the display " << displayId
+                             << " with config " << config2;
+            }
+        });
+
+        EXPECT_TRUE(
+                mComposerClient
+                        ->setRefreshRateChangedCallbackDebugEnabled(displayId, /*enabled*/ false)
+                        .isOk());
+    }
+}
+
 /*
  * Test that no two display configs are exactly the same.
  */
@@ -2303,29 +2620,13 @@ TEST_P(GraphicsComposerAidlTest, GetDisplayConfigNoRepetitions) {
     }
 }
 
-TEST_P(GraphicsComposerAidlCommandTest, MultiThreadedPresent) {
-    std::vector<VtsDisplay*> displays;
-    for (auto& display : mDisplays) {
-        if (hasDisplayCapability(display.getDisplayId(),
-                                 DisplayCapability::MULTI_THREADED_PRESENT)) {
-            displays.push_back(&display);
-        }
-    }
-    if (displays.size() <= 1u) {
-        return;
-    }
-    // TODO(b/251842321): Try to present on multiple threads.
-}
-
 /**
  * Test Capability::SKIP_VALIDATE
  *
  * Capability::SKIP_VALIDATE has been deprecated and should not be enabled.
  */
 TEST_P(GraphicsComposerAidlCommandTest, SkipValidateDeprecatedTest) {
-    const auto& [versionStatus, version] = mComposerClient->getInterfaceVersion();
-    ASSERT_TRUE(versionStatus.isOk());
-    if (version <= 1) {
+    if (getInterfaceVersion() <= 1) {
         GTEST_SUCCEED() << "HAL at version 1 or lower can contain Capability::SKIP_VALIDATE.";
         return;
     }

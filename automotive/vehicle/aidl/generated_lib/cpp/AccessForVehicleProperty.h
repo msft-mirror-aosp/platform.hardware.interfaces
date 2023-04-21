@@ -191,6 +191,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyAccess> AccessForVehiclePrope
         {VehicleProperty::GLOVE_BOX_DOOR_POS, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::GLOVE_BOX_LOCKED, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::VEHICLE_MAP_SERVICE, VehiclePropertyAccess::READ_WRITE},
+        {VehicleProperty::LOCATION_CHARACTERIZATION, VehiclePropertyAccess::READ},
         {VehicleProperty::OBD2_LIVE_FRAME, VehiclePropertyAccess::READ},
         {VehicleProperty::OBD2_FREEZE_FRAME, VehiclePropertyAccess::READ},
         {VehicleProperty::OBD2_FREEZE_FRAME_INFO, VehiclePropertyAccess::READ},
@@ -266,12 +267,11 @@ std::unordered_map<VehicleProperty, VehiclePropertyAccess> AccessForVehiclePrope
         {VehicleProperty::CRUISE_CONTROL_STATE, VehiclePropertyAccess::READ},
         {VehicleProperty::CRUISE_CONTROL_COMMAND, VehiclePropertyAccess::WRITE},
         {VehicleProperty::CRUISE_CONTROL_TARGET_SPEED, VehiclePropertyAccess::READ},
+        {VehicleProperty::ADAPTIVE_CRUISE_CONTROL_TARGET_TIME_GAP, VehiclePropertyAccess::READ_WRITE},
+        {VehicleProperty::ADAPTIVE_CRUISE_CONTROL_LEAD_VEHICLE_MEASURED_DISTANCE, VehiclePropertyAccess::READ},
         {VehicleProperty::HANDS_ON_DETECTION_ENABLED, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::HANDS_ON_DETECTION_DRIVER_STATE, VehiclePropertyAccess::READ},
         {VehicleProperty::HANDS_ON_DETECTION_WARNING, VehiclePropertyAccess::READ},
-        {VehicleProperty::DRIVER_ATTENTION_MONITORING_ENABLED, VehiclePropertyAccess::READ_WRITE},
-        {VehicleProperty::DRIVER_ATTENTION_MONITORING_STATE, VehiclePropertyAccess::READ},
-        {VehicleProperty::DRIVER_ATTENTION_MONITORING_WARNING, VehiclePropertyAccess::READ},
 };
 
 }  // namespace vehicle

@@ -41,68 +41,67 @@ inline std::vector<int32_t> uintToIntVec(const std::vector<uint32_t>& in) {
     return std::vector<int32_t>(in.begin(), in.end());
 }
 
-IWifiChip::ChipCapabilityMask convertLegacyFeatureToAidlChipCapability(uint64_t feature) {
+IWifiChip::FeatureSetMask convertLegacyChipFeatureToAidl(uint64_t feature) {
     switch (feature) {
         case WIFI_FEATURE_SET_TX_POWER_LIMIT:
-            return IWifiChip::ChipCapabilityMask::SET_TX_POWER_LIMIT;
+            return IWifiChip::FeatureSetMask::SET_TX_POWER_LIMIT;
         case WIFI_FEATURE_USE_BODY_HEAD_SAR:
-            return IWifiChip::ChipCapabilityMask::USE_BODY_HEAD_SAR;
+            return IWifiChip::FeatureSetMask::USE_BODY_HEAD_SAR;
         case WIFI_FEATURE_D2D_RTT:
-            return IWifiChip::ChipCapabilityMask::D2D_RTT;
+            return IWifiChip::FeatureSetMask::D2D_RTT;
         case WIFI_FEATURE_D2AP_RTT:
-            return IWifiChip::ChipCapabilityMask::D2AP_RTT;
+            return IWifiChip::FeatureSetMask::D2AP_RTT;
         case WIFI_FEATURE_INFRA_60G:
-            return IWifiChip::ChipCapabilityMask::WIGIG;
+            return IWifiChip::FeatureSetMask::WIGIG;
         case WIFI_FEATURE_SET_LATENCY_MODE:
-            return IWifiChip::ChipCapabilityMask::SET_LATENCY_MODE;
+            return IWifiChip::FeatureSetMask::SET_LATENCY_MODE;
         case WIFI_FEATURE_P2P_RAND_MAC:
-            return IWifiChip::ChipCapabilityMask::P2P_RAND_MAC;
+            return IWifiChip::FeatureSetMask::P2P_RAND_MAC;
         case WIFI_FEATURE_AFC_CHANNEL:
-            return IWifiChip::ChipCapabilityMask::SET_AFC_CHANNEL_ALLOWANCE;
+            return IWifiChip::FeatureSetMask::SET_AFC_CHANNEL_ALLOWANCE;
     };
     CHECK(false) << "Unknown legacy feature: " << feature;
     return {};
 }
 
-IWifiStaIface::StaIfaceCapabilityMask convertLegacyFeatureToAidlStaIfaceCapability(
-        uint64_t feature) {
+IWifiStaIface::FeatureSetMask convertLegacyStaIfaceFeatureToAidl(uint64_t feature) {
     switch (feature) {
         case WIFI_FEATURE_GSCAN:
-            return IWifiStaIface::StaIfaceCapabilityMask::BACKGROUND_SCAN;
+            return IWifiStaIface::FeatureSetMask::BACKGROUND_SCAN;
         case WIFI_FEATURE_LINK_LAYER_STATS:
-            return IWifiStaIface::StaIfaceCapabilityMask::LINK_LAYER_STATS;
+            return IWifiStaIface::FeatureSetMask::LINK_LAYER_STATS;
         case WIFI_FEATURE_RSSI_MONITOR:
-            return IWifiStaIface::StaIfaceCapabilityMask::RSSI_MONITOR;
+            return IWifiStaIface::FeatureSetMask::RSSI_MONITOR;
         case WIFI_FEATURE_CONTROL_ROAMING:
-            return IWifiStaIface::StaIfaceCapabilityMask::CONTROL_ROAMING;
+            return IWifiStaIface::FeatureSetMask::CONTROL_ROAMING;
         case WIFI_FEATURE_IE_WHITELIST:
-            return IWifiStaIface::StaIfaceCapabilityMask::PROBE_IE_ALLOWLIST;
+            return IWifiStaIface::FeatureSetMask::PROBE_IE_ALLOWLIST;
         case WIFI_FEATURE_SCAN_RAND:
-            return IWifiStaIface::StaIfaceCapabilityMask::SCAN_RAND;
+            return IWifiStaIface::FeatureSetMask::SCAN_RAND;
         case WIFI_FEATURE_INFRA_5G:
-            return IWifiStaIface::StaIfaceCapabilityMask::STA_5G;
+            return IWifiStaIface::FeatureSetMask::STA_5G;
         case WIFI_FEATURE_HOTSPOT:
-            return IWifiStaIface::StaIfaceCapabilityMask::HOTSPOT;
+            return IWifiStaIface::FeatureSetMask::HOTSPOT;
         case WIFI_FEATURE_PNO:
-            return IWifiStaIface::StaIfaceCapabilityMask::PNO;
+            return IWifiStaIface::FeatureSetMask::PNO;
         case WIFI_FEATURE_TDLS:
-            return IWifiStaIface::StaIfaceCapabilityMask::TDLS;
+            return IWifiStaIface::FeatureSetMask::TDLS;
         case WIFI_FEATURE_TDLS_OFFCHANNEL:
-            return IWifiStaIface::StaIfaceCapabilityMask::TDLS_OFFCHANNEL;
+            return IWifiStaIface::FeatureSetMask::TDLS_OFFCHANNEL;
         case WIFI_FEATURE_CONFIG_NDO:
-            return IWifiStaIface::StaIfaceCapabilityMask::ND_OFFLOAD;
+            return IWifiStaIface::FeatureSetMask::ND_OFFLOAD;
         case WIFI_FEATURE_MKEEP_ALIVE:
-            return IWifiStaIface::StaIfaceCapabilityMask::KEEP_ALIVE;
+            return IWifiStaIface::FeatureSetMask::KEEP_ALIVE;
     };
     CHECK(false) << "Unknown legacy feature: " << feature;
     return {};
 }
 
-bool convertLegacyFeaturesToAidlChipCapabilities(uint64_t legacy_feature_set, uint32_t* aidl_caps) {
-    if (!aidl_caps) {
+bool convertLegacyChipFeaturesToAidl(uint64_t legacy_feature_set, uint32_t* aidl_feature_set) {
+    if (!aidl_feature_set) {
         return false;
     }
-    *aidl_caps = {};
+    *aidl_feature_set = 0;
     std::vector<uint64_t> features = {WIFI_FEATURE_SET_TX_POWER_LIMIT,
                                       WIFI_FEATURE_USE_BODY_HEAD_SAR,
                                       WIFI_FEATURE_D2D_RTT,
@@ -113,7 +112,7 @@ bool convertLegacyFeaturesToAidlChipCapabilities(uint64_t legacy_feature_set, ui
                                       WIFI_FEATURE_AFC_CHANNEL};
     for (const auto feature : features) {
         if (feature & legacy_feature_set) {
-            *aidl_caps |= static_cast<uint32_t>(convertLegacyFeatureToAidlChipCapability(feature));
+            *aidl_feature_set |= static_cast<uint32_t>(convertLegacyChipFeatureToAidl(feature));
         }
     }
 
@@ -408,8 +407,8 @@ bool convertLegacyWifiUsableChannelToAidl(
     aidl_usable_channel->channel = legacy_usable_channel.freq;
     aidl_usable_channel->channelBandwidth =
             convertLegacyWifiChannelWidthToAidl(legacy_usable_channel.width);
-    aidl_usable_channel->ifaceModeMask = static_cast<WifiIfaceMode>(
-            convertLegacyWifiInterfaceModeToAidl(legacy_usable_channel.iface_mode_mask));
+    aidl_usable_channel->ifaceModeMask =
+            convertLegacyWifiInterfaceModeToAidl(legacy_usable_channel.iface_mode_mask);
 
     return true;
 }
@@ -449,24 +448,23 @@ bool convertLegacyWifiMacInfosToAidl(
     return true;
 }
 
-bool convertLegacyFeaturesToAidlStaCapabilities(uint64_t legacy_feature_set, uint32_t* aidl_caps) {
-    if (!aidl_caps) {
+bool convertLegacyStaIfaceFeaturesToAidl(uint64_t legacy_feature_set, uint32_t* aidl_feature_set) {
+    if (!aidl_feature_set) {
         return false;
     }
-    *aidl_caps = {};
+    *aidl_feature_set = 0;
     for (const auto feature :
          {WIFI_FEATURE_GSCAN, WIFI_FEATURE_LINK_LAYER_STATS, WIFI_FEATURE_RSSI_MONITOR,
           WIFI_FEATURE_CONTROL_ROAMING, WIFI_FEATURE_IE_WHITELIST, WIFI_FEATURE_SCAN_RAND,
           WIFI_FEATURE_INFRA_5G, WIFI_FEATURE_HOTSPOT, WIFI_FEATURE_PNO, WIFI_FEATURE_TDLS,
           WIFI_FEATURE_TDLS_OFFCHANNEL, WIFI_FEATURE_CONFIG_NDO, WIFI_FEATURE_MKEEP_ALIVE}) {
         if (feature & legacy_feature_set) {
-            *aidl_caps |=
-                    static_cast<uint32_t>(convertLegacyFeatureToAidlStaIfaceCapability(feature));
+            *aidl_feature_set |= static_cast<uint32_t>(convertLegacyStaIfaceFeatureToAidl(feature));
         }
     }
     // There is no flag for this one in the legacy feature set. Adding it to the
     // set because all the current devices support it.
-    *aidl_caps |= static_cast<uint32_t>(IWifiStaIface::StaIfaceCapabilityMask::APF);
+    *aidl_feature_set |= static_cast<uint32_t>(IWifiStaIface::FeatureSetMask::APF);
     return true;
 }
 
@@ -572,7 +570,7 @@ bool convertAidlGscanParamsToLegacy(const StaBackgroundScanParameters& aidl_scan
         legacy_bucket_spec.report_events = 0;
         using AidlFlag = StaBackgroundScanBucketEventReportSchemeMask;
         for (const auto flag : {AidlFlag::EACH_SCAN, AidlFlag::FULL_RESULTS, AidlFlag::NO_BATCH}) {
-            if (static_cast<int32_t>(aidl_bucket_spec.eventReportScheme) &
+            if (aidl_bucket_spec.eventReportScheme &
                 static_cast<std::underlying_type<AidlFlag>::type>(flag)) {
                 legacy_bucket_spec.report_events |= convertAidlGscanReportEventFlagToLegacy(flag);
             }
@@ -678,7 +676,7 @@ bool convertLegacyCachedGscanResultsToAidl(
                     convertLegacyGscanDataFlagToAidl(flag));
         }
     }
-    aidl_scan_data->flags = static_cast<StaScanDataFlagMask>(flags);
+    aidl_scan_data->flags = flags;
     aidl_scan_data->bucketsScanned = legacy_cached_scan_result.buckets_scanned;
 
     CHECK(legacy_cached_scan_result.num_results >= 0 &&
@@ -1787,7 +1785,7 @@ bool convertAidlNanPublishRequestToLegacy(const NanPublishRequest& aidl_request,
                                                         : legacy_hal::NAN_RANGING_DISABLE;
     legacy_request->ranging_cfg.ranging_interval_msec = aidl_request.baseConfigs.rangingIntervalMs;
     legacy_request->ranging_cfg.config_ranging_indications =
-            static_cast<uint32_t>(aidl_request.baseConfigs.configRangingIndications);
+            aidl_request.baseConfigs.configRangingIndications;
     legacy_request->ranging_cfg.distance_ingress_mm =
             aidl_request.baseConfigs.distanceIngressCm * 10;
     legacy_request->ranging_cfg.distance_egress_mm = aidl_request.baseConfigs.distanceEgressCm * 10;
@@ -1919,7 +1917,7 @@ bool convertAidlNanSubscribeRequestToLegacy(const NanSubscribeRequest& aidl_requ
                                                         : legacy_hal::NAN_RANGING_DISABLE;
     legacy_request->ranging_cfg.ranging_interval_msec = aidl_request.baseConfigs.rangingIntervalMs;
     legacy_request->ranging_cfg.config_ranging_indications =
-            static_cast<uint32_t>(aidl_request.baseConfigs.configRangingIndications);
+            aidl_request.baseConfigs.configRangingIndications;
     legacy_request->ranging_cfg.distance_ingress_mm =
             aidl_request.baseConfigs.distanceIngressCm * 10;
     legacy_request->ranging_cfg.distance_egress_mm = aidl_request.baseConfigs.distanceEgressCm * 10;
@@ -2202,8 +2200,7 @@ bool convertLegacyNanCapabilitiesResponseToAidl(const legacy_hal::NanCapabilitie
     aidl_response->maxQueuedTransmitFollowupMsgs =
             legacy_response.max_queued_transmit_followup_msgs;
     aidl_response->maxSubscribeInterfaceAddresses = legacy_response.max_subscribe_address;
-    aidl_response->supportedCipherSuites =
-            static_cast<NanCipherSuiteType>(legacy_response.cipher_suites_supported);
+    aidl_response->supportedCipherSuites = legacy_response.cipher_suites_supported;
     aidl_response->instantCommunicationModeSupportFlag = legacy_response.is_instant_mode_supported;
     aidl_response->supports6g = legacy_response.is_6g_supported;
     aidl_response->supportsHe = legacy_response.is_he_supported;
@@ -2244,8 +2241,7 @@ bool convertLegacyNanMatchIndToAidl(const legacy_hal::NanMatchInd& legacy_ind,
     aidl_ind->peerRequiresRanging =
             legacy_ind.peer_sdea_params.ranging_state == legacy_hal::NAN_RANGING_ENABLE;
     aidl_ind->rangingMeasurementInMm = legacy_ind.range_info.range_measurement_mm;
-    aidl_ind->rangingIndicationType =
-            static_cast<NanRangingIndication>(legacy_ind.range_info.ranging_event_type);
+    aidl_ind->rangingIndicationType = legacy_ind.range_info.ranging_event_type;
     aidl_ind->scid = std::vector<uint8_t>(legacy_ind.scid, legacy_ind.scid + legacy_ind.scid_len);
 
     if (!convertLegacyNiraToAidl(legacy_ind.nira, &aidl_ind->peerNira)) {
@@ -2996,14 +2992,13 @@ bool convertLegacyWifiRadioConfigurationToAidl(
 
 bool convertLegacyRadioCombinationsMatrixToAidl(
         legacy_hal::wifi_radio_combination_matrix* legacy_matrix,
-        WifiRadioCombinationMatrix* aidl_matrix) {
-    if (!aidl_matrix || !legacy_matrix) {
+        std::vector<WifiRadioCombination>* aidl_combinations) {
+    if (!aidl_combinations || !legacy_matrix) {
         return false;
     }
-    *aidl_matrix = {};
+    *aidl_combinations = {};
 
     int num_combinations = legacy_matrix->num_radio_combinations;
-    std::vector<WifiRadioCombination> radio_combinations_vec;
     if (!num_combinations) {
         LOG(ERROR) << "zero radio combinations";
         return false;
@@ -3029,13 +3024,12 @@ bool convertLegacyRadioCombinationsMatrixToAidl(
             radio_configurations_vec.push_back(radioConfiguration);
         }
         radioCombination.radioConfigurations = radio_configurations_vec;
-        radio_combinations_vec.push_back(radioCombination);
+        aidl_combinations->push_back(radioCombination);
         l_radio_combinations_ptr =
                 (wifi_radio_combination*)((u8*)l_radio_combinations_ptr +
                                           sizeof(wifi_radio_combination) +
                                           (sizeof(wifi_radio_configuration) * num_configurations));
     }
-    aidl_matrix->radioCombinations = radio_combinations_vec;
     return true;
 }
 

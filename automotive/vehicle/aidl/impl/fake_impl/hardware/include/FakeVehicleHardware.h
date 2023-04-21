@@ -178,6 +178,13 @@ class FakeVehicleHardware : public IVehicleHardware {
     void eventFromVehicleBus(
             const aidl::android::hardware::automotive::vehicle::VehiclePropValue& value);
 
+    int getHvacTempNumIncrements(int requestedTemp, int minTemp, int maxTemp, int increment);
+    void updateHvacTemperatureValueSuggestionInput(
+            const std::vector<int>& hvacTemperatureSetConfigArray,
+            std::vector<float>* hvacTemperatureValueSuggestionInput);
+    VhalResult<void> setHvacTemperatureValueSuggestion(
+            const aidl::android::hardware::automotive::vehicle::VehiclePropValue&
+                    hvacTemperatureValueSuggestion);
     VhalResult<void> maybeSetSpecialValue(
             const aidl::android::hardware::automotive::vehicle::VehiclePropValue& value,
             bool* isSpecialValue);
@@ -188,13 +195,16 @@ class FakeVehicleHardware : public IVehicleHardware {
             const aidl::android::hardware::automotive::vehicle::VehiclePropValue& value);
     VehiclePropValuePool::RecyclableType createApPowerStateReq(
             aidl::android::hardware::automotive::vehicle::VehicleApPowerStateReq state);
+    VehiclePropValuePool::RecyclableType createAdasStateReq(int32_t propertyId, int32_t areaId,
+                                                            int32_t state);
     VhalResult<void> setUserHalProp(
             const aidl::android::hardware::automotive::vehicle::VehiclePropValue& value);
     ValueResultType getUserHalProp(
             const aidl::android::hardware::automotive::vehicle::VehiclePropValue& value) const;
     ValueResultType getEchoReverseBytes(
             const aidl::android::hardware::automotive::vehicle::VehiclePropValue& value) const;
-    bool isHvacPropAndHvacNotAvailable(int32_t propId) const;
+    bool isHvacPropAndHvacNotAvailable(int32_t propId, int32_t areaId) const;
+    VhalResult<void> isAdasPropertyAvailable(int32_t adasStatePropertyId) const;
 
     std::unordered_map<int32_t, ConfigDeclaration> loadConfigDeclarations();
 
@@ -236,7 +246,8 @@ class FakeVehicleHardware : public IVehicleHardware {
             const aidl::android::hardware::automotive::vehicle::SetValueRequest& request);
 
     std::string genFakeDataCommand(const std::vector<std::string>& options);
-    void sendHvacPropertiesCurrentValues();
+    void sendHvacPropertiesCurrentValues(int32_t areaId);
+    void sendAdasPropertiesState(int32_t propertyId, int32_t state);
 
     static aidl::android::hardware::automotive::vehicle::VehiclePropValue createHwInputKeyProp(
             aidl::android::hardware::automotive::vehicle::VehicleHwKeyInputAction action,

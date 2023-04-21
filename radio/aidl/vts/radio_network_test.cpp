@@ -856,20 +856,20 @@ TEST_P(RadioNetworkTest, setSystemSelectionChannels) {
 TEST_P(RadioNetworkTest, startNetworkScan) {
     serial = GetRandomSerialNumber();
 
-    RadioAccessSpecifierBands bandP900 =
-            RadioAccessSpecifierBands::make<RadioAccessSpecifierBands::geranBands>(
-                    {GeranBands::BAND_P900});
-    RadioAccessSpecifierBands band850 =
-            RadioAccessSpecifierBands::make<RadioAccessSpecifierBands::geranBands>(
-                    {GeranBands::BAND_850});
-    RadioAccessSpecifier specifierP900 = {
-            .accessNetwork = AccessNetwork::GERAN, .bands = bandP900, .channels = {1, 2}};
-    RadioAccessSpecifier specifier850 = {
-            .accessNetwork = AccessNetwork::GERAN, .bands = band850, .channels = {128, 129}};
+    RadioAccessSpecifierBands band17 =
+            RadioAccessSpecifierBands::make<RadioAccessSpecifierBands::eutranBands>(
+                    {EutranBands::BAND_17});
+    RadioAccessSpecifierBands band20 =
+            RadioAccessSpecifierBands::make<RadioAccessSpecifierBands::eutranBands>(
+                    {EutranBands::BAND_20});
+    RadioAccessSpecifier specifier17 = {
+            .accessNetwork = AccessNetwork::EUTRAN, .bands = band17, .channels = {1, 2}};
+    RadioAccessSpecifier specifier20 = {
+            .accessNetwork = AccessNetwork::EUTRAN, .bands = band20, .channels = {128, 129}};
 
     NetworkScanRequest request = {.type = NetworkScanRequest::SCAN_TYPE_ONE_SHOT,
                                   .interval = 60,
-                                  .specifiers = {specifierP900, specifier850},
+                                  .specifiers = {specifier17, specifier20},
                                   .maxSearchTime = 60,
                                   .incrementalResults = false,
                                   .incrementalResultsPeriodicity = 1};
@@ -885,12 +885,17 @@ TEST_P(RadioNetworkTest, startNetworkScan) {
     if (cardStatus.cardState == CardStatus::STATE_ABSENT) {
         ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error, {RadioError::SIM_ABSENT}));
     } else if (cardStatus.cardState == CardStatus::STATE_PRESENT) {
-        // OPERATION_NOT_ALLOWED should not be allowed; however, some vendors do
-        // not support the required manual GSM search functionality. This is
-        // tracked in b/112206766. Modems have "GSM" rat scan need to
-        // support scanning requests combined with some parameters.
-        ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error,
-                                     {RadioError::NONE, RadioError::OPERATION_NOT_ALLOWED}));
+        if (deviceSupportsFeature(FEATURE_TELEPHONY_GSM)) {
+            // Modems support 3GPP RAT family need to
+            // support scanning requests combined with some parameters.
+            ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error,
+                                         {RadioError::NONE, RadioError::OPERATION_NOT_ALLOWED}));
+        } else {
+            ASSERT_TRUE(CheckAnyOfErrors(
+                    radioRsp_network->rspInfo.error,
+                    {RadioError::NONE, RadioError::OPERATION_NOT_ALLOWED, RadioError::NONE,
+                     RadioError::INVALID_ARGUMENTS, RadioError::REQUEST_NOT_SUPPORTED}));
+        }
     }
 
     if (radioRsp_network->rspInfo.error == RadioError::NONE) {
@@ -1866,6 +1871,14 @@ TEST_P(RadioNetworkTest, supplyNetworkDepersonalization) {
  * Test IRadioNetwork.setEmergencyMode() for the response returned.
  */
 TEST_P(RadioNetworkTest, setEmergencyMode) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since setEmergencyMode is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     LOG(DEBUG) << "setEmergencyMode";
     serial = GetRandomSerialNumber();
 
@@ -1878,6 +1891,11 @@ TEST_P(RadioNetworkTest, setEmergencyMode) {
             radioRsp_network->rspInfo.error,
             {RadioError::NONE, RadioError::REQUEST_NOT_SUPPORTED, RadioError::RADIO_NOT_AVAILABLE,
              RadioError::MODEM_ERR, RadioError::INVALID_ARGUMENTS}));
+
+    // exit emergency mode for other tests
+    serial = GetRandomSerialNumber();
+    radio_network->exitEmergencyMode(serial);
+
     LOG(DEBUG) << "setEmergencyMode finished";
 }
 
@@ -1885,6 +1903,15 @@ TEST_P(RadioNetworkTest, setEmergencyMode) {
  * Test IRadioNetwork.triggerEmergencyNetworkScan() for the response returned.
  */
 TEST_P(RadioNetworkTest, triggerEmergencyNetworkScan) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since"
+                " triggerEmergencyNetworkScan is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     LOG(DEBUG) << "triggerEmergencyNetworkScan";
     serial = GetRandomSerialNumber();
 
@@ -1908,6 +1935,14 @@ TEST_P(RadioNetworkTest, triggerEmergencyNetworkScan) {
  * Test IRadioNetwork.cancelEmergencyNetworkScan() for the response returned.
  */
 TEST_P(RadioNetworkTest, cancelEmergencyNetworkScan) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since cancelEmergencyNetworkScan is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     LOG(DEBUG) << "cancelEmergencyNetworkScan";
     serial = GetRandomSerialNumber();
 
@@ -1927,6 +1962,14 @@ TEST_P(RadioNetworkTest, cancelEmergencyNetworkScan) {
  * Test IRadioNetwork.exitEmergencyMode() for the response returned.
  */
 TEST_P(RadioNetworkTest, exitEmergencyMode) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since exitEmergencyMode is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     LOG(DEBUG) << "exitEmergencyMode";
     serial = GetRandomSerialNumber();
 
@@ -1946,6 +1989,14 @@ TEST_P(RadioNetworkTest, exitEmergencyMode) {
  * Test IRadioNetwork.setN1ModeEnabled() for the response returned.
  */
 TEST_P(RadioNetworkTest, setN1ModeEnabled) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since setN1ModeEnabled is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     serial = GetRandomSerialNumber();
 
     ndk::ScopedAStatus res =
@@ -1970,6 +2021,14 @@ TEST_P(RadioNetworkTest, setN1ModeEnabled) {
  * Test IRadioNetwork.isN1ModeEnabled() for the response returned.
  */
 TEST_P(RadioNetworkTest, isN1ModeEnabled) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since isN1ModeEnabled is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     serial = GetRandomSerialNumber();
 
     ndk::ScopedAStatus res = radio_network->isN1ModeEnabled(serial);
@@ -1993,6 +2052,15 @@ TEST_P(RadioNetworkTest, isN1ModeEnabled) {
  * Test IRadioNetwork.setNullCipherAndIntegrityEnabled() for the response returned.
  */
 TEST_P(RadioNetworkTest, setNullCipherAndIntegrityEnabled) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since"
+                " setNullCipherAndIntegrityEnabled is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     LOG(DEBUG) << "setNullCipherAndIntegrityEnabled";
     serial = GetRandomSerialNumber();
 
@@ -2011,6 +2079,15 @@ TEST_P(RadioNetworkTest, setNullCipherAndIntegrityEnabled) {
  * Test IRadioNetwork.isNullCipherAndIntegrityEnabled() for the response returned.
  */
 TEST_P(RadioNetworkTest, isNullCipherAndIntegrityEnabled) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since"
+                " isNullCipherAndIntegrityEnabled is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     LOG(DEBUG) << "isNullCipherAndIntegrityEnabled";
     serial = GetRandomSerialNumber();
 

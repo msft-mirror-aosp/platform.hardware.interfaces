@@ -76,7 +76,8 @@ ScopedAStatus ContextHub::queryNanoapps(int32_t in_contextHubId) {
     }
 }
 
-ScopedAStatus ContextHub::getPreloadedNanoappIds(std::vector<int64_t>* out_preloadedNanoappIds) {
+ScopedAStatus ContextHub::getPreloadedNanoappIds(int32_t /* in_contextHubId */,
+                                                 std::vector<int64_t>* out_preloadedNanoappIds) {
     if (out_preloadedNanoappIds == nullptr) {
         return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
     }
@@ -87,7 +88,7 @@ ScopedAStatus ContextHub::getPreloadedNanoappIds(std::vector<int64_t>* out_prelo
     return ndk::ScopedAStatus::ok();
 }
 
-ScopedAStatus ContextHub::onNanSessionStateChanged(bool /*sin_state*/) {
+ScopedAStatus ContextHub::onNanSessionStateChanged(const NanSessionStateUpdate& /*in_update*/) {
     return ndk::ScopedAStatus::ok();
 }
 
