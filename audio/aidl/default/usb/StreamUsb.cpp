@@ -28,6 +28,7 @@ extern "C" {
 #include "alsa_device_profile.h"
 }
 
+using aidl::android::hardware::audio::common::getChannelCount;
 using aidl::android::hardware::audio::common::SinkMetadata;
 using aidl::android::hardware::audio::common::SourceMetadata;
 using aidl::android::media::audio::common::AudioDevice;
@@ -38,7 +39,6 @@ using aidl::android::media::audio::common::MicrophoneDynamicInfo;
 using aidl::android::media::audio::common::MicrophoneInfo;
 using android::OK;
 using android::status_t;
-using android::hardware::audio::common::getChannelCount;
 
 namespace aidl::android::hardware::audio::core {
 
@@ -107,10 +107,13 @@ DriverUsb::DriverUsb(const StreamContext& context, bool isInput)
 ::android::status_t DriverUsb::transfer(void* buffer, size_t frameCount, size_t* actualFrameCount,
                                         int32_t* latencyMs) {
     if (!mConfig.has_value() || mConnectedDevices.empty()) {
+        LOG(ERROR) << __func__ << ": failed, has config: " << mConfig.has_value()
+                   << ", has connected devices: " << mConnectedDevices.empty();
         return ::android::NO_INIT;
     }
     if (mIsStandby) {
         if (::android::status_t status = exitStandby(); status != ::android::OK) {
+            LOG(ERROR) << __func__ << ": failed to exit standby, status=" << status;
             return status;
         }
     }
@@ -151,6 +154,7 @@ DriverUsb::DriverUsb(const StreamContext& context, bool isInput)
     std::vector<std::shared_ptr<alsa_device_proxy>> alsaDeviceProxies;
     for (const auto& device : connectedDevices) {
         alsa_device_profile profile;
+        profile_init(&profile, mIsInput ? PCM_IN : PCM_OUT);
         profile.card = device.get<AudioDeviceAddress::alsa>()[0];
         profile.device = device.get<AudioDeviceAddress::alsa>()[1];
         if (!profile_read_device_info(&profile)) {
@@ -171,6 +175,11 @@ DriverUsb::DriverUsb(const StreamContext& context, bool isInput)
                     proxy_prepare(proxy.get(), &profile, &mConfig.value(), true /*is_bit_perfect*/);
             err != 0) {
             LOG(ERROR) << __func__ << ": fail to prepare for device address=" << device.toString()
+                       << " error=" << err;
+            return ::android::UNKNOWN_ERROR;
+        }
+        if (int err = proxy_open(proxy.get()); err != 0) {
+            LOG(ERROR) << __func__ << ": failed to open device, address=" << device.toString()
                        << " error=" << err;
             return ::android::UNKNOWN_ERROR;
         }

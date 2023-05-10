@@ -30,6 +30,7 @@ extern "C" {
 #include "alsa_device_profile.h"
 }
 
+using aidl::android::hardware::audio::common::isUsbInputDeviceType;
 using aidl::android::media::audio::common::AudioChannelLayout;
 using aidl::android::media::audio::common::AudioDeviceAddress;
 using aidl::android::media::audio::common::AudioDeviceDescription;
@@ -40,7 +41,6 @@ using aidl::android::media::audio::common::AudioPort;
 using aidl::android::media::audio::common::AudioPortConfig;
 using aidl::android::media::audio::common::AudioPortExt;
 using aidl::android::media::audio::common::AudioProfile;
-using android::hardware::audio::common::isUsbInputDeviceType;
 
 namespace aidl::android::hardware::audio::core {
 
@@ -120,7 +120,11 @@ ndk::ScopedAStatus ModuleUsb::populateConnectedDevicePort(AudioPort* audioPort) 
     const bool isInput = isUsbInputDeviceType(devicePort.device.type.type);
     alsa_device_profile profile;
     profile_init(&profile, isInput ? PCM_IN : PCM_OUT);
+    profile.card = alsaAddress[0];
+    profile.device = alsaAddress[1];
     if (!profile_read_device_info(&profile)) {
+        LOG(ERROR) << __func__ << ": failed to read device info, card=" << profile.card
+                   << ", device=" << profile.device;
         return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
     }
 
@@ -128,7 +132,7 @@ ndk::ScopedAStatus ModuleUsb::populateConnectedDevicePort(AudioPort* audioPort) 
     std::vector<int> sampleRates = populateSampleRatesFromProfile(&profile);
 
     for (size_t i = 0; i < std::min(MAX_PROFILE_FORMATS, AUDIO_PORT_MAX_AUDIO_PROFILES) &&
-                       profile.formats[i] != 0;
+                       profile.formats[i] != PCM_FORMAT_INVALID;
          ++i) {
         auto audioFormatDescription =
                 usb::legacy2aidl_pcm_format_AudioFormatDescription(profile.formats[i]);

@@ -118,6 +118,12 @@ class GraphicsComposerAidlTest : public ::testing::TestWithParam<std::string> {
                 [&](const Capability& activeCapability) { return activeCapability == capability; });
     }
 
+    int getInterfaceVersion() {
+        const auto& [versionStatus, version] = mComposerClient->getInterfaceVersion();
+        EXPECT_TRUE(versionStatus.isOk());
+        return version;
+    }
+
     const VtsDisplay& getPrimaryDisplay() const { return mDisplays[0]; }
 
     int64_t getPrimaryDisplayId() const { return getPrimaryDisplay().getDisplayId(); }
@@ -649,8 +655,15 @@ TEST_P(GraphicsComposerAidlTest, SetHdrConversionStrategy_Force) {
         return;
     }
     const auto& [status, conversionCapabilities] = mComposerClient->getHdrConversionCapabilities();
+    const auto& [status2, hdrCapabilities] =
+            mComposerClient->getHdrCapabilities(getPrimaryDisplayId());
+    const auto& hdrTypes = hdrCapabilities.types;
     for (auto conversionCapability : conversionCapabilities) {
         if (conversionCapability.outputType != common::Hdr::INVALID) {
+            if (std::find(hdrTypes.begin(), hdrTypes.end(), conversionCapability.outputType) ==
+                hdrTypes.end()) {
+                continue;
+            }
             common::HdrConversionStrategy hdrConversionStrategy;
             hdrConversionStrategy.set<common::HdrConversionStrategy::Tag::forceHdrConversion>(
                     conversionCapability.outputType);
@@ -668,6 +681,11 @@ TEST_P(GraphicsComposerAidlTest, SetHdrConversionStrategy_Auto) {
         return;
     }
     const auto& [status, conversionCapabilities] = mComposerClient->getHdrConversionCapabilities();
+    const auto& [status2, hdrCapabilities] =
+            mComposerClient->getHdrCapabilities(getPrimaryDisplayId());
+    if (hdrCapabilities.types.size() <= 0) {
+        return;
+    }
     std::vector<aidl::android::hardware::graphics::common::Hdr> autoHdrTypes;
     for (auto conversionCapability : conversionCapabilities) {
         if (conversionCapability.outputType != common::Hdr::INVALID) {
@@ -874,9 +892,7 @@ TEST_P(GraphicsComposerAidlTest, GetDisplayName) {
 }
 
 TEST_P(GraphicsComposerAidlTest, GetOverlaySupport) {
-    const auto& [versionStatus, version] = mComposerClient->getInterfaceVersion();
-    ASSERT_TRUE(versionStatus.isOk());
-    if (version == 1) {
+    if (getInterfaceVersion() <= 1) {
         GTEST_SUCCEED() << "Device does not support the new API for overlay support";
         return;
     }
@@ -1167,15 +1183,13 @@ class GraphicsComposerAidlCommandTest : public GraphicsComposerAidlTest {
     void execute() {
         std::vector<CommandResultPayload> payloads;
         for (auto& [_, writer] : mWriters) {
-            const auto& commands = writer.getPendingCommands();
+            auto commands = writer.takePendingCommands();
             if (commands.empty()) {
-                writer.reset();
                 continue;
             }
 
             auto [status, results] = mComposerClient->executeCommands(commands);
             ASSERT_TRUE(status.isOk()) << "executeCommands failed " << status.getDescription();
-            writer.reset();
 
             payloads.reserve(payloads.size() + results.size());
             payloads.insert(payloads.end(), std::make_move_iterator(results.begin()),
@@ -1225,15 +1239,19 @@ class GraphicsComposerAidlCommandTest : public GraphicsComposerAidlTest {
         });
     }
 
-    sp<GraphicBuffer> allocate(::android::PixelFormat pixelFormat) {
+    sp<GraphicBuffer> allocate(uint32_t width, uint32_t height,
+                               ::android::PixelFormat pixelFormat) {
         return sp<GraphicBuffer>::make(
-                static_cast<uint32_t>(getPrimaryDisplay().getDisplayWidth()),
-                static_cast<uint32_t>(getPrimaryDisplay().getDisplayHeight()), pixelFormat,
-                /*layerCount*/ 1U,
-                (static_cast<uint64_t>(common::BufferUsage::CPU_WRITE_OFTEN) |
-                 static_cast<uint64_t>(common::BufferUsage::CPU_READ_OFTEN) |
-                 static_cast<uint64_t>(common::BufferUsage::COMPOSER_OVERLAY)),
+                width, height, pixelFormat, /*layerCount*/ 1U,
+                static_cast<uint64_t>(common::BufferUsage::CPU_WRITE_OFTEN) |
+                        static_cast<uint64_t>(common::BufferUsage::CPU_READ_OFTEN) |
+                        static_cast<uint64_t>(common::BufferUsage::COMPOSER_OVERLAY),
                 "VtsHalGraphicsComposer3_TargetTest");
+    }
+
+    sp<GraphicBuffer> allocate(::android::PixelFormat pixelFormat) {
+        return allocate(static_cast<uint32_t>(getPrimaryDisplay().getDisplayWidth()),
+                        static_cast<uint32_t>(getPrimaryDisplay().getDisplayHeight()), pixelFormat);
     }
 
     void sendRefreshFrame(const VtsDisplay& display, const VsyncPeriodChangeTimeline* timeline) {
@@ -1747,6 +1765,104 @@ TEST_P(GraphicsComposerAidlCommandTest, SetLayerBuffer) {
     auto& writer = getWriter(getPrimaryDisplayId());
     writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 0, handle, /*acquireFence*/ -1);
     execute();
+}
+
+TEST_P(GraphicsComposerAidlCommandTest, SetLayerBufferSlotsToClear) {
+    // Older HAL versions use a backwards compatible way of clearing buffer slots
+    const auto& [versionStatus, version] = mComposerClient->getInterfaceVersion();
+    ASSERT_TRUE(versionStatus.isOk());
+    if (version <= 1) {
+        GTEST_SUCCEED() << "HAL at version 1 or lower does not have "
+                           "LayerCommand::bufferSlotsToClear.";
+        return;
+    }
+
+    const auto& [layerStatus, layer] =
+            mComposerClient->createLayer(getPrimaryDisplayId(), kBufferSlotCount);
+    EXPECT_TRUE(layerStatus.isOk());
+    auto& writer = getWriter(getPrimaryDisplayId());
+
+    // setup 3 buffers in the buffer cache, with the last buffer being active
+    // then emulate the Android platform code that clears all 3 buffer slots
+
+    const auto buffer1 = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+    ASSERT_NE(nullptr, buffer1);
+    const auto handle1 = buffer1->handle;
+    writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 0, handle1, /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+
+    const auto buffer2 = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+    ASSERT_NE(nullptr, buffer2);
+    const auto handle2 = buffer2->handle;
+    writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 1, handle2, /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+
+    const auto buffer3 = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+    ASSERT_NE(nullptr, buffer3);
+    const auto handle3 = buffer3->handle;
+    writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 2, handle3, /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+
+    // Ensure we can clear all 3 buffer slots, even the active buffer - it is assumed the
+    // current active buffer's slot will be cleared, but still remain the active buffer and no
+    // errors will occur.
+    writer.setLayerBufferSlotsToClear(getPrimaryDisplayId(), layer, {0, 1, 2});
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+}
+
+TEST_P(GraphicsComposerAidlCommandTest, SetLayerBufferMultipleTimes) {
+    const auto& [layerStatus, layer] =
+            mComposerClient->createLayer(getPrimaryDisplayId(), kBufferSlotCount);
+    EXPECT_TRUE(layerStatus.isOk());
+    auto& writer = getWriter(getPrimaryDisplayId());
+
+    // Setup 3 buffers in the buffer cache, with the last buffer being active. Then, emulate the
+    // Android platform code that clears all 3 buffer slots by setting all but the active buffer
+    // slot to a placeholder buffer, and then restoring the active buffer.
+
+    // This is used on HALs that don't support setLayerBufferSlotsToClear (version <= 3.1).
+
+    const auto buffer1 = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+    ASSERT_NE(nullptr, buffer1);
+    const auto handle1 = buffer1->handle;
+    writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 0, handle1, /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+
+    const auto buffer2 = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+    ASSERT_NE(nullptr, buffer2);
+    const auto handle2 = buffer2->handle;
+    writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 1, handle2, /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+
+    const auto buffer3 = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+    ASSERT_NE(nullptr, buffer3);
+    const auto handle3 = buffer3->handle;
+    writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 2, handle3, /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
+
+    // Older versions of the HAL clear all but the active buffer slot with a placeholder buffer,
+    // and then restoring the current active buffer at the end
+    auto clearSlotBuffer = allocate(1u, 1u, ::android::PIXEL_FORMAT_RGB_888);
+    ASSERT_NE(nullptr, clearSlotBuffer);
+    auto clearSlotBufferHandle = clearSlotBuffer->handle;
+
+    // clear buffer slots 0 and 1 with new layer commands... and then...
+    writer.setLayerBufferWithNewCommand(getPrimaryDisplayId(), layer, /* slot */ 0,
+                                        clearSlotBufferHandle, /*acquireFence*/ -1);
+    writer.setLayerBufferWithNewCommand(getPrimaryDisplayId(), layer, /* slot */ 1,
+                                        clearSlotBufferHandle, /*acquireFence*/ -1);
+    // ...reset the layer buffer to the current active buffer slot with a final new command
+    writer.setLayerBufferWithNewCommand(getPrimaryDisplayId(), layer, /*slot*/ 2, nullptr,
+                                        /*acquireFence*/ -1);
+    execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
 }
 
 TEST_P(GraphicsComposerAidlCommandTest, SetLayerSurfaceDamage) {
@@ -2290,6 +2406,11 @@ TEST_P(GraphicsComposerAidlCommandTest, SetIdleTimerEnabled_Timeout_2) {
 }
 
 TEST_P(GraphicsComposerAidlCommandTest, SetRefreshRateChangedCallbackDebug_Unsupported) {
+    if (getInterfaceVersion() <= 1) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is "
+                           "not supported on older version of the service";
+        return;
+    }
     if (!hasCapability(Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG)) {
         auto status = mComposerClient->setRefreshRateChangedCallbackDebugEnabled(
                 getPrimaryDisplayId(), /*enabled*/ true);
@@ -2306,6 +2427,11 @@ TEST_P(GraphicsComposerAidlCommandTest, SetRefreshRateChangedCallbackDebug_Unsup
 }
 
 TEST_P(GraphicsComposerAidlCommandTest, SetRefreshRateChangedCallbackDebug_Enabled) {
+    if (getInterfaceVersion() <= 1) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is "
+                           "not supported on older version of the service";
+        return;
+    }
     if (!hasCapability(Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG)) {
         GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is not supported";
         return;
@@ -2335,6 +2461,11 @@ TEST_P(GraphicsComposerAidlCommandTest, SetRefreshRateChangedCallbackDebug_Enabl
 
 TEST_P(GraphicsComposerAidlCommandTest,
        SetRefreshRateChangedCallbackDebugEnabled_noCallbackWhenIdle) {
+    if (getInterfaceVersion() <= 1) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is "
+                           "not supported on older version of the service";
+        return;
+    }
     if (!hasCapability(Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG)) {
         GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is not supported";
         return;
@@ -2392,6 +2523,11 @@ TEST_P(GraphicsComposerAidlCommandTest,
 
 TEST_P(GraphicsComposerAidlCommandTest,
        SetRefreshRateChangedCallbackDebugEnabled_SetActiveConfigWithConstraints) {
+    if (getInterfaceVersion() <= 1) {
+        GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is "
+                           "not supported on older version of the service";
+        return;
+    }
     if (!hasCapability(Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG)) {
         GTEST_SUCCEED() << "Capability::REFRESH_RATE_CHANGED_CALLBACK_DEBUG is not supported";
         return;
@@ -2494,29 +2630,13 @@ TEST_P(GraphicsComposerAidlTest, GetDisplayConfigNoRepetitions) {
     }
 }
 
-TEST_P(GraphicsComposerAidlCommandTest, MultiThreadedPresent) {
-    std::vector<VtsDisplay*> displays;
-    for (auto& display : mDisplays) {
-        if (hasDisplayCapability(display.getDisplayId(),
-                                 DisplayCapability::MULTI_THREADED_PRESENT)) {
-            displays.push_back(&display);
-        }
-    }
-    if (displays.size() <= 1u) {
-        return;
-    }
-    // TODO(b/251842321): Try to present on multiple threads.
-}
-
 /**
  * Test Capability::SKIP_VALIDATE
  *
  * Capability::SKIP_VALIDATE has been deprecated and should not be enabled.
  */
 TEST_P(GraphicsComposerAidlCommandTest, SkipValidateDeprecatedTest) {
-    const auto& [versionStatus, version] = mComposerClient->getInterfaceVersion();
-    ASSERT_TRUE(versionStatus.isOk());
-    if (version <= 1) {
+    if (getInterfaceVersion() <= 1) {
         GTEST_SUCCEED() << "HAL at version 1 or lower can contain Capability::SKIP_VALIDATE.";
         return;
     }

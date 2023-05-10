@@ -70,12 +70,6 @@ class ComposerClientWriter final {
     ComposerClientWriter(const ComposerClientWriter&) = delete;
     ComposerClientWriter& operator=(const ComposerClientWriter&) = delete;
 
-    void reset() {
-        mDisplayCommand.reset();
-        mLayerCommand.reset();
-        mCommands.clear();
-    }
-
     void setColorTransform(int64_t display, const float* matrix) {
         std::vector<float> matVec;
         matVec.reserve(16);
@@ -144,10 +138,8 @@ class ComposerClientWriter final {
 
     void setLayerBufferSlotsToClear(int64_t display, int64_t layer,
                                     const std::vector<uint32_t>& slotsToClear) {
-        LayerCommand& layerCommand = getLayerCommand(display, layer);
-        for (auto slot : slotsToClear) {
-            layerCommand.bufferSlotsToClear.emplace(static_cast<int32_t>(slot));
-        }
+        getLayerCommand(display, layer)
+                .bufferSlotsToClear.emplace(slotsToClear.begin(), slotsToClear.end());
     }
 
     void setLayerSurfaceDamage(int64_t display, int64_t layer, const std::vector<Rect>& damage) {
@@ -237,10 +229,12 @@ class ComposerClientWriter final {
         getLayerCommand(display, layer).blockingRegion.emplace(blocking.begin(), blocking.end());
     }
 
-    const std::vector<DisplayCommand>& getPendingCommands() {
+    std::vector<DisplayCommand> takePendingCommands() {
         flushLayerCommand();
         flushDisplayCommand();
-        return mCommands;
+        std::vector<DisplayCommand> moved = std::move(mCommands);
+        mCommands.clear();
+        return moved;
     }
 
   private:
@@ -290,6 +284,12 @@ class ComposerClientWriter final {
             mLayerCommand->layer = layer;
         }
         return *mLayerCommand;
+    }
+
+    void reset() {
+        mDisplayCommand.reset();
+        mLayerCommand.reset();
+        mCommands.clear();
     }
 };
 

@@ -16,7 +16,7 @@
 
 package android.hardware.wifi;
 
-import android.hardware.wifi.AvailableAfcFrequencyInfo;
+import android.hardware.wifi.AfcChannelAllowance;
 import android.hardware.wifi.IWifiApIface;
 import android.hardware.wifi.IWifiChipEventCallback;
 import android.hardware.wifi.IWifiNanIface;
@@ -44,7 +44,7 @@ interface IWifiChip {
      */
     @VintfStability
     @Backing(type="int")
-    enum ChipCapabilityMask {
+    enum FeatureSetMask {
         /**
          * Set/Reset Tx Power limits.
          */
@@ -582,15 +582,15 @@ interface IWifiChip {
     ChipMode[] getAvailableModes();
 
     /**
-     * Get the capabilities supported by this chip.
+     * Get the features supported by this chip.
      *
-     * @return Bitset of |ChipCapabilityMask| values.
+     * @return Bitset of |FeatureSetMask| values.
      * @throws ServiceSpecificException with one of the following values:
      *         |WifiStatusCode.ERROR_WIFI_CHIP_INVALID|,
      *         |WifiStatusCode.ERROR_NOT_AVAILABLE|,
      *         |WifiStatusCode.ERROR_UNKNOWN|
      */
-    int getCapabilities();
+    int getFeatureSet();
 
     /**
      * API to retrieve the wifi wake up reason stats for debugging.
@@ -811,16 +811,12 @@ interface IWifiChip {
             in WifiBand band, in int ifaceModeMask, in int filterMask);
 
     /*
-     * Set the max power level the chip is allowed to transmit on for 6Ghz AFC
-     * using an array of AvailableAfcFrequencyInfo. The max power for
-     * frequencies not included in the input frequency ranges will be reset to
-     * their respective default values.
-     * @param availableAfcFrequencyInfo The list of frequency ranges and
-     * corresponding max allowed power.
+     * Set the max power level the chip is allowed to transmit on for 6Ghz AFC.
+     * @param afcChannelAllowance Specifies the power limitations for 6Ghz AFC.
      * @throws ServiceSpecificException with one of the following values:
      *         |WifiStatusCode.ERROR_NOT_SUPPORTED|
      */
-    void setAfcChannelAllowance(in AvailableAfcFrequencyInfo[] availableAfcFrequencyInfo);
+    void setAfcChannelAllowance(in AfcChannelAllowance afcChannelAllowance);
 
     /**
      * Requests notifications of significant events on this chip. Multiple calls

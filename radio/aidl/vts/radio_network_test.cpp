@@ -66,12 +66,20 @@ void RadioNetworkTest::stopNetworkScan() {
 }
 
 /*
- * Test IRadioNetwork.setAllowedNetworkTypesBitmap for the response returned.
+ * Test IRadioNetwork.setAllowedNetworkTypesBitmap and IRadioNetwork.getAllowedNetworkTypesBitmap
+ * for the response returned.
  */
-TEST_P(RadioNetworkTest, setAllowedNetworkTypesBitmap) {
+TEST_P(RadioNetworkTest, setGetAllowedNetworkTypesBitmap) {
     serial = GetRandomSerialNumber();
-    int32_t allowedNetworkTypesBitmap = static_cast<int32_t>(RadioAccessFamily::LTE);
 
+    // save current value
+    radio_network->getAllowedNetworkTypesBitmap(serial);
+    EXPECT_EQ(std::cv_status::no_timeout, wait());
+    int32_t currentAllowedNetworkTypesBitmap = radioRsp_network->networkTypeBitmapResponse;
+
+    // set new value
+    int32_t allowedNetworkTypesBitmap = static_cast<int32_t>(RadioAccessFamily::LTE);
+    serial = GetRandomSerialNumber();
     radio_network->setAllowedNetworkTypesBitmap(serial, allowedNetworkTypesBitmap);
 
     EXPECT_EQ(std::cv_status::no_timeout, wait());
@@ -83,20 +91,6 @@ TEST_P(RadioNetworkTest, setAllowedNetworkTypesBitmap) {
              RadioError::MODE_NOT_SUPPORTED, RadioError::INTERNAL_ERR, RadioError::MODEM_ERR,
              RadioError::INVALID_ARGUMENTS, RadioError::REQUEST_NOT_SUPPORTED,
              RadioError::NO_RESOURCES}));
-}
-
-/*
- * Test IRadioNetwork.getAllowedNetworkTypesBitmap for the response returned.
- */
-TEST_P(RadioNetworkTest, getAllowedNetworkTypesBitmap) {
-    serial = GetRandomSerialNumber();
-    int32_t allowedNetworkTypesBitmap = static_cast<int32_t>(RadioAccessFamily::LTE);
-
-    radio_network->setAllowedNetworkTypesBitmap(serial, allowedNetworkTypesBitmap);
-
-    EXPECT_EQ(std::cv_status::no_timeout, wait());
-    EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_network->rspInfo.type);
-    EXPECT_EQ(serial, radioRsp_network->rspInfo.serial);
 
     if (radioRsp_network->rspInfo.error == RadioError::NONE) {
         sleep(3);  // wait for modem
@@ -112,7 +106,16 @@ TEST_P(RadioNetworkTest, getAllowedNetworkTypesBitmap) {
                  RadioError::OPERATION_NOT_ALLOWED, RadioError::MODE_NOT_SUPPORTED,
                  RadioError::INVALID_ARGUMENTS, RadioError::MODEM_ERR,
                  RadioError::REQUEST_NOT_SUPPORTED, RadioError::NO_RESOURCES}));
+        if (radioRsp_network->rspInfo.error == RadioError::NONE) {
+            // verify we get the value we set
+            ASSERT_EQ(radioRsp_network->networkTypeBitmapResponse, allowedNetworkTypesBitmap);
+        }
     }
+
+    // reset value to previous
+    serial = GetRandomSerialNumber();
+    radio_network->setAllowedNetworkTypesBitmap(serial, currentAllowedNetworkTypesBitmap);
+    EXPECT_EQ(std::cv_status::no_timeout, wait());
 }
 
 /*
@@ -856,20 +859,20 @@ TEST_P(RadioNetworkTest, setSystemSelectionChannels) {
 TEST_P(RadioNetworkTest, startNetworkScan) {
     serial = GetRandomSerialNumber();
 
-    RadioAccessSpecifierBands bandP900 =
-            RadioAccessSpecifierBands::make<RadioAccessSpecifierBands::geranBands>(
-                    {GeranBands::BAND_P900});
-    RadioAccessSpecifierBands band850 =
-            RadioAccessSpecifierBands::make<RadioAccessSpecifierBands::geranBands>(
-                    {GeranBands::BAND_850});
-    RadioAccessSpecifier specifierP900 = {
-            .accessNetwork = AccessNetwork::GERAN, .bands = bandP900, .channels = {1, 2}};
-    RadioAccessSpecifier specifier850 = {
-            .accessNetwork = AccessNetwork::GERAN, .bands = band850, .channels = {128, 129}};
+    RadioAccessSpecifierBands band17 =
+            RadioAccessSpecifierBands::make<RadioAccessSpecifierBands::eutranBands>(
+                    {EutranBands::BAND_17});
+    RadioAccessSpecifierBands band20 =
+            RadioAccessSpecifierBands::make<RadioAccessSpecifierBands::eutranBands>(
+                    {EutranBands::BAND_20});
+    RadioAccessSpecifier specifier17 = {
+            .accessNetwork = AccessNetwork::EUTRAN, .bands = band17, .channels = {1, 2}};
+    RadioAccessSpecifier specifier20 = {
+            .accessNetwork = AccessNetwork::EUTRAN, .bands = band20, .channels = {128, 129}};
 
     NetworkScanRequest request = {.type = NetworkScanRequest::SCAN_TYPE_ONE_SHOT,
                                   .interval = 60,
-                                  .specifiers = {specifierP900, specifier850},
+                                  .specifiers = {specifier17, specifier20},
                                   .maxSearchTime = 60,
                                   .incrementalResults = false,
                                   .incrementalResultsPeriodicity = 1};
@@ -885,12 +888,17 @@ TEST_P(RadioNetworkTest, startNetworkScan) {
     if (cardStatus.cardState == CardStatus::STATE_ABSENT) {
         ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error, {RadioError::SIM_ABSENT}));
     } else if (cardStatus.cardState == CardStatus::STATE_PRESENT) {
-        // OPERATION_NOT_ALLOWED should not be allowed; however, some vendors do
-        // not support the required manual GSM search functionality. This is
-        // tracked in b/112206766. Modems have "GSM" rat scan need to
-        // support scanning requests combined with some parameters.
-        ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error,
-                                     {RadioError::NONE, RadioError::OPERATION_NOT_ALLOWED}));
+        if (deviceSupportsFeature(FEATURE_TELEPHONY_GSM)) {
+            // Modems support 3GPP RAT family need to
+            // support scanning requests combined with some parameters.
+            ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error,
+                                         {RadioError::NONE, RadioError::OPERATION_NOT_ALLOWED}));
+        } else {
+            ASSERT_TRUE(CheckAnyOfErrors(
+                    radioRsp_network->rspInfo.error,
+                    {RadioError::NONE, RadioError::OPERATION_NOT_ALLOWED, RadioError::NONE,
+                     RadioError::INVALID_ARGUMENTS, RadioError::REQUEST_NOT_SUPPORTED}));
+        }
     }
 
     if (radioRsp_network->rspInfo.error == RadioError::NONE) {
@@ -942,7 +950,7 @@ TEST_P(RadioNetworkTest, startNetworkScan_InvalidInterval1) {
     RadioAccessSpecifier specifier850 = {
             .accessNetwork = AccessNetwork::GERAN, .bands = band850, .channels = {128, 129}};
 
-    NetworkScanRequest request = {.type = NetworkScanRequest::SCAN_TYPE_ONE_SHOT,
+    NetworkScanRequest request = {.type = NetworkScanRequest::SCAN_TYPE_PERIODIC,
                                   .interval = 4,
                                   .specifiers = {specifierP900, specifier850},
                                   .maxSearchTime = 60,
@@ -983,7 +991,7 @@ TEST_P(RadioNetworkTest, startNetworkScan_InvalidInterval2) {
     RadioAccessSpecifier specifier850 = {
             .accessNetwork = AccessNetwork::GERAN, .bands = band850, .channels = {128, 129}};
 
-    NetworkScanRequest request = {.type = NetworkScanRequest::SCAN_TYPE_ONE_SHOT,
+    NetworkScanRequest request = {.type = NetworkScanRequest::SCAN_TYPE_PERIODIC,
                                   .interval = 301,
                                   .specifiers = {specifierP900, specifier850},
                                   .maxSearchTime = 60,
@@ -1516,11 +1524,20 @@ TEST_P(RadioNetworkTest, getDataRegistrationState) {
     }
 
     // 32 bit system might return invalid mcc and mnc string "\xff\xff..."
-    if (checkMccMnc && mcc.size() < 4 && mnc.size() < 4) {
-        int mcc_int = stoi(mcc);
-        int mnc_int = stoi(mnc);
-        EXPECT_TRUE(mcc_int >= 0 && mcc_int <= 999);
-        EXPECT_TRUE(mnc_int >= 0 && mnc_int <= 999);
+    if (checkMccMnc) {
+        int mccSize = mcc.size();
+        EXPECT_TRUE(mccSize == 0 || mccSize == 3);
+        if (mccSize > 0) {
+            int mcc_int = stoi(mcc);
+            EXPECT_TRUE(mcc_int >= 0 && mcc_int <= 999);
+        }
+
+        int mncSize = mnc.size();
+        EXPECT_TRUE(mncSize == 0 || mncSize == 2 || mncSize == 3);
+        if (mncSize > 0) {
+            int mnc_int = stoi(mnc);
+            EXPECT_TRUE(mnc_int >= 0 && mnc_int <= 999);
+        }
     }
 
     // Check for access technology specific info
@@ -1866,6 +1883,14 @@ TEST_P(RadioNetworkTest, supplyNetworkDepersonalization) {
  * Test IRadioNetwork.setEmergencyMode() for the response returned.
  */
 TEST_P(RadioNetworkTest, setEmergencyMode) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since setEmergencyMode is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     LOG(DEBUG) << "setEmergencyMode";
     serial = GetRandomSerialNumber();
 
@@ -1878,6 +1903,11 @@ TEST_P(RadioNetworkTest, setEmergencyMode) {
             radioRsp_network->rspInfo.error,
             {RadioError::NONE, RadioError::REQUEST_NOT_SUPPORTED, RadioError::RADIO_NOT_AVAILABLE,
              RadioError::MODEM_ERR, RadioError::INVALID_ARGUMENTS}));
+
+    // exit emergency mode for other tests
+    serial = GetRandomSerialNumber();
+    radio_network->exitEmergencyMode(serial);
+
     LOG(DEBUG) << "setEmergencyMode finished";
 }
 
@@ -1885,6 +1915,15 @@ TEST_P(RadioNetworkTest, setEmergencyMode) {
  * Test IRadioNetwork.triggerEmergencyNetworkScan() for the response returned.
  */
 TEST_P(RadioNetworkTest, triggerEmergencyNetworkScan) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since"
+                " triggerEmergencyNetworkScan is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     LOG(DEBUG) << "triggerEmergencyNetworkScan";
     serial = GetRandomSerialNumber();
 
@@ -1908,6 +1947,14 @@ TEST_P(RadioNetworkTest, triggerEmergencyNetworkScan) {
  * Test IRadioNetwork.cancelEmergencyNetworkScan() for the response returned.
  */
 TEST_P(RadioNetworkTest, cancelEmergencyNetworkScan) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since cancelEmergencyNetworkScan is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     LOG(DEBUG) << "cancelEmergencyNetworkScan";
     serial = GetRandomSerialNumber();
 
@@ -1927,6 +1974,14 @@ TEST_P(RadioNetworkTest, cancelEmergencyNetworkScan) {
  * Test IRadioNetwork.exitEmergencyMode() for the response returned.
  */
 TEST_P(RadioNetworkTest, exitEmergencyMode) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since exitEmergencyMode is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     LOG(DEBUG) << "exitEmergencyMode";
     serial = GetRandomSerialNumber();
 
@@ -1946,6 +2001,14 @@ TEST_P(RadioNetworkTest, exitEmergencyMode) {
  * Test IRadioNetwork.setN1ModeEnabled() for the response returned.
  */
 TEST_P(RadioNetworkTest, setN1ModeEnabled) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since setN1ModeEnabled is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     serial = GetRandomSerialNumber();
 
     ndk::ScopedAStatus res =
@@ -1970,6 +2033,14 @@ TEST_P(RadioNetworkTest, setN1ModeEnabled) {
  * Test IRadioNetwork.isN1ModeEnabled() for the response returned.
  */
 TEST_P(RadioNetworkTest, isN1ModeEnabled) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since isN1ModeEnabled is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     serial = GetRandomSerialNumber();
 
     ndk::ScopedAStatus res = radio_network->isN1ModeEnabled(serial);
@@ -1993,6 +2064,15 @@ TEST_P(RadioNetworkTest, isN1ModeEnabled) {
  * Test IRadioNetwork.setNullCipherAndIntegrityEnabled() for the response returned.
  */
 TEST_P(RadioNetworkTest, setNullCipherAndIntegrityEnabled) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since"
+                " setNullCipherAndIntegrityEnabled is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     LOG(DEBUG) << "setNullCipherAndIntegrityEnabled";
     serial = GetRandomSerialNumber();
 
@@ -2011,6 +2091,15 @@ TEST_P(RadioNetworkTest, setNullCipherAndIntegrityEnabled) {
  * Test IRadioNetwork.isNullCipherAndIntegrityEnabled() for the response returned.
  */
 TEST_P(RadioNetworkTest, isNullCipherAndIntegrityEnabled) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_network->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since"
+                " isNullCipherAndIntegrityEnabled is not supported on version < 2.");
+        GTEST_SKIP();
+    }
+
     LOG(DEBUG) << "isNullCipherAndIntegrityEnabled";
     serial = GetRandomSerialNumber();
 

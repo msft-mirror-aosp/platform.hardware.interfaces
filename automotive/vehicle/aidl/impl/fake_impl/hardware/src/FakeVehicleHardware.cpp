@@ -52,6 +52,7 @@ namespace fake {
 
 namespace {
 
+using ::aidl::android::hardware::automotive::vehicle::ErrorState;
 using ::aidl::android::hardware::automotive::vehicle::GetValueRequest;
 using ::aidl::android::hardware::automotive::vehicle::GetValueResult;
 using ::aidl::android::hardware::automotive::vehicle::RawPropValues;
@@ -63,10 +64,12 @@ using ::aidl::android::hardware::automotive::vehicle::VehicleApPowerStateReq;
 using ::aidl::android::hardware::automotive::vehicle::VehicleHwKeyInputAction;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropConfig;
 using ::aidl::android::hardware::automotive::vehicle::VehicleProperty;
+using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyAccess;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyGroup;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyStatus;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyType;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropValue;
+using ::aidl::android::hardware::automotive::vehicle::VehicleUnit;
 
 using ::android::base::EqualsIgnoreCase;
 using ::android::base::Error;
@@ -77,6 +80,19 @@ using ::android::base::ScopedLockAssertion;
 using ::android::base::StartsWith;
 using ::android::base::StringPrintf;
 
+// In order to test large number of vehicle property configs, we might generate additional fake
+// property config start from this ID. These fake properties are for getPropertyList,
+//  getPropertiesAsync, and setPropertiesAsync.
+// 0x21403000
+constexpr int32_t STARTING_VENDOR_CODE_PROPERTIES_FOR_TEST =
+        0x3000 | toInt(testpropertyutils_impl::VehiclePropertyGroup::VENDOR) |
+        toInt(testpropertyutils_impl::VehicleArea::GLOBAL) |
+        toInt(testpropertyutils_impl::VehiclePropertyType::INT32);
+// 0x21405000
+constexpr int32_t ENDING_VENDOR_CODE_PROPERTIES_FOR_TEST =
+        0x5000 | toInt(testpropertyutils_impl::VehiclePropertyGroup::VENDOR) |
+        toInt(testpropertyutils_impl::VehicleArea::GLOBAL) |
+        toInt(testpropertyutils_impl::VehiclePropertyType::INT32);
 // The directory for default property configuration file.
 // For config file format, see impl/default_config/config/README.md.
 constexpr char DEFAULT_CONFIG_DIR[] = "/vendor/etc/automotive/vhalconfig/";
@@ -106,6 +122,74 @@ const std::unordered_set<std::string> SET_PROP_OPTIONS = {
         // Timestamp in int64.
         "-t"};
 
+// ADAS _ENABLED property to list of ADAS state properties using ErrorState enum.
+const std::unordered_map<int32_t, std::vector<int32_t>> mAdasEnabledPropToAdasPropWithErrorState = {
+        // AEB
+        {
+                toInt(VehicleProperty::AUTOMATIC_EMERGENCY_BRAKING_ENABLED),
+                {
+                        toInt(VehicleProperty::AUTOMATIC_EMERGENCY_BRAKING_STATE),
+                },
+        },
+        // FCW
+        {
+                toInt(VehicleProperty::FORWARD_COLLISION_WARNING_ENABLED),
+                {
+                        toInt(VehicleProperty::FORWARD_COLLISION_WARNING_STATE),
+                },
+        },
+        // BSW
+        {
+                toInt(VehicleProperty::BLIND_SPOT_WARNING_ENABLED),
+                {
+                        toInt(VehicleProperty::BLIND_SPOT_WARNING_STATE),
+                },
+        },
+        // LDW
+        {
+                toInt(VehicleProperty::LANE_DEPARTURE_WARNING_ENABLED),
+                {
+                        toInt(VehicleProperty::LANE_DEPARTURE_WARNING_STATE),
+                },
+        },
+        // LKA
+        {
+                toInt(VehicleProperty::LANE_KEEP_ASSIST_ENABLED),
+                {
+                        toInt(VehicleProperty::LANE_KEEP_ASSIST_STATE),
+                },
+        },
+        // LCA
+        {
+                toInt(VehicleProperty::LANE_CENTERING_ASSIST_ENABLED),
+                {
+                        toInt(VehicleProperty::LANE_CENTERING_ASSIST_STATE),
+                },
+        },
+        // ELKA
+        {
+                toInt(VehicleProperty::EMERGENCY_LANE_KEEP_ASSIST_ENABLED),
+                {
+                        toInt(VehicleProperty::EMERGENCY_LANE_KEEP_ASSIST_STATE),
+                },
+        },
+        // CC
+        {
+                toInt(VehicleProperty::CRUISE_CONTROL_ENABLED),
+                {
+                        toInt(VehicleProperty::CRUISE_CONTROL_TYPE),
+                        toInt(VehicleProperty::CRUISE_CONTROL_STATE),
+                },
+        },
+        // HOD
+        {
+                toInt(VehicleProperty::HANDS_ON_DETECTION_ENABLED),
+                {
+                        toInt(VehicleProperty::HANDS_ON_DETECTION_DRIVER_STATE),
+                        toInt(VehicleProperty::HANDS_ON_DETECTION_WARNING),
+                },
+        },
+};
 }  // namespace
 
 void FakeVehicleHardware::storePropInitialValue(const ConfigDeclaration& config) {
@@ -221,7 +305,11 @@ void FakeVehicleHardware::init() {
 }
 
 std::vector<VehiclePropConfig> FakeVehicleHardware::getAllPropertyConfigs() const {
-    return mServerSidePropStore->getAllConfigs();
+    std::vector<VehiclePropConfig> allConfigs = mServerSidePropStore->getAllConfigs();
+    if (mAddExtraTestVendorConfigs) {
+        generateVendorConfigs(/* outAllConfigs= */ allConfigs);
+    }
+    return allConfigs;
 }
 
 VehiclePropValuePool::RecyclableType FakeVehicleHardware::createApPowerStateReq(
@@ -234,6 +322,18 @@ VehiclePropValuePool::RecyclableType FakeVehicleHardware::createApPowerStateReq(
     req->value.int32Values[0] = toInt(state);
     // Param = 0.
     req->value.int32Values[1] = 0;
+    return req;
+}
+
+VehiclePropValuePool::RecyclableType FakeVehicleHardware::createAdasStateReq(int32_t propertyId,
+                                                                             int32_t areaId,
+                                                                             int32_t state) {
+    auto req = mValuePool->obtain(VehiclePropertyType::INT32);
+    req->prop = propertyId;
+    req->areaId = areaId;
+    req->timestamp = elapsedRealtimeNano();
+    req->status = VehiclePropertyStatus::AVAILABLE;
+    req->value.int32Values[0] = state;
     return req;
 }
 
@@ -298,19 +398,153 @@ VhalResult<void> FakeVehicleHardware::setApPowerStateReport(const VehiclePropVal
     return {};
 }
 
-bool FakeVehicleHardware::isHvacPropAndHvacNotAvailable(int32_t propId) const {
+int FakeVehicleHardware::getHvacTempNumIncrements(int requestedTemp, int minTemp, int maxTemp,
+                                                  int increment) {
+    requestedTemp = std::max(requestedTemp, minTemp);
+    requestedTemp = std::min(requestedTemp, maxTemp);
+    int numIncrements = (requestedTemp - minTemp) / increment;
+    return numIncrements;
+}
+
+void FakeVehicleHardware::updateHvacTemperatureValueSuggestionInput(
+        const std::vector<int>& hvacTemperatureSetConfigArray,
+        std::vector<float>* hvacTemperatureValueSuggestionInput) {
+    int minTempInCelsius = hvacTemperatureSetConfigArray[0];
+    int maxTempInCelsius = hvacTemperatureSetConfigArray[1];
+    int incrementInCelsius = hvacTemperatureSetConfigArray[2];
+
+    int minTempInFahrenheit = hvacTemperatureSetConfigArray[3];
+    int maxTempInFahrenheit = hvacTemperatureSetConfigArray[4];
+    int incrementInFahrenheit = hvacTemperatureSetConfigArray[5];
+
+    // The HVAC_TEMPERATURE_SET config array values are temperature values that have been multiplied
+    // by 10 and converted to integers. Therefore, requestedTemp must also be multiplied by 10 and
+    // converted to an integer in order for them to be the same units.
+    int requestedTemp = static_cast<int>((*hvacTemperatureValueSuggestionInput)[0] * 10.0f);
+    int numIncrements =
+            (*hvacTemperatureValueSuggestionInput)[1] == toInt(VehicleUnit::CELSIUS)
+                    ? getHvacTempNumIncrements(requestedTemp, minTempInCelsius, maxTempInCelsius,
+                                               incrementInCelsius)
+                    : getHvacTempNumIncrements(requestedTemp, minTempInFahrenheit,
+                                               maxTempInFahrenheit, incrementInFahrenheit);
+
+    int suggestedTempInCelsius = minTempInCelsius + incrementInCelsius * numIncrements;
+    int suggestedTempInFahrenheit = minTempInFahrenheit + incrementInFahrenheit * numIncrements;
+    // HVAC_TEMPERATURE_VALUE_SUGGESTION specifies the temperature values to be in the original
+    // floating point form so we divide by 10 and convert to float.
+    (*hvacTemperatureValueSuggestionInput)[2] = static_cast<float>(suggestedTempInCelsius) / 10.0f;
+    (*hvacTemperatureValueSuggestionInput)[3] =
+            static_cast<float>(suggestedTempInFahrenheit) / 10.0f;
+}
+
+VhalResult<void> FakeVehicleHardware::setHvacTemperatureValueSuggestion(
+        const VehiclePropValue& hvacTemperatureValueSuggestion) {
+    auto hvacTemperatureSetConfigResult =
+            mServerSidePropStore->getConfig(toInt(VehicleProperty::HVAC_TEMPERATURE_SET));
+
+    if (!hvacTemperatureSetConfigResult.ok()) {
+        return StatusError(getErrorCode(hvacTemperatureSetConfigResult)) << StringPrintf(
+                       "Failed to set HVAC_TEMPERATURE_VALUE_SUGGESTION because"
+                       " HVAC_TEMPERATURE_SET could not be retrieved. Error: %s",
+                       getErrorMsg(hvacTemperatureSetConfigResult).c_str());
+    }
+
+    const auto& originalInput = hvacTemperatureValueSuggestion.value.floatValues;
+    if (originalInput.size() != 4) {
+        return StatusError(StatusCode::INVALID_ARG) << StringPrintf(
+                       "Failed to set HVAC_TEMPERATURE_VALUE_SUGGESTION because float"
+                       " array value is not size 4.");
+    }
+
+    bool isTemperatureUnitSpecified = originalInput[1] == toInt(VehicleUnit::CELSIUS) ||
+                                      originalInput[1] == toInt(VehicleUnit::FAHRENHEIT);
+    if (!isTemperatureUnitSpecified) {
+        return StatusError(StatusCode::INVALID_ARG) << StringPrintf(
+                       "Failed to set HVAC_TEMPERATURE_VALUE_SUGGESTION because float"
+                       " value at index 1 is not any of %d or %d, which corresponds to"
+                       " VehicleUnit#CELSIUS and VehicleUnit#FAHRENHEIT respectively.",
+                       toInt(VehicleUnit::CELSIUS), toInt(VehicleUnit::FAHRENHEIT));
+    }
+
+    auto updatedValue = mValuePool->obtain(hvacTemperatureValueSuggestion);
+    const auto& hvacTemperatureSetConfigArray = hvacTemperatureSetConfigResult.value()->configArray;
+    auto& hvacTemperatureValueSuggestionInput = updatedValue->value.floatValues;
+
+    updateHvacTemperatureValueSuggestionInput(hvacTemperatureSetConfigArray,
+                                              &hvacTemperatureValueSuggestionInput);
+
+    updatedValue->timestamp = elapsedRealtimeNano();
+    auto writeResult = mServerSidePropStore->writeValue(std::move(updatedValue),
+                                                        /* updateStatus = */ true,
+                                                        VehiclePropertyStore::EventMode::ALWAYS);
+    if (!writeResult.ok()) {
+        return StatusError(getErrorCode(writeResult))
+               << StringPrintf("failed to write value into property store, error: %s",
+                               getErrorMsg(writeResult).c_str());
+    }
+
+    return {};
+}
+
+bool FakeVehicleHardware::isHvacPropAndHvacNotAvailable(int32_t propId, int32_t areaId) const {
     std::unordered_set<int32_t> powerProps(std::begin(HVAC_POWER_PROPERTIES),
                                            std::end(HVAC_POWER_PROPERTIES));
     if (powerProps.count(propId)) {
-        auto hvacPowerOnResult =
-                mServerSidePropStore->readValue(toInt(VehicleProperty::HVAC_POWER_ON), HVAC_ALL);
-
-        if (hvacPowerOnResult.ok() && hvacPowerOnResult.value()->value.int32Values.size() == 1 &&
-            hvacPowerOnResult.value()->value.int32Values[0] == 0) {
-            return true;
+        auto hvacPowerOnResults =
+                mServerSidePropStore->readValuesForProperty(toInt(VehicleProperty::HVAC_POWER_ON));
+        if (!hvacPowerOnResults.ok()) {
+            ALOGW("failed to get HVAC_POWER_ON 0x%x, error: %s",
+                  toInt(VehicleProperty::HVAC_POWER_ON), getErrorMsg(hvacPowerOnResults).c_str());
+            return false;
+        }
+        auto& hvacPowerOnValues = hvacPowerOnResults.value();
+        for (size_t j = 0; j < hvacPowerOnValues.size(); j++) {
+            auto hvacPowerOnValue = std::move(hvacPowerOnValues[j]);
+            if ((hvacPowerOnValue->areaId & areaId) == areaId) {
+                if (hvacPowerOnValue->value.int32Values.size() == 1 &&
+                    hvacPowerOnValue->value.int32Values[0] == 0) {
+                    return true;
+                }
+                break;
+            }
         }
     }
     return false;
+}
+
+VhalResult<void> FakeVehicleHardware::isAdasPropertyAvailable(int32_t adasStatePropertyId) const {
+    auto adasStateResult = mServerSidePropStore->readValue(adasStatePropertyId);
+    if (!adasStateResult.ok()) {
+        ALOGW("Failed to get ADAS ENABLED property 0x%x, error: %s", adasStatePropertyId,
+              getErrorMsg(adasStateResult).c_str());
+        return {};
+    }
+
+    if (adasStateResult.value()->value.int32Values.size() == 1 &&
+        adasStateResult.value()->value.int32Values[0] < 0) {
+        auto errorState = adasStateResult.value()->value.int32Values[0];
+        switch (errorState) {
+            case toInt(ErrorState::NOT_AVAILABLE_DISABLED):
+                return StatusError(StatusCode::NOT_AVAILABLE_DISABLED)
+                       << "ADAS feature is disabled.";
+            case toInt(ErrorState::NOT_AVAILABLE_SPEED_LOW):
+                return StatusError(StatusCode::NOT_AVAILABLE_SPEED_LOW)
+                       << "ADAS feature is disabled because the vehicle speed is too low.";
+            case toInt(ErrorState::NOT_AVAILABLE_SPEED_HIGH):
+                return StatusError(StatusCode::NOT_AVAILABLE_SPEED_HIGH)
+                       << "ADAS feature is disabled because the vehicle speed is too high.";
+            case toInt(ErrorState::NOT_AVAILABLE_POOR_VISIBILITY):
+                return StatusError(StatusCode::NOT_AVAILABLE_POOR_VISIBILITY)
+                       << "ADAS feature is disabled because the visibility is too poor.";
+            case toInt(ErrorState::NOT_AVAILABLE_SAFETY):
+                return StatusError(StatusCode::NOT_AVAILABLE_SAFETY)
+                       << "ADAS feature is disabled because of safety reasons.";
+            default:
+                return StatusError(StatusCode::NOT_AVAILABLE) << "ADAS feature is not available.";
+        }
+    }
+
+    return {};
 }
 
 VhalResult<void> FakeVehicleHardware::setUserHalProp(const VehiclePropValue& value) {
@@ -364,14 +598,25 @@ FakeVehicleHardware::ValueResultType FakeVehicleHardware::maybeGetSpecialValue(
     int32_t propId = value.prop;
     ValueResultType result;
 
+    if (propId >= STARTING_VENDOR_CODE_PROPERTIES_FOR_TEST &&
+        propId < ENDING_VENDOR_CODE_PROPERTIES_FOR_TEST) {
+        *isSpecialValue = true;
+        result = mValuePool->obtainInt32(/* value= */ 5);
+
+        result.value()->prop = propId;
+        result.value()->areaId = 0;
+        result.value()->timestamp = elapsedRealtimeNano();
+        return result;
+    }
+
     if (mFakeUserHal->isSupported(propId)) {
         *isSpecialValue = true;
         return getUserHalProp(value);
     }
 
-    if (isHvacPropAndHvacNotAvailable(propId)) {
+    if (isHvacPropAndHvacNotAvailable(propId, value.areaId)) {
         *isSpecialValue = true;
-        return StatusError(StatusCode::NOT_AVAILABLE) << "hvac not available";
+        return StatusError(StatusCode::NOT_AVAILABLE_DISABLED) << "hvac not available";
     }
 
     switch (propId) {
@@ -395,6 +640,19 @@ FakeVehicleHardware::ValueResultType FakeVehicleHardware::maybeGetSpecialValue(
         case VENDOR_PROPERTY_ID:
             *isSpecialValue = true;
             return StatusError((StatusCode)VENDOR_ERROR_CODE);
+        case toInt(VehicleProperty::CRUISE_CONTROL_TARGET_SPEED):
+            [[fallthrough]];
+        case toInt(VehicleProperty::ADAPTIVE_CRUISE_CONTROL_TARGET_TIME_GAP):
+            [[fallthrough]];
+        case toInt(VehicleProperty::ADAPTIVE_CRUISE_CONTROL_LEAD_VEHICLE_MEASURED_DISTANCE): {
+            auto isAdasPropertyAvailableResult =
+                    isAdasPropertyAvailable(toInt(VehicleProperty::CRUISE_CONTROL_STATE));
+            if (!isAdasPropertyAvailableResult.ok()) {
+                *isSpecialValue = true;
+                return isAdasPropertyAvailableResult.error();
+            }
+            return nullptr;
+        }
         default:
             // Do nothing.
             break;
@@ -419,7 +677,7 @@ FakeVehicleHardware::ValueResultType FakeVehicleHardware::getEchoReverseBytes(
     return std::move(gotValue);
 }
 
-void FakeVehicleHardware::sendHvacPropertiesCurrentValues() {
+void FakeVehicleHardware::sendHvacPropertiesCurrentValues(int32_t areaId) {
     for (size_t i = 0; i < sizeof(HVAC_POWER_PROPERTIES) / sizeof(int32_t); i++) {
         int powerPropId = HVAC_POWER_PROPERTIES[i];
         auto powerPropResults = mServerSidePropStore->readValuesForProperty(powerPropId);
@@ -431,10 +689,31 @@ void FakeVehicleHardware::sendHvacPropertiesCurrentValues() {
         auto& powerPropValues = powerPropResults.value();
         for (size_t j = 0; j < powerPropValues.size(); j++) {
             auto powerPropValue = std::move(powerPropValues[j]);
-            powerPropValue->status = VehiclePropertyStatus::AVAILABLE;
-            powerPropValue->timestamp = elapsedRealtimeNano();
-            // This will trigger a property change event for the current hvac property value.
-            mServerSidePropStore->writeValue(std::move(powerPropValue), /*updateStatus=*/true,
+            if ((powerPropValue->areaId & areaId) == powerPropValue->areaId) {
+                powerPropValue->status = VehiclePropertyStatus::AVAILABLE;
+                powerPropValue->timestamp = elapsedRealtimeNano();
+                // This will trigger a property change event for the current hvac property value.
+                mServerSidePropStore->writeValue(std::move(powerPropValue), /*updateStatus=*/true,
+                                                 VehiclePropertyStore::EventMode::ALWAYS);
+            }
+        }
+    }
+}
+
+void FakeVehicleHardware::sendAdasPropertiesState(int32_t propertyId, int32_t state) {
+    auto& adasDependentPropIds = mAdasEnabledPropToAdasPropWithErrorState.find(propertyId)->second;
+    for (auto dependentPropId : adasDependentPropIds) {
+        auto dependentPropConfigResult = mServerSidePropStore->getConfig(dependentPropId);
+        if (!dependentPropConfigResult.ok()) {
+            ALOGW("Failed to get config for ADAS property 0x%x, error: %s", dependentPropId,
+                  getErrorMsg(dependentPropConfigResult).c_str());
+            continue;
+        }
+        auto& dependentPropConfig = dependentPropConfigResult.value();
+        for (auto& areaConfig : dependentPropConfig->areaConfigs) {
+            auto propValue = createAdasStateReq(dependentPropId, areaConfig.areaId, state);
+            // This will trigger a property change event for the current ADAS property value.
+            mServerSidePropStore->writeValue(std::move(propValue), /*updateStatus=*/true,
                                              VehiclePropertyStore::EventMode::ALWAYS);
         }
     }
@@ -446,6 +725,12 @@ VhalResult<void> FakeVehicleHardware::maybeSetSpecialValue(const VehiclePropValu
     VehiclePropValuePool::RecyclableType updatedValue;
     int32_t propId = value.prop;
 
+    if (propId >= STARTING_VENDOR_CODE_PROPERTIES_FOR_TEST &&
+        propId < ENDING_VENDOR_CODE_PROPERTIES_FOR_TEST) {
+        *isSpecialValue = true;
+        return {};
+    }
+
     if (mFakeUserHal->isSupported(propId)) {
         *isSpecialValue = true;
         return setUserHalProp(value);
@@ -455,12 +740,22 @@ VhalResult<void> FakeVehicleHardware::maybeSetSpecialValue(const VehiclePropValu
         value.value.int32Values[0] == 1) {
         // If we are turning HVAC power on, send current hvac property values through on change
         // event.
-        sendHvacPropertiesCurrentValues();
+        sendHvacPropertiesCurrentValues(value.areaId);
     }
 
-    if (isHvacPropAndHvacNotAvailable(propId)) {
+    if (isHvacPropAndHvacNotAvailable(propId, value.areaId)) {
         *isSpecialValue = true;
-        return StatusError(StatusCode::NOT_AVAILABLE) << "hvac not available";
+        return StatusError(StatusCode::NOT_AVAILABLE_DISABLED) << "hvac not available";
+    }
+
+    if (mAdasEnabledPropToAdasPropWithErrorState.count(propId) &&
+        value.value.int32Values.size() == 1) {
+        if (value.value.int32Values[0] == 1) {
+            // Set default state to 1 when ADAS feature is enabled.
+            sendAdasPropertiesState(propId, /* state = */ 1);
+        } else {
+            sendAdasPropertiesState(propId, toInt(ErrorState::NOT_AVAILABLE_DISABLED));
+        }
     }
 
     switch (propId) {
@@ -478,6 +773,27 @@ VhalResult<void> FakeVehicleHardware::maybeSetSpecialValue(const VehiclePropValu
         case VENDOR_PROPERTY_ID:
             *isSpecialValue = true;
             return StatusError((StatusCode)VENDOR_ERROR_CODE);
+        case toInt(VehicleProperty::HVAC_TEMPERATURE_VALUE_SUGGESTION):
+            *isSpecialValue = true;
+            return setHvacTemperatureValueSuggestion(value);
+        case toInt(VehicleProperty::LANE_CENTERING_ASSIST_COMMAND): {
+            auto isAdasPropertyAvailableResult =
+                    isAdasPropertyAvailable(toInt(VehicleProperty::LANE_CENTERING_ASSIST_STATE));
+            if (!isAdasPropertyAvailableResult.ok()) {
+                *isSpecialValue = true;
+            }
+            return isAdasPropertyAvailableResult;
+        }
+        case toInt(VehicleProperty::CRUISE_CONTROL_COMMAND):
+            [[fallthrough]];
+        case toInt(VehicleProperty::ADAPTIVE_CRUISE_CONTROL_TARGET_TIME_GAP): {
+            auto isAdasPropertyAvailableResult =
+                    isAdasPropertyAvailable(toInt(VehicleProperty::CRUISE_CONTROL_STATE));
+            if (!isAdasPropertyAvailableResult.ok()) {
+                *isSpecialValue = true;
+            }
+            return isAdasPropertyAvailableResult;
+        }
 
 #ifdef ENABLE_VEHICLE_HAL_TEST_PROPERTIES
         case toInt(VehicleProperty::CLUSTER_REPORT_STATE):
@@ -538,7 +854,6 @@ VhalResult<void> FakeVehicleHardware::setValue(const VehiclePropValue& value) {
     // Here we are just updating mValuePool.
     bool isSpecialValue = false;
     auto setSpecialValueResult = maybeSetSpecialValue(value, &isSpecialValue);
-
     if (isSpecialValue) {
         if (!setSpecialValueResult.ok()) {
             return StatusError(getErrorCode(setSpecialValueResult))
@@ -672,6 +987,12 @@ DumpResult FakeVehicleHardware::dump(const std::vector<std::string>& options) {
         result.buffer = mFakeUserHal->dump();
     } else if (EqualsIgnoreCase(option, "--genfakedata")) {
         result.buffer = genFakeDataCommand(options);
+    } else if (EqualsIgnoreCase(option, "--genTestVendorConfigs")) {
+        mAddExtraTestVendorConfigs = true;
+        result.refreshPropertyConfigs = true;
+    } else if (EqualsIgnoreCase(option, "--restoreVendorConfigs")) {
+        mAddExtraTestVendorConfigs = false;
+        result.refreshPropertyConfigs = true;
     } else {
         result.buffer = StringPrintf("Invalid option: %s\n", option.c_str());
     }
@@ -722,6 +1043,13 @@ provided, it would iterate indefinitely.
   [pressure(float)] [size(float)]
   Generate a motion input event. --pointer option can be specified multiple times.
 
+--genTestVendorConfigs: Generates fake VehiclePropConfig ranging from 0x5000 to 0x8000 all with
+  vendor property group, global vehicle area, and int32 vehicle property type. This is mainly used
+  for testing
+
+--restoreVendorConfigs: Restores to to the default state if genTestVendorConfigs was used.
+  Otherwise this will do nothing.
+
 )";
 }
 
@@ -729,6 +1057,17 @@ std::string FakeVehicleHardware::parseErrMsg(std::string fieldName, std::string 
                                              std::string type) {
     return StringPrintf("failed to parse %s as %s: \"%s\"\n%s", fieldName.c_str(), type.c_str(),
                         value.c_str(), genFakeDataHelp().c_str());
+}
+
+void FakeVehicleHardware::generateVendorConfigs(
+        std::vector<VehiclePropConfig>& outAllConfigs) const {
+    for (int i = STARTING_VENDOR_CODE_PROPERTIES_FOR_TEST;
+         i < ENDING_VENDOR_CODE_PROPERTIES_FOR_TEST; i++) {
+        VehiclePropConfig config;
+        config.prop = i;
+        config.access = VehiclePropertyAccess::READ_WRITE;
+        outAllConfigs.push_back(config);
+    }
 }
 
 std::string FakeVehicleHardware::genFakeDataCommand(const std::vector<std::string>& options) {
