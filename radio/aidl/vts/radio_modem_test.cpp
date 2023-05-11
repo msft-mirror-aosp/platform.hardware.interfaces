@@ -191,6 +191,13 @@ TEST_P(RadioModemTest, getDeviceIdentity) {
  * Test IRadioModem.getImei() for the response returned.
  */
 TEST_P(RadioModemTest, getImei) {
+    int32_t aidl_version;
+    ndk::ScopedAStatus aidl_status = radio_modem->getInterfaceVersion(&aidl_version);
+    ASSERT_OK(aidl_status);
+    if (aidl_version < 2) {
+        ALOGI("Skipped the test since getImei is not supported on version < 2");
+        GTEST_SKIP();
+    }
     LOG(DEBUG) << "getImei";
     serial = GetRandomSerialNumber();
 
@@ -283,6 +290,8 @@ TEST_P(RadioModemTest, nvResetConfig) {
         ASSERT_TRUE(CheckAnyOfErrors(radioRsp_modem->rspInfo.error,
                                      {RadioError::NONE, RadioError::REQUEST_NOT_SUPPORTED}));
     }
+    // wait until modem reset finishes
+    sleep(10);
     LOG(DEBUG) << "nvResetConfig finished";
 }
 

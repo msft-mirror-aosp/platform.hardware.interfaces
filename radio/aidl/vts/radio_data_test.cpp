@@ -233,14 +233,10 @@ TEST_P(RadioDataTest, getSlicingConfig) {
     EXPECT_EQ(std::cv_status::no_timeout, wait());
     EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_data->rspInfo.type);
     EXPECT_EQ(serial, radioRsp_data->rspInfo.serial);
-    if (getRadioHalCapabilities()) {
-        ASSERT_TRUE(CheckAnyOfErrors(radioRsp_data->rspInfo.error,
-                                     {RadioError::REQUEST_NOT_SUPPORTED}));
-    } else {
-        ASSERT_TRUE(CheckAnyOfErrors(radioRsp_data->rspInfo.error,
-                                     {RadioError::NONE, RadioError::RADIO_NOT_AVAILABLE,
-                                      RadioError::INTERNAL_ERR, RadioError::MODEM_ERR}));
-    }
+    ASSERT_TRUE(CheckAnyOfErrors(radioRsp_data->rspInfo.error,
+                                 {RadioError::NONE, RadioError::RADIO_NOT_AVAILABLE,
+                                  RadioError::INTERNAL_ERR, RadioError::MODEM_ERR,
+                                  RadioError::REQUEST_NOT_SUPPORTED}));
 }
 
 /*
@@ -535,8 +531,7 @@ TEST_P(RadioDataTest, startKeepalive) {
 
         ASSERT_TRUE(CheckAnyOfErrors(
                 radioRsp_data->rspInfo.error,
-                {RadioError::NONE, RadioError::RADIO_NOT_AVAILABLE, RadioError::INVALID_ARGUMENTS,
-                 RadioError::REQUEST_NOT_SUPPORTED}));
+                {RadioError::INVALID_ARGUMENTS, RadioError::REQUEST_NOT_SUPPORTED}));
     }
 }
 
@@ -553,8 +548,7 @@ TEST_P(RadioDataTest, stopKeepalive) {
 
     ASSERT_TRUE(
             CheckAnyOfErrors(radioRsp_data->rspInfo.error,
-                             {RadioError::NONE, RadioError::RADIO_NOT_AVAILABLE,
-                              RadioError::INVALID_ARGUMENTS, RadioError::REQUEST_NOT_SUPPORTED}));
+                             {RadioError::INVALID_ARGUMENTS, RadioError::REQUEST_NOT_SUPPORTED}));
 }
 
 /*
