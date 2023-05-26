@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <android-base/logging.h>
+#include <aidl/android/hardware/radio/ims/media/MediaDirection.h>
 #include <android/binder_auto_utils.h>
 #include <android/binder_manager.h>
 #include <sys/socket.h>
@@ -24,9 +24,8 @@
 #define ASSERT_OK(ret) ASSERT_TRUE(ret.isOk())
 
 void RadioImsMediaTest::SetUp() {
+    RadioServiceTest::SetUp();
     std::string serviceName = GetParam();
-
-    ALOGD("Enter RadioImsMediaTest.");
 
     radio_imsmedia = IImsMedia::fromBinder(
             ndk::SpAIBinder(AServiceManager_waitForService(GetParam().c_str())));
@@ -37,15 +36,16 @@ void RadioImsMediaTest::SetUp() {
 
     radio_imsmediasessionlistener = ndk::SharedRefBase::make<ImsMediaSessionListener>(*this);
     ASSERT_NE(nullptr, radio_imsmediasessionlistener.get());
-    count_ = 0;
 }
 
 TEST_P(RadioImsMediaTest, MOCallSuccess) {
     int32_t sessionId = 1;
     RtpConfig modifyRtpConfig;
 
-    modifyRtpConfig.direction =
-            ::aidl::android::hardware::radio::ims::media::MediaDirection::SEND_RECEIVE;
+    modifyRtpConfig.direction = static_cast<int32_t>(MediaDirection::RTP_TX) |
+                                static_cast<int32_t>(MediaDirection::RTP_RX) |
+                                static_cast<int32_t>(MediaDirection::RTCP_TX) |
+                                static_cast<int32_t>(MediaDirection::RTCP_RX);
     modifyRtpConfig.remoteAddress.ipAddress = "122.22.22.33";
     modifyRtpConfig.remoteAddress.portNumber = 1234;
 
@@ -90,8 +90,10 @@ TEST_P(RadioImsMediaTest, testDtmfOperation) {
     int32_t duration = 200;
     RtpConfig modifyRtpConfig;
 
-    modifyRtpConfig.direction =
-            ::aidl::android::hardware::radio::ims::media::MediaDirection::SEND_RECEIVE;
+    modifyRtpConfig.direction = static_cast<int32_t>(MediaDirection::RTP_TX) |
+                                static_cast<int32_t>(MediaDirection::RTP_RX) |
+                                static_cast<int32_t>(MediaDirection::RTCP_TX) |
+                                static_cast<int32_t>(MediaDirection::RTCP_RX);
     modifyRtpConfig.remoteAddress.ipAddress = "122.22.22.33";
     modifyRtpConfig.remoteAddress.portNumber = 1234;
 
@@ -143,8 +145,10 @@ TEST_P(RadioImsMediaTest, sendHeaderExtension) {
     std::vector<RtpHeaderExtension> extensions;
     RtpConfig modifyRtpConfig;
 
-    modifyRtpConfig.direction =
-            ::aidl::android::hardware::radio::ims::media::MediaDirection::SEND_RECEIVE;
+    modifyRtpConfig.direction = static_cast<int32_t>(MediaDirection::RTP_TX) |
+                                static_cast<int32_t>(MediaDirection::RTP_RX) |
+                                static_cast<int32_t>(MediaDirection::RTCP_TX) |
+                                static_cast<int32_t>(MediaDirection::RTCP_RX);
     modifyRtpConfig.remoteAddress.ipAddress = "122.22.22.33";
     modifyRtpConfig.remoteAddress.portNumber = 1234;
 
@@ -190,8 +194,10 @@ TEST_P(RadioImsMediaTest, setMediaQualityThreshold) {
     MediaQualityThreshold threshold;
     RtpConfig modifyRtpConfig;
 
-    modifyRtpConfig.direction =
-            ::aidl::android::hardware::radio::ims::media::MediaDirection::SEND_RECEIVE;
+    modifyRtpConfig.direction = static_cast<int32_t>(MediaDirection::RTP_TX) |
+                                static_cast<int32_t>(MediaDirection::RTP_RX) |
+                                static_cast<int32_t>(MediaDirection::RTCP_TX) |
+                                static_cast<int32_t>(MediaDirection::RTCP_RX);
     modifyRtpConfig.remoteAddress.ipAddress = "122.22.22.33";
     modifyRtpConfig.remoteAddress.portNumber = 1234;
 
@@ -243,13 +249,14 @@ ndk::ScopedAStatus RadioImsMediaTest::triggerOpenSession(int32_t sessionId) {
     localEndPoint.rtcpFd = ndk::ScopedFileDescriptor(mRtcpSocketFd);
     localEndPoint.modemId = 1;
 
-    rtpConfig.direction =
-            ::aidl::android::hardware::radio::ims::media::MediaDirection::SEND_RECEIVE;
+    rtpConfig.direction = static_cast<int32_t>(MediaDirection::RTP_TX) |
+                          static_cast<int32_t>(MediaDirection::RTP_RX) |
+                          static_cast<int32_t>(MediaDirection::RTCP_TX) |
+                          static_cast<int32_t>(MediaDirection::RTCP_RX);
     rtpConfig.remoteAddress.ipAddress = "122.22.22.22";
     rtpConfig.remoteAddress.portNumber = 2222;
 
     result = radio_imsmedia->openSession(sessionId, localEndPoint, rtpConfig);
-
     return result;
 }
 

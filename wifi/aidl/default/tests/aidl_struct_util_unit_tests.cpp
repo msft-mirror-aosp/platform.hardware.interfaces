@@ -658,16 +658,16 @@ TEST_F(AidlStructUtilTest, canConvertLegacyLinkLayerStatsToAidl) {
 }
 
 TEST_F(AidlStructUtilTest, CanConvertLegacyFeaturesToAidl) {
-    using AidlChipCaps = IWifiChip::ChipCapabilityMask;
+    using AidlChipCaps = IWifiChip::FeatureSetMask;
 
-    uint32_t aidl_caps;
+    uint32_t aidl_features;
     uint32_t legacy_feature_set = WIFI_FEATURE_D2D_RTT | WIFI_FEATURE_SET_LATENCY_MODE;
 
-    ASSERT_TRUE(aidl_struct_util::convertLegacyFeaturesToAidlChipCapabilities(legacy_feature_set,
-                                                                              &aidl_caps));
+    ASSERT_TRUE(
+            aidl_struct_util::convertLegacyChipFeaturesToAidl(legacy_feature_set, &aidl_features));
 
     EXPECT_EQ((uint32_t)AidlChipCaps::D2D_RTT | (uint32_t)AidlChipCaps::SET_LATENCY_MODE,
-              aidl_caps);
+              aidl_features);
 }
 
 void insertRadioCombination(legacy_hal::wifi_radio_combination* dst_radio_combination_ptr,
@@ -753,21 +753,22 @@ TEST_F(AidlStructUtilTest, canConvertLegacyRadioCombinationsMatrixToAidl) {
             sizeof(radio_configurations_array3) / sizeof(radio_configurations_array3[0]),
             radio_configurations_array3);
 
-    WifiRadioCombinationMatrix converted_matrix{};
-    aidl_struct_util::convertLegacyRadioCombinationsMatrixToAidl(legacy_matrix, &converted_matrix);
+    std::vector<WifiRadioCombination> converted_combinations;
+    aidl_struct_util::convertLegacyRadioCombinationsMatrixToAidl(legacy_matrix,
+                                                                 &converted_combinations);
 
     // Verify the conversion
-    EXPECT_EQ(legacy_matrix->num_radio_combinations, converted_matrix.radioCombinations.size());
+    EXPECT_EQ(legacy_matrix->num_radio_combinations, converted_combinations.size());
     verifyRadioCombination(
-            &converted_matrix.radioCombinations[0],
+            &converted_combinations[0],
             sizeof(radio_configurations_array1) / sizeof(radio_configurations_array1[0]),
             radio_configurations_array1);
     verifyRadioCombination(
-            &converted_matrix.radioCombinations[1],
+            &converted_combinations[1],
             sizeof(radio_configurations_array2) / sizeof(radio_configurations_array2[0]),
             radio_configurations_array2);
     verifyRadioCombination(
-            &converted_matrix.radioCombinations[2],
+            &converted_combinations[2],
             sizeof(radio_configurations_array3) / sizeof(radio_configurations_array3[0]),
             radio_configurations_array3);
 }

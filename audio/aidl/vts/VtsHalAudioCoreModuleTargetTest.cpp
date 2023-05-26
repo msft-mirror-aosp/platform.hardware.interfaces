@@ -53,6 +53,11 @@
 #include "TestUtils.h"
 
 using namespace android;
+using aidl::android::hardware::audio::common::AudioOffloadMetadata;
+using aidl::android::hardware::audio::common::getChannelCount;
+using aidl::android::hardware::audio::common::isBitPositionFlagSet;
+using aidl::android::hardware::audio::common::isTelephonyDeviceType;
+using aidl::android::hardware::audio::common::isValidAudioMode;
 using aidl::android::hardware::audio::common::PlaybackTrackMetadata;
 using aidl::android::hardware::audio::common::RecordTrackMetadata;
 using aidl::android::hardware::audio::common::SinkMetadata;
@@ -60,6 +65,8 @@ using aidl::android::hardware::audio::common::SourceMetadata;
 using aidl::android::hardware::audio::core::AudioPatch;
 using aidl::android::hardware::audio::core::AudioRoute;
 using aidl::android::hardware::audio::core::IBluetooth;
+using aidl::android::hardware::audio::core::IBluetoothA2dp;
+using aidl::android::hardware::audio::core::IBluetoothLe;
 using aidl::android::hardware::audio::core::IModule;
 using aidl::android::hardware::audio::core::IStreamCommon;
 using aidl::android::hardware::audio::core::IStreamIn;
@@ -97,10 +104,6 @@ using aidl::android::media::audio::common::Int;
 using aidl::android::media::audio::common::MicrophoneDynamicInfo;
 using aidl::android::media::audio::common::MicrophoneInfo;
 using aidl::android::media::audio::common::Void;
-using android::hardware::audio::common::getChannelCount;
-using android::hardware::audio::common::isBitPositionFlagSet;
-using android::hardware::audio::common::isTelephonyDeviceType;
-using android::hardware::audio::common::isValidAudioMode;
 using android::hardware::audio::common::StreamLogic;
 using android::hardware::audio::common::StreamWorker;
 using ndk::enum_range;
@@ -126,7 +129,9 @@ AudioDeviceAddress::Tag suggestDeviceAddressTag(const AudioDeviceDescription& de
     using Tag = AudioDeviceAddress::Tag;
     if (std::string_view connection = description.connection;
         connection == AudioDeviceDescription::CONNECTION_BT_A2DP ||
-        connection == AudioDeviceDescription::CONNECTION_BT_LE ||
+        // Note: BT LE Broadcast uses a "group id".
+        (description.type != AudioDeviceType::OUT_BROADCAST &&
+         connection == AudioDeviceDescription::CONNECTION_BT_LE) ||
         connection == AudioDeviceDescription::CONNECTION_BT_SCO ||
         connection == AudioDeviceDescription::CONNECTION_WIRELESS) {
         return Tag::mac;
@@ -401,8 +406,9 @@ void TestSetVendorParameters(Instance* inst, bool* isSupported) {
 // Can be used as a base for any test here, does not depend on the fixture GTest parameters.
 class AudioCoreModuleBase {
   public:
-    // The default buffer size is used mostly for negative tests.
+    // Default buffer sizes are used mostly for negative tests.
     static constexpr int kDefaultBufferSizeFrames = 256;
+    static constexpr int kDefaultLargeBufferSizeFrames = 48000;
 
     void SetUpImpl(const std::string& moduleName) {
         ASSERT_NO_FATAL_FAILURE(ConnectToService(moduleName));
@@ -1066,6 +1072,8 @@ class WithStream {
     static ndk::ScopedAStatus callClose(std::shared_ptr<Stream> stream) {
         std::shared_ptr<IStreamCommon> common;
         ndk::ScopedAStatus status = stream->getStreamCommon(&common);
+        if (!status.isOk()) return status;
+        status = common->prepareToClose();
         if (!status.isOk()) return status;
         return common->close();
     }
@@ -1772,6 +1780,42 @@ TEST_P(AudioCoreModule, ExternalDevicePortRoutes) {
     }
 }
 
+// Note: This test relies on simulation of external device connections by the HAL module.
+TEST_P(AudioCoreModule, ExternalDeviceMixPortConfigs) {
+    // After an external device has been connected, all mix ports that can be routed
+    // to the device port for the connected device must have non-empty profiles.
+    ASSERT_NO_FATAL_FAILURE(SetUpModuleConfig());
+    std::vector<AudioPort> externalDevicePorts = moduleConfig->getExternalDevicePorts();
+    if (externalDevicePorts.empty()) {
+        GTEST_SKIP() << "No external devices in the module.";
+    }
+    for (const auto& port : externalDevicePorts) {
+        WithDevicePortConnectedState portConnected(GenerateUniqueDeviceAddress(port));
+        ASSERT_NO_FATAL_FAILURE(portConnected.SetUp(module.get()));
+        std::vector<AudioRoute> routes;
+        ASSERT_IS_OK(module->getAudioRoutesForAudioPort(portConnected.getId(), &routes));
+        std::vector<AudioPort> allPorts;
+        ASSERT_IS_OK(module->getAudioPorts(&allPorts));
+        for (const auto& r : routes) {
+            if (r.sinkPortId == portConnected.getId()) {
+                for (const auto& srcPortId : r.sourcePortIds) {
+                    const auto srcPortIt = findById(allPorts, srcPortId);
+                    ASSERT_NE(allPorts.end(), srcPortIt) << "port ID " << srcPortId;
+                    EXPECT_NE(0UL, srcPortIt->profiles.size())
+                            << " source port " << srcPortIt->toString() << " must have its profiles"
+                            << " populated following external device connection";
+                }
+            } else {
+                const auto sinkPortIt = findById(allPorts, r.sinkPortId);
+                ASSERT_NE(allPorts.end(), sinkPortIt) << "port ID " << r.sinkPortId;
+                EXPECT_NE(0UL, sinkPortIt->profiles.size())
+                        << " source port " << sinkPortIt->toString() << " must have its"
+                        << " profiles populated following external device connection";
+            }
+        }
+    }
+}
+
 TEST_P(AudioCoreModule, MasterMute) {
     bool isSupported = false;
     EXPECT_NO_FATAL_FAILURE(TestAccessors<bool>(module.get(), &IModule::getMasterMute,
@@ -2053,6 +2097,112 @@ TEST_P(AudioCoreBluetooth, HfpConfigInvalid) {
                                           &hfpConfig));
 }
 
+class AudioCoreBluetoothA2dp : public AudioCoreModuleBase,
+                               public testing::TestWithParam<std::string> {
+  public:
+    void SetUp() override {
+        ASSERT_NO_FATAL_FAILURE(SetUpImpl(GetParam()));
+        ASSERT_IS_OK(module->getBluetoothA2dp(&bluetooth));
+    }
+
+    void TearDown() override { ASSERT_NO_FATAL_FAILURE(TearDownImpl()); }
+
+    std::shared_ptr<IBluetoothA2dp> bluetooth;
+};
+
+TEST_P(AudioCoreBluetoothA2dp, SameInstance) {
+    if (bluetooth == nullptr) {
+        GTEST_SKIP() << "BluetoothA2dp is not supported";
+    }
+    std::shared_ptr<IBluetoothA2dp> bluetooth2;
+    EXPECT_IS_OK(module->getBluetoothA2dp(&bluetooth2));
+    ASSERT_NE(nullptr, bluetooth2.get());
+    EXPECT_EQ(bluetooth->asBinder(), bluetooth2->asBinder())
+            << "getBluetoothA2dp must return the same interface instance across invocations";
+}
+
+TEST_P(AudioCoreBluetoothA2dp, Enabled) {
+    if (bluetooth == nullptr) {
+        GTEST_SKIP() << "BluetoothA2dp is not supported";
+    }
+    // Since enabling A2DP may require having an actual device connection,
+    // limit testing to setting back the current value.
+    bool enabled;
+    ASSERT_IS_OK(bluetooth->isEnabled(&enabled));
+    EXPECT_IS_OK(bluetooth->setEnabled(enabled))
+            << "setEnabled without actual state change must not fail";
+}
+
+TEST_P(AudioCoreBluetoothA2dp, OffloadReconfiguration) {
+    if (bluetooth == nullptr) {
+        GTEST_SKIP() << "BluetoothA2dp is not supported";
+    }
+    bool isSupported;
+    ASSERT_IS_OK(bluetooth->supportsOffloadReconfiguration(&isSupported));
+    bool isSupported2;
+    ASSERT_IS_OK(bluetooth->supportsOffloadReconfiguration(&isSupported2));
+    EXPECT_EQ(isSupported, isSupported2);
+    if (isSupported) {
+        static const auto kStatuses = {EX_NONE, EX_ILLEGAL_STATE};
+        EXPECT_STATUS(kStatuses, bluetooth->reconfigureOffload({}));
+    } else {
+        EXPECT_STATUS(EX_UNSUPPORTED_OPERATION, bluetooth->reconfigureOffload({}));
+    }
+}
+
+class AudioCoreBluetoothLe : public AudioCoreModuleBase,
+                             public testing::TestWithParam<std::string> {
+  public:
+    void SetUp() override {
+        ASSERT_NO_FATAL_FAILURE(SetUpImpl(GetParam()));
+        ASSERT_IS_OK(module->getBluetoothLe(&bluetooth));
+    }
+
+    void TearDown() override { ASSERT_NO_FATAL_FAILURE(TearDownImpl()); }
+
+    std::shared_ptr<IBluetoothLe> bluetooth;
+};
+
+TEST_P(AudioCoreBluetoothLe, SameInstance) {
+    if (bluetooth == nullptr) {
+        GTEST_SKIP() << "BluetoothLe is not supported";
+    }
+    std::shared_ptr<IBluetoothLe> bluetooth2;
+    EXPECT_IS_OK(module->getBluetoothLe(&bluetooth2));
+    ASSERT_NE(nullptr, bluetooth2.get());
+    EXPECT_EQ(bluetooth->asBinder(), bluetooth2->asBinder())
+            << "getBluetoothLe must return the same interface instance across invocations";
+}
+
+TEST_P(AudioCoreBluetoothLe, Enabled) {
+    if (bluetooth == nullptr) {
+        GTEST_SKIP() << "BluetoothLe is not supported";
+    }
+    // Since enabling LE may require having an actual device connection,
+    // limit testing to setting back the current value.
+    bool enabled;
+    ASSERT_IS_OK(bluetooth->isEnabled(&enabled));
+    EXPECT_IS_OK(bluetooth->setEnabled(enabled))
+            << "setEnabled without actual state change must not fail";
+}
+
+TEST_P(AudioCoreBluetoothLe, OffloadReconfiguration) {
+    if (bluetooth == nullptr) {
+        GTEST_SKIP() << "BluetoothLe is not supported";
+    }
+    bool isSupported;
+    ASSERT_IS_OK(bluetooth->supportsOffloadReconfiguration(&isSupported));
+    bool isSupported2;
+    ASSERT_IS_OK(bluetooth->supportsOffloadReconfiguration(&isSupported2));
+    EXPECT_EQ(isSupported, isSupported2);
+    if (isSupported) {
+        static const auto kStatuses = {EX_NONE, EX_ILLEGAL_STATE};
+        EXPECT_STATUS(kStatuses, bluetooth->reconfigureOffload({}));
+    } else {
+        EXPECT_STATUS(EX_UNSUPPORTED_OPERATION, bluetooth->reconfigureOffload({}));
+    }
+}
+
 class AudioCoreTelephony : public AudioCoreModuleBase, public testing::TestWithParam<std::string> {
   public:
     void SetUp() override {
@@ -2244,6 +2394,26 @@ class AudioStream : public AudioCoreModule {
         }
         EXPECT_STATUS(EX_ILLEGAL_STATE, WithStream<Stream>::callClose(heldStream))
                 << "when closing the stream twice";
+    }
+
+    void PrepareToCloseTwice() {
+        const auto portConfig = moduleConfig->getSingleConfigForMixPort(IOTraits<Stream>::is_input);
+        if (!portConfig.has_value()) {
+            GTEST_SKIP() << "No mix port for attached devices";
+        }
+        std::shared_ptr<IStreamCommon> heldStreamCommon;
+        {
+            WithStream<Stream> stream(portConfig.value());
+            ASSERT_NO_FATAL_FAILURE(stream.SetUp(module.get(), kDefaultBufferSizeFrames));
+            std::shared_ptr<IStreamCommon> streamCommon;
+            ASSERT_IS_OK(stream.get()->getStreamCommon(&streamCommon));
+            heldStreamCommon = streamCommon;
+            EXPECT_IS_OK(streamCommon->prepareToClose());
+            EXPECT_IS_OK(streamCommon->prepareToClose())
+                    << "when calling prepareToClose second time";
+        }
+        EXPECT_STATUS(EX_ILLEGAL_STATE, heldStreamCommon->prepareToClose())
+                << "when calling prepareToClose on a closed stream";
     }
 
     void OpenAllConfigs() {
@@ -2541,6 +2711,7 @@ using AudioStreamOut = AudioStream<IStreamOut>;
     }
 
 TEST_IN_AND_OUT_STREAM(CloseTwice);
+TEST_IN_AND_OUT_STREAM(PrepareToCloseTwice);
 TEST_IN_AND_OUT_STREAM(GetStreamCommon);
 TEST_IN_AND_OUT_STREAM(OpenAllConfigs);
 TEST_IN_AND_OUT_STREAM(OpenInvalidBufferSize);
@@ -2696,7 +2867,7 @@ TEST_P(AudioStreamOut, RequireOffloadInfo) {
     aidl::android::hardware::audio::core::IModule::OpenOutputStreamArguments args;
     args.portConfigId = portConfig.getId();
     args.sourceMetadata = GenerateSourceMetadata(portConfig.get());
-    args.bufferSizeFrames = kDefaultBufferSizeFrames;
+    args.bufferSizeFrames = kDefaultLargeBufferSizeFrames;
     aidl::android::hardware::audio::core::IModule::OpenOutputStreamReturn ret;
     EXPECT_STATUS(EX_ILLEGAL_ARGUMENT, module->openOutputStream(args, &ret))
             << "when no offload info is provided for a compressed offload mix port";
@@ -2876,7 +3047,7 @@ TEST_P(AudioStreamOut, PlaybackRate) {
         const auto portConfig = moduleConfig->getSingleConfigForMixPort(false, port);
         ASSERT_TRUE(portConfig.has_value()) << "No profiles specified for output mix port";
         WithStream<IStreamOut> stream(portConfig.value());
-        ASSERT_NO_FATAL_FAILURE(stream.SetUp(module.get(), kDefaultBufferSizeFrames));
+        ASSERT_NO_FATAL_FAILURE(stream.SetUp(module.get(), kDefaultLargeBufferSizeFrames));
         bool isSupported = false;
         EXPECT_NO_FATAL_FAILURE(TestAccessors<AudioPlaybackRate>(
                 stream.get(), &IStreamOut::getPlaybackRateParameters,
@@ -2901,13 +3072,40 @@ TEST_P(AudioStreamOut, SelectPresentation) {
         const auto portConfig = moduleConfig->getSingleConfigForMixPort(false, port);
         ASSERT_TRUE(portConfig.has_value()) << "No profiles specified for output mix port";
         WithStream<IStreamOut> stream(portConfig.value());
-        ASSERT_NO_FATAL_FAILURE(stream.SetUp(module.get(), kDefaultBufferSizeFrames));
+        ASSERT_NO_FATAL_FAILURE(stream.SetUp(module.get(), kDefaultLargeBufferSizeFrames));
         ndk::ScopedAStatus status;
         EXPECT_STATUS(kStatuses, status = stream.get()->selectPresentation(0, 0));
         if (status.getExceptionCode() != EX_UNSUPPORTED_OPERATION) atLeastOneSupports = true;
     }
     if (!atLeastOneSupports) {
         GTEST_SKIP() << "Presentation selection is not supported";
+    }
+}
+
+TEST_P(AudioStreamOut, UpdateOffloadMetadata) {
+    const auto offloadMixPorts =
+            moduleConfig->getOffloadMixPorts(true /*attachedOnly*/, false /*singlePort*/);
+    if (offloadMixPorts.empty()) {
+        GTEST_SKIP()
+                << "No mix port for compressed offload that could be routed to attached devices";
+    }
+    for (const auto& port : offloadMixPorts) {
+        const auto portConfig = moduleConfig->getSingleConfigForMixPort(false, port);
+        ASSERT_TRUE(portConfig.has_value()) << "No profiles specified for output mix port";
+        WithStream<IStreamOut> stream(portConfig.value());
+        ASSERT_NO_FATAL_FAILURE(stream.SetUp(module.get(), kDefaultLargeBufferSizeFrames));
+        AudioOffloadMetadata validMetadata{
+                .sampleRate = portConfig.value().sampleRate.value().value,
+                .channelMask = portConfig.value().channelMask.value(),
+                .averageBitRatePerSecond = 256000,
+                .delayFrames = 0,
+                .paddingFrames = 0};
+        EXPECT_IS_OK(stream.get()->updateOffloadMetadata(validMetadata));
+        AudioOffloadMetadata invalidMetadata{.sampleRate = -1,
+                                             .averageBitRatePerSecond = -1,
+                                             .delayFrames = -1,
+                                             .paddingFrames = -1};
+        EXPECT_STATUS(EX_ILLEGAL_ARGUMENT, stream.get()->updateOffloadMetadata(invalidMetadata));
     }
 }
 
@@ -3372,6 +3570,7 @@ ndk::ScopedAStatus AudioCoreSoundDose::NoOpHalSoundDoseCallback::onNewMelValues(
     return ndk::ScopedAStatus::ok();
 }
 
+// @VsrTest = VSR-5.5-002.001
 TEST_P(AudioCoreSoundDose, SameInstance) {
     if (soundDose == nullptr) {
         GTEST_SKIP() << "SoundDose is not supported";
@@ -3383,29 +3582,33 @@ TEST_P(AudioCoreSoundDose, SameInstance) {
             << "getSoundDose must return the same interface instance across invocations";
 }
 
-TEST_P(AudioCoreSoundDose, GetSetOutputRs2) {
+// @VsrTest = VSR-5.5-002.001
+TEST_P(AudioCoreSoundDose, GetSetOutputRs2UpperBound) {
     if (soundDose == nullptr) {
         GTEST_SKIP() << "SoundDose is not supported";
     }
 
     bool isSupported = false;
-    EXPECT_NO_FATAL_FAILURE(TestAccessors<float>(soundDose.get(), &ISoundDose::getOutputRs2,
-                                                 &ISoundDose::setOutputRs2,
+    EXPECT_NO_FATAL_FAILURE(TestAccessors<float>(soundDose.get(),
+                                                 &ISoundDose::getOutputRs2UpperBound,
+                                                 &ISoundDose::setOutputRs2UpperBound,
                                                  /*validValues=*/{80.f, 90.f, 100.f},
                                                  /*invalidValues=*/{79.f, 101.f}, &isSupported));
-    EXPECT_TRUE(isSupported) << "Getting/Setting RS2 must be supported";
+    EXPECT_TRUE(isSupported) << "Getting/Setting RS2 upper bound must be supported";
 }
 
-TEST_P(AudioCoreSoundDose, CheckDefaultRs2Value) {
+// @VsrTest = VSR-5.5-002.001
+TEST_P(AudioCoreSoundDose, CheckDefaultRs2UpperBound) {
     if (soundDose == nullptr) {
         GTEST_SKIP() << "SoundDose is not supported";
     }
 
     float rs2Value;
-    ASSERT_IS_OK(soundDose->getOutputRs2(&rs2Value));
+    ASSERT_IS_OK(soundDose->getOutputRs2UpperBound(&rs2Value));
     EXPECT_EQ(rs2Value, ISoundDose::DEFAULT_MAX_RS2);
 }
 
+// @VsrTest = VSR-5.5-002.001
 TEST_P(AudioCoreSoundDose, RegisterSoundDoseCallbackTwiceThrowsException) {
     if (soundDose == nullptr) {
         GTEST_SKIP() << "SoundDose is not supported";
@@ -3416,6 +3619,7 @@ TEST_P(AudioCoreSoundDose, RegisterSoundDoseCallbackTwiceThrowsException) {
             << "Registering sound dose callback twice should throw EX_ILLEGAL_STATE";
 }
 
+// @VsrTest = VSR-5.5-002.001
 TEST_P(AudioCoreSoundDose, RegisterSoundDoseNullCallbackThrowsException) {
     if (soundDose == nullptr) {
         GTEST_SKIP() << "SoundDose is not supported";
@@ -3433,6 +3637,14 @@ INSTANTIATE_TEST_SUITE_P(AudioCoreBluetoothTest, AudioCoreBluetooth,
                          testing::ValuesIn(android::getAidlHalInstanceNames(IModule::descriptor)),
                          android::PrintInstanceNameToString);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AudioCoreBluetooth);
+INSTANTIATE_TEST_SUITE_P(AudioCoreBluetoothA2dpTest, AudioCoreBluetoothA2dp,
+                         testing::ValuesIn(android::getAidlHalInstanceNames(IModule::descriptor)),
+                         android::PrintInstanceNameToString);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AudioCoreBluetoothA2dp);
+INSTANTIATE_TEST_SUITE_P(AudioCoreBluetoothLeTest, AudioCoreBluetoothLe,
+                         testing::ValuesIn(android::getAidlHalInstanceNames(IModule::descriptor)),
+                         android::PrintInstanceNameToString);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AudioCoreBluetoothLe);
 INSTANTIATE_TEST_SUITE_P(AudioCoreTelephonyTest, AudioCoreTelephony,
                          testing::ValuesIn(android::getAidlHalInstanceNames(IModule::descriptor)),
                          android::PrintInstanceNameToString);

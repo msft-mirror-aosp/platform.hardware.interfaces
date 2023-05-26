@@ -21,6 +21,8 @@ import android.hardware.audio.common.SourceMetadata;
 import android.hardware.audio.core.AudioPatch;
 import android.hardware.audio.core.AudioRoute;
 import android.hardware.audio.core.IBluetooth;
+import android.hardware.audio.core.IBluetoothA2dp;
+import android.hardware.audio.core.IBluetoothLe;
 import android.hardware.audio.core.IStreamCallback;
 import android.hardware.audio.core.IStreamIn;
 import android.hardware.audio.core.IStreamOut;
@@ -103,6 +105,34 @@ interface IModule {
     @nullable IBluetooth getBluetooth();
 
     /**
+     * Retrieve the interface to control Bluetooth A2DP.
+     *
+     * If the HAL module supports A2DP Profile functionality for Bluetooth, it
+     * must return an instance of the IBluetoothA2dp interface. The same
+     * instance must be returned during the lifetime of the HAL module. If the
+     * HAL module does not support BT A2DP, a null must be returned, without
+     * throwing any errors.
+     *
+     * @return An instance of the IBluetoothA2dp interface implementation.
+     * @throws EX_ILLEGAL_STATE If there was an error creating an instance.
+     */
+    @nullable IBluetoothA2dp getBluetoothA2dp();
+
+    /**
+     * Retrieve the interface to control Bluetooth LE.
+     *
+     * If the HAL module supports LE Profile functionality for Bluetooth, it
+     * must return an instance of the IBluetoothLe interface. The same
+     * instance must be returned during the lifetime of the HAL module. If the
+     * HAL module does not support BT LE, a null must be returned, without
+     * throwing any errors.
+     *
+     * @return An instance of the IBluetoothLe interface implementation.
+     * @throws EX_ILLEGAL_STATE If there was an error creating an instance.
+     */
+    @nullable IBluetoothLe getBluetoothLe();
+
+    /**
      * Set a device port of an external device into connected state.
      *
      * This method is used to inform the HAL module that an external device has
@@ -162,6 +192,19 @@ interface IModule {
      * device address is specified for a point-to-multipoint external device
      * connection.
      *
+     * Since not all modules have a DSP that could perform sample rate and
+     * format conversions, behavior related to mix port configurations may vary.
+     * For modules with a DSP, mix ports can be pre-configured and have a fixed
+     * set of audio profiles supported by the DSP. For modules without a DSP,
+     * audio profiles of mix ports may change after connecting an external
+     * device. The typical case is that the mix port has an empty set of
+     * profiles when no external devices are connected, and after external
+     * device connection it receives the same set of profiles as the device
+     * ports that they can be routed to. The client will re-query current port
+     * configurations using 'getAudioPorts'. All mix ports that can be routed to
+     * the connected device port must have a non-empty set of audio profiles
+     * after successful connection of an external device.
+     *
      * Handling of a disconnect is done in a reverse order:
      *  1. Reset port configuration using the 'resetAudioPortConfig' method.
      *  2. Release the connected device port by calling the 'disconnectExternalDevice'
@@ -190,6 +233,12 @@ interface IModule {
      * been disconnected. The 'portId' must be of a connected device port
      * instance previously instantiated using the 'connectExternalDevice'
      * method.
+     *
+     * The framework will call this method before closing streams and resetting
+     * patches. This call can be used by the HAL module to prepare itself to
+     * device disconnection. If the HAL module indicates an error after the first
+     * call, the framework will call this method once again after closing associated
+     * streams and patches.
      *
      * @throws EX_ILLEGAL_ARGUMENT In the following cases:
      *                             - If the port can not be found by the ID.
@@ -596,6 +645,7 @@ interface IModule {
      * @param mute Whether the output from the module is muted.
      * @throws EX_UNSUPPORTED_OPERATION If muting of combined output
      *                                  is not supported by the module.
+     * @throws EX_ILLEGAL_STATE If any error happens while muting of combined output.
      */
     void setMasterMute(boolean mute);
 
@@ -627,6 +677,8 @@ interface IModule {
      *                             accepted range.
      * @throws EX_UNSUPPORTED_OPERATION If attenuation of combined output
      *                                  is not supported by the module.
+     * @throws EX_ILLEGAL_STATE If any error happens while updating attenuation of
+                                combined output.
      */
     void setMasterVolume(float volume);
 
@@ -824,7 +876,7 @@ interface IModule {
     AudioMMapPolicyInfo[] getMmapPolicyInfos(AudioMMapPolicyType mmapPolicyType);
 
     /**
-     * Indicates if this module supports variable latency control for instance
+     * Indicates if this module supports variable latency control, for instance,
      * over Bluetooth A2DP or LE Audio links.
      *
      * If supported, all instances of IStreamOut interface returned by this module must

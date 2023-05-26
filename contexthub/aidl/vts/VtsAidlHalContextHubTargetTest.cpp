@@ -42,6 +42,8 @@ using ::android::hardware::contexthub::IContextHubCallbackDefault;
 using ::android::hardware::contexthub::NanoappBinary;
 using ::android::hardware::contexthub::NanoappInfo;
 using ::android::hardware::contexthub::NanoappRpcService;
+using ::android::hardware::contexthub::NanSessionRequest;
+using ::android::hardware::contexthub::NanSessionStateUpdate;
 using ::android::hardware::contexthub::Setting;
 using ::android::hardware::contexthub::vts_utils::kNonExistentAppId;
 using ::android::hardware::contexthub::vts_utils::waitForCallback;
@@ -121,16 +123,14 @@ class EmptyContextHubCallback : public android::hardware::contexthub::BnContextH
         return Status::ok();
     }
 
-    Status handleNanSessionRequest(bool /* enable */) override { return Status::ok(); }
+    Status handleNanSessionRequest(const NanSessionRequest& /* request */) override {
+        return Status::ok();
+    }
 };
 
 TEST_P(ContextHubAidl, TestRegisterCallback) {
     sp<EmptyContextHubCallback> cb = sp<EmptyContextHubCallback>::make();
     ASSERT_TRUE(contextHub->registerCallback(getHubId(), cb).isOk());
-}
-
-TEST_P(ContextHubAidl, TestRegisterNullCallback) {
-    ASSERT_TRUE(contextHub->registerCallback(getHubId(), nullptr).isOk());
 }
 
 // Helper callback that puts the async appInfo callback data into a promise
@@ -153,7 +153,9 @@ class QueryAppsCallback : public android::hardware::contexthub::BnContextHubCall
         return Status::ok();
     }
 
-    Status handleNanSessionRequest(bool /* enable */) override { return Status::ok(); }
+    Status handleNanSessionRequest(const NanSessionRequest& /* request */) override {
+        return Status::ok();
+    }
 
     std::promise<std::vector<NanoappInfo>> promise;
 };
@@ -180,16 +182,15 @@ TEST_P(ContextHubAidl, TestQueryApps) {
     }
 }
 
-// Calls getPreloadedNanoapps() and verifies there are preloaded nanoapps
-TEST_P(ContextHubAidl, TestGetPreloadedNanoapps) {
+// Calls getPreloadedNanoappsIds() and verifies there are preloaded nanoapps
+TEST_P(ContextHubAidl, TestGetPreloadedNanoappIds) {
     std::vector<int64_t> preloadedNanoappIds;
-    Status status = contextHub->getPreloadedNanoappIds(&preloadedNanoappIds);
+    Status status = contextHub->getPreloadedNanoappIds(getHubId(), &preloadedNanoappIds);
     if (status.exceptionCode() == Status::EX_UNSUPPORTED_OPERATION ||
         status.transactionError() == android::UNKNOWN_TRANSACTION) {
         GTEST_SKIP() << "Not supported -> old API; or not implemented";
     } else {
         ASSERT_TRUE(status.isOk());
-        ASSERT_FALSE(preloadedNanoappIds.empty());
     }
 }
 
@@ -218,7 +219,9 @@ class TransactionResultCallback : public android::hardware::contexthub::BnContex
         return Status::ok();
     }
 
-    Status handleNanSessionRequest(bool /* enable */) override { return Status::ok(); }
+    Status handleNanSessionRequest(const NanSessionRequest& /* request */) override {
+        return Status::ok();
+    }
 
     uint32_t expectedTransactionId = 0;
     std::promise<bool> promise;
@@ -315,8 +318,6 @@ void ContextHubAidl::testSettingChanged(Setting setting) {
 
     ASSERT_TRUE(contextHub->onSettingChanged(setting, true /* enabled */).isOk());
     ASSERT_TRUE(contextHub->onSettingChanged(setting, false /* enabled */).isOk());
-
-    ASSERT_TRUE(contextHub->registerCallback(getHubId(), nullptr).isOk());
 }
 
 TEST_P(ContextHubAidl, TestOnLocationSettingChanged) {
@@ -382,8 +383,11 @@ TEST_P(ContextHubAidl, TestInvalidHostConnection) {
 }
 
 TEST_P(ContextHubAidl, TestNanSessionStateChange) {
-    ASSERT_TRUE(contextHub->onNanSessionStateChanged(true /*state*/).isOk());
-    ASSERT_TRUE(contextHub->onNanSessionStateChanged(false /*state*/).isOk());
+    NanSessionStateUpdate update;
+    update.state = true;
+    ASSERT_TRUE(contextHub->onNanSessionStateChanged(update).isOk());
+    update.state = false;
+    ASSERT_TRUE(contextHub->onNanSessionStateChanged(update).isOk());
 }
 
 std::string PrintGeneratedTest(const testing::TestParamInfo<ContextHubAidl::ParamType>& info) {

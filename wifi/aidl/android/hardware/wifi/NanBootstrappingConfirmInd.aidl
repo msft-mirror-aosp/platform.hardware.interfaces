@@ -16,10 +16,12 @@
 
 package android.hardware.wifi;
 
-import android.hardware.wifi.NanBootstrappingMethod;
 import android.hardware.wifi.NanBootstrappingResponseCode;
 import android.hardware.wifi.NanStatus;
 
+/**
+ * See Wi-Fi Aware R4.0 section 9.5.21.7
+ */
 @VintfStability
 parcelable NanBootstrappingConfirmInd {
     /**
@@ -44,7 +46,7 @@ parcelable NanBootstrappingConfirmInd {
     int comeBackDelay;
 
     /**
-     * Cookie received from the comeback response.
+     * Cookie received from peer with |comeBackDelay| for follow up |NanBootstrappingRequest|
      */
     byte[] cookie;
 }

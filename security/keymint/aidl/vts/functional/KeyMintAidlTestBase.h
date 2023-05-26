@@ -54,6 +54,9 @@ using ::std::vector;
 
 constexpr uint64_t kOpHandleSentinel = 0xFFFFFFFFFFFFFFFF;
 
+const string FEATURE_KEYSTORE_APP_ATTEST_KEY = "android.hardware.keystore.app_attest_key";
+const string FEATURE_STRONGBOX_KEYSTORE = "android.hardware.strongbox_keystore";
+
 class KeyMintAidlTestBase : public ::testing::TestWithParam<string> {
   public:
     struct KeyData {
@@ -309,6 +312,7 @@ class KeyMintAidlTestBase : public ::testing::TestWithParam<string> {
     }
     bool IsSecure() const { return securityLevel_ != SecurityLevel::SOFTWARE; }
     SecurityLevel SecLevel() const { return securityLevel_; }
+    bool IsRkpSupportRequired() const;
 
     vector<uint32_t> ValidKeySizes(Algorithm algorithm);
     vector<uint32_t> InvalidKeySizes(Algorithm algorithm);
@@ -346,6 +350,17 @@ class KeyMintAidlTestBase : public ::testing::TestWithParam<string> {
     ErrorCode UseRsaKey(const vector<uint8_t>& rsaKeyBlob);
     ErrorCode UseEcdsaKey(const vector<uint8_t>& ecdsaKeyBlob);
 
+    ErrorCode GenerateAttestKey(const AuthorizationSet& key_desc,
+                                const optional<AttestationKey>& attest_key,
+                                vector<uint8_t>* key_blob,
+                                vector<KeyCharacteristics>* key_characteristics,
+                                vector<Certificate>* cert_chain);
+
+    bool is_attest_key_feature_disabled(void) const;
+    bool is_strongbox_enabled(void) const;
+    bool is_chipset_allowed_km4_strongbox(void) const;
+    void skipAttestKeyTest(void) const;
+
   protected:
     std::shared_ptr<IKeyMintDevice> keymint_;
     uint32_t os_version_;
@@ -356,7 +371,7 @@ class KeyMintAidlTestBase : public ::testing::TestWithParam<string> {
     SecurityLevel securityLevel_;
     string name_;
     string author_;
-    long challenge_;
+    int64_t challenge_;
 
   private:
     void CheckEncryptOneByteAtATime(BlockMode block_mode, const int block_size,

@@ -183,6 +183,7 @@ public final class ChangeModeForVehicleProperty {
         Map.entry(VehicleProperty.GLOVE_BOX_DOOR_POS, VehiclePropertyChangeMode.ON_CHANGE),
         Map.entry(VehicleProperty.GLOVE_BOX_LOCKED, VehiclePropertyChangeMode.ON_CHANGE),
         Map.entry(VehicleProperty.VEHICLE_MAP_SERVICE, VehiclePropertyChangeMode.ON_CHANGE),
+        Map.entry(VehicleProperty.LOCATION_CHARACTERIZATION, VehiclePropertyChangeMode.STATIC),
         Map.entry(VehicleProperty.OBD2_LIVE_FRAME, VehiclePropertyChangeMode.ON_CHANGE),
         Map.entry(VehicleProperty.OBD2_FREEZE_FRAME, VehiclePropertyChangeMode.ON_CHANGE),
         Map.entry(VehicleProperty.OBD2_FREEZE_FRAME_INFO, VehiclePropertyChangeMode.ON_CHANGE),
@@ -258,12 +259,11 @@ public final class ChangeModeForVehicleProperty {
         Map.entry(VehicleProperty.CRUISE_CONTROL_STATE, VehiclePropertyChangeMode.ON_CHANGE),
         Map.entry(VehicleProperty.CRUISE_CONTROL_COMMAND, VehiclePropertyChangeMode.ON_CHANGE),
         Map.entry(VehicleProperty.CRUISE_CONTROL_TARGET_SPEED, VehiclePropertyChangeMode.ON_CHANGE),
+        Map.entry(VehicleProperty.ADAPTIVE_CRUISE_CONTROL_TARGET_TIME_GAP, VehiclePropertyChangeMode.ON_CHANGE),
+        Map.entry(VehicleProperty.ADAPTIVE_CRUISE_CONTROL_LEAD_VEHICLE_MEASURED_DISTANCE, VehiclePropertyChangeMode.CONTINUOUS),
         Map.entry(VehicleProperty.HANDS_ON_DETECTION_ENABLED, VehiclePropertyChangeMode.ON_CHANGE),
         Map.entry(VehicleProperty.HANDS_ON_DETECTION_DRIVER_STATE, VehiclePropertyChangeMode.ON_CHANGE),
-        Map.entry(VehicleProperty.HANDS_ON_DETECTION_WARNING, VehiclePropertyChangeMode.ON_CHANGE),
-        Map.entry(VehicleProperty.DRIVER_ATTENTION_MONITORING_ENABLED, VehiclePropertyChangeMode.ON_CHANGE),
-        Map.entry(VehicleProperty.DRIVER_ATTENTION_MONITORING_STATE, VehiclePropertyChangeMode.ON_CHANGE),
-        Map.entry(VehicleProperty.DRIVER_ATTENTION_MONITORING_WARNING, VehiclePropertyChangeMode.ON_CHANGE)
+        Map.entry(VehicleProperty.HANDS_ON_DETECTION_WARNING, VehiclePropertyChangeMode.ON_CHANGE)
     );
 
 }

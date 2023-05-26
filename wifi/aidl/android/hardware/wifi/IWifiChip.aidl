@@ -16,7 +16,7 @@
 
 package android.hardware.wifi;
 
-import android.hardware.wifi.AvailableAfcFrequencyInfo;
+import android.hardware.wifi.AfcChannelAllowance;
 import android.hardware.wifi.IWifiApIface;
 import android.hardware.wifi.IWifiChipEventCallback;
 import android.hardware.wifi.IWifiNanIface;
@@ -31,7 +31,7 @@ import android.hardware.wifi.WifiDebugHostWakeReasonStats;
 import android.hardware.wifi.WifiDebugRingBufferStatus;
 import android.hardware.wifi.WifiDebugRingBufferVerboseLevel;
 import android.hardware.wifi.WifiIfaceMode;
-import android.hardware.wifi.WifiRadioCombinationMatrix;
+import android.hardware.wifi.WifiRadioCombination;
 import android.hardware.wifi.WifiUsableChannel;
 
 /**
@@ -44,7 +44,7 @@ interface IWifiChip {
      */
     @VintfStability
     @Backing(type="int")
-    enum ChipCapabilityMask {
+    enum FeatureSetMask {
         /**
          * Set/Reset Tx Power limits.
          */
@@ -582,15 +582,15 @@ interface IWifiChip {
     ChipMode[] getAvailableModes();
 
     /**
-     * Get the capabilities supported by this chip.
+     * Get the features supported by this chip.
      *
-     * @return Bitset of |ChipCapabilityMask| values.
+     * @return Bitset of |FeatureSetMask| values.
      * @throws ServiceSpecificException with one of the following values:
      *         |WifiStatusCode.ERROR_WIFI_CHIP_INVALID|,
      *         |WifiStatusCode.ERROR_NOT_AVAILABLE|,
      *         |WifiStatusCode.ERROR_UNKNOWN|
      */
-    ChipCapabilityMask getCapabilities();
+    int getFeatureSet();
 
     /**
      * API to retrieve the wifi wake up reason stats for debugging.
@@ -737,8 +737,7 @@ interface IWifiChip {
      * Retrieve the list of all the possible radio combinations supported by this
      * chip.
      *
-     * @return A list of all the possible radio combinations represented by
-     *         |WifiRadioCombinationMatrix|.
+     * @return A list of all the possible radio combinations.
      *         For example, in case of a chip which has two radios, where one radio is
      *         capable of 2.4GHz 2X2 only and another radio which is capable of either
      *         5GHz or 6GHz 2X2, the number of possible radio combinations in this case
@@ -759,7 +758,7 @@ interface IWifiChip {
      *         |WifiStatusCode.FAILURE_UNKNOWN|
      *
      */
-    WifiRadioCombinationMatrix getSupportedRadioCombinationsMatrix();
+    WifiRadioCombination[] getSupportedRadioCombinations();
 
     /**
      * Get capabilities supported by this chip.
@@ -809,19 +808,15 @@ interface IWifiChip {
      *         |WifiStatusCode.FAILURE_UNKNOWN|
      */
     WifiUsableChannel[] getUsableChannels(
-            in WifiBand band, in WifiIfaceMode ifaceModeMask, in UsableChannelFilter filterMask);
+            in WifiBand band, in int ifaceModeMask, in int filterMask);
 
     /*
-     * Set the max power level the chip is allowed to transmit on for 6Ghz AFC
-     * using an array of AvailableAfcFrequencyInfo. The max power for
-     * frequencies not included in the input frequency ranges will be reset to
-     * their respective default values.
-     * @param availableAfcFrequencyInfo The list of frequency ranges and
-     * corresponding max allowed power.
+     * Set the max power level the chip is allowed to transmit on for 6Ghz AFC.
+     * @param afcChannelAllowance Specifies the power limitations for 6Ghz AFC.
      * @throws ServiceSpecificException with one of the following values:
      *         |WifiStatusCode.ERROR_NOT_SUPPORTED|
      */
-    void setAfcChannelAllowance(in AvailableAfcFrequencyInfo[] availableAfcFrequencyInfo);
+    void setAfcChannelAllowance(in AfcChannelAllowance afcChannelAllowance);
 
     /**
      * Requests notifications of significant events on this chip. Multiple calls
@@ -983,8 +978,7 @@ interface IWifiChip {
      *         |WifiStatusCode.ERROR_WIFI_CHIP_INVALID|,
      *         |WifiStatusCode.ERROR_INVALID_ARGS|,
      */
-    void setCoexUnsafeChannels(
-            in CoexUnsafeChannel[] unsafeChannels, in CoexRestriction restrictions);
+    void setCoexUnsafeChannels(in CoexUnsafeChannel[] unsafeChannels, in int restrictions);
 
     /**
      * Set country code for this Wifi chip.
@@ -1111,14 +1105,14 @@ interface IWifiChip {
      * If the channel category is enabled and allowed by the regulatory, the HAL method
      * getUsableChannels() will contain the current STA-connected channel if that channel belongs
      * to that category.
-     * @param channelCategoryEnableFlag bitmask of |ChannelCategoryMask|.
+     * @param channelCategoryEnableFlag Bitmask of |ChannelCategoryMask| values.
      *        For each bit, 1 enables the channel category and 0 disables that channel category.
      * @throws ServiceSpecificException with one of the following values:
      *         |WifiStatusCode.ERROR_WIFI_CHIP_INVALID|,
      *         |WifiStatusCode.ERROR_NOT_SUPPORTED|,
      *         |WifiStatusCode.FAILURE_UNKNOWN|
      */
-    void enableStaChannelForPeerNetwork(in ChannelCategoryMask channelCategoryEnableFlag);
+    void enableStaChannelForPeerNetwork(in int channelCategoryEnableFlag);
 
     /**
      * Multi-Link Operation modes.
