@@ -366,7 +366,8 @@ WifiChip::WifiChip(int32_t chip_id, bool is_primary,
                    const std::weak_ptr<mode_controller::WifiModeController> mode_controller,
                    const std::shared_ptr<iface_util::WifiIfaceUtil> iface_util,
                    const std::weak_ptr<feature_flags::WifiFeatureFlags> feature_flags,
-                   const std::function<void(const std::string&)>& handler)
+                   const std::function<void(const std::string&)>& handler,
+                   bool using_dynamic_iface_combination)
     : chip_id_(chip_id),
       legacy_hal_(legacy_hal),
       mode_controller_(mode_controller),
@@ -375,9 +376,9 @@ WifiChip::WifiChip(int32_t chip_id, bool is_primary,
       current_mode_id_(feature_flags::chip_mode_ids::kInvalid),
       modes_(feature_flags.lock()->getChipModes(is_primary)),
       debug_ring_buffer_cb_registered_(false),
+      using_dynamic_iface_combination_(using_dynamic_iface_combination),
       subsystemCallbackHandler_(handler) {
     setActiveWlanIfaceNameProperty(kNoActiveWlanIfaceNamePropertyValue);
-    using_dynamic_iface_combination_ = false;
 }
 
 void WifiChip::retrieveDynamicIfaceCombination() {
@@ -413,9 +414,11 @@ std::shared_ptr<WifiChip> WifiChip::create(
         const std::weak_ptr<mode_controller::WifiModeController> mode_controller,
         const std::shared_ptr<iface_util::WifiIfaceUtil> iface_util,
         const std::weak_ptr<feature_flags::WifiFeatureFlags> feature_flags,
-        const std::function<void(const std::string&)>& handler) {
+        const std::function<void(const std::string&)>& handler,
+        bool using_dynamic_iface_combination) {
     std::shared_ptr<WifiChip> ptr = ndk::SharedRefBase::make<WifiChip>(
-            chip_id, is_primary, legacy_hal, mode_controller, iface_util, feature_flags, handler);
+            chip_id, is_primary, legacy_hal, mode_controller, iface_util, feature_flags, handler,
+            using_dynamic_iface_combination);
     std::weak_ptr<WifiChip> weak_ptr_this(ptr);
     ptr->setWeakPtr(weak_ptr_this);
     return ptr;
@@ -975,14 +978,14 @@ WifiChip::createBridgedApIfaceInternal() {
     br_ifaces_ap_instances_[br_ifname] = ap_instances;
     if (!iface_util_->createBridge(br_ifname)) {
         LOG(ERROR) << "Failed createBridge - br_name=" << br_ifname.c_str();
-        invalidateAndClearBridgedAp(br_ifname);
+        deleteApIface(br_ifname);
         return {nullptr, createWifiStatus(WifiStatusCode::ERROR_NOT_AVAILABLE)};
     }
     for (auto const& instance : ap_instances) {
         // Bind ap instance interface to AP bridge
         if (!iface_util_->addIfaceToBridge(br_ifname, instance)) {
             LOG(ERROR) << "Failed add if to Bridge - if_name=" << instance.c_str();
-            invalidateAndClearBridgedAp(br_ifname);
+            deleteApIface(br_ifname);
             return {nullptr, createWifiStatus(WifiStatusCode::ERROR_NOT_AVAILABLE)};
         }
     }
@@ -1016,8 +1019,7 @@ ndk::ScopedAStatus WifiChip::removeApIfaceInternal(const std::string& ifname) {
     // nan/rtt objects over AP iface. But, there is no harm to do it
     // here and not make that assumption all over the place.
     invalidateAndRemoveDependencies(ifname);
-    // Clear the bridge interface and the iface instance.
-    invalidateAndClearBridgedAp(ifname);
+    deleteApIface(ifname);
     invalidateAndClear(ap_ifaces_, iface);
     for (const auto& callback : event_cb_handler_.getCallbacks()) {
         if (!callback->onIfaceRemoved(IfaceType::AP, ifname).isOk()) {
@@ -1960,21 +1962,28 @@ void WifiChip::invalidateAndClearBridgedApAll() {
     br_ifaces_ap_instances_.clear();
 }
 
-void WifiChip::invalidateAndClearBridgedAp(const std::string& br_name) {
-    if (br_name.empty()) return;
-    // delete managed interfaces
+void WifiChip::deleteApIface(const std::string& if_name) {
+    if (if_name.empty()) return;
+    // delete bridged interfaces if any
     for (auto const& it : br_ifaces_ap_instances_) {
-        if (it.first == br_name) {
+        if (it.first == if_name) {
             for (auto const& iface : it.second) {
-                iface_util_->removeIfaceFromBridge(br_name, iface);
+                iface_util_->removeIfaceFromBridge(if_name, iface);
                 legacy_hal_.lock()->deleteVirtualInterface(iface);
             }
-            iface_util_->deleteBridge(br_name);
-            br_ifaces_ap_instances_.erase(br_name);
-            break;
+            iface_util_->deleteBridge(if_name);
+            br_ifaces_ap_instances_.erase(if_name);
+            // ifname is bridged AP, return here.
+            return;
         }
     }
-    return;
+
+    // No bridged AP case, delete AP iface
+    legacy_hal::wifi_error legacy_status = legacy_hal_.lock()->deleteVirtualInterface(if_name);
+    if (legacy_status != legacy_hal::WIFI_SUCCESS) {
+        LOG(ERROR) << "Failed to remove interface: " << if_name << " "
+                   << legacyErrorToString(legacy_status);
+    }
 }
 
 bool WifiChip::findUsingNameFromBridgedApInstances(const std::string& name) {

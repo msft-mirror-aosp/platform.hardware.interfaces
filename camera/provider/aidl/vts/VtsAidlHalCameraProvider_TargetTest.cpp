@@ -551,6 +551,11 @@ TEST_P(CameraAidlTest, configureStreamsAvailableOutputs) {
             stream.rotation = StreamRotation::ROTATION_0;
             stream.dynamicRangeProfile = RequestAvailableDynamicRangeProfilesMap::
                     ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD;
+            stream.useCase = ScalerAvailableStreamUseCases::
+                    ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT;
+            stream.colorSpace = static_cast<int>(
+                    RequestAvailableColorSpaceProfilesMap::
+                            ANDROID_REQUEST_AVAILABLE_COLOR_SPACE_PROFILES_MAP_UNSPECIFIED);
 
             std::vector<Stream> streams = {stream};
             StreamConfiguration config;
@@ -2063,18 +2068,17 @@ TEST_P(CameraAidlTest, process10BitColorSpaceRequests) {
 TEST_P(CameraAidlTest, processZoomSettingsOverrideRequests) {
     const int32_t kFrameCount = 5;
     const int32_t kTestCases = 2;
-    const bool kOverrideSequence[kTestCases][kFrameCount] = {
-        // ZOOM, ZOOM, ZOOM, ZOOM, ZOOM;
-        { true, true, true, true, true },
-        // OFF, OFF, ZOOM, ZOOM, OFF;
-        { false, false, true, true, false } };
+    const bool kOverrideSequence[kTestCases][kFrameCount] = {// ZOOM, ZOOM, ZOOM, ZOOM, ZOOM;
+                                                             {true, true, true, true, true},
+                                                             // OFF, ZOOM, ZOOM, ZOOM, OFF;
+                                                             {false, true, true, true, false}};
     const bool kExpectedOverrideResults[kTestCases][kFrameCount] = {
-        // All resuls should be overridden except the last one. The last result's
-        // zoom doesn't have speed-up.
-        { true, true, true, true, false },
-        // Because we require at least 2 frames speed-up, request #1, #2 and #3
-        // will be overridden.
-        { true, true, true, false, false } };
+            // All resuls should be overridden except the last one. The last result's
+            // zoom doesn't have speed-up.
+            {true, true, true, true, false},
+            // Because we require at least 1 frame speed-up, request #1, #2 and #3
+            // will be overridden.
+            {true, true, true, false, false}};
 
     for (int i = 0; i < kTestCases; i++) {
         processZoomSettingsOverrideRequests(kFrameCount, kOverrideSequence[i],
