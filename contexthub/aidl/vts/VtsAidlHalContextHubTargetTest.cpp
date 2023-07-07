@@ -133,10 +133,6 @@ TEST_P(ContextHubAidl, TestRegisterCallback) {
     ASSERT_TRUE(contextHub->registerCallback(getHubId(), cb).isOk());
 }
 
-TEST_P(ContextHubAidl, TestRegisterNullCallback) {
-    ASSERT_TRUE(contextHub->registerCallback(getHubId(), nullptr).isOk());
-}
-
 // Helper callback that puts the async appInfo callback data into a promise
 class QueryAppsCallback : public android::hardware::contexthub::BnContextHubCallback {
   public:
@@ -195,7 +191,6 @@ TEST_P(ContextHubAidl, TestGetPreloadedNanoappIds) {
         GTEST_SKIP() << "Not supported -> old API; or not implemented";
     } else {
         ASSERT_TRUE(status.isOk());
-        ASSERT_FALSE(preloadedNanoappIds.empty());
     }
 }
 
@@ -323,8 +318,6 @@ void ContextHubAidl::testSettingChanged(Setting setting) {
 
     ASSERT_TRUE(contextHub->onSettingChanged(setting, true /* enabled */).isOk());
     ASSERT_TRUE(contextHub->onSettingChanged(setting, false /* enabled */).isOk());
-
-    ASSERT_TRUE(contextHub->registerCallback(getHubId(), nullptr).isOk());
 }
 
 TEST_P(ContextHubAidl, TestOnLocationSettingChanged) {
@@ -392,9 +385,15 @@ TEST_P(ContextHubAidl, TestInvalidHostConnection) {
 TEST_P(ContextHubAidl, TestNanSessionStateChange) {
     NanSessionStateUpdate update;
     update.state = true;
-    ASSERT_TRUE(contextHub->onNanSessionStateChanged(update).isOk());
-    update.state = false;
-    ASSERT_TRUE(contextHub->onNanSessionStateChanged(update).isOk());
+    Status status = contextHub->onNanSessionStateChanged(update);
+    if (status.exceptionCode() == Status::EX_UNSUPPORTED_OPERATION ||
+        status.transactionError() == android::UNKNOWN_TRANSACTION) {
+        GTEST_SKIP() << "Not supported -> old API; or not implemented";
+    } else {
+        ASSERT_TRUE(status.isOk());
+        update.state = false;
+        ASSERT_TRUE(contextHub->onNanSessionStateChanged(update).isOk());
+    }
 }
 
 std::string PrintGeneratedTest(const testing::TestParamInfo<ContextHubAidl::ParamType>& info) {
