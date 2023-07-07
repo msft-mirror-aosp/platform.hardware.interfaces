@@ -17,7 +17,10 @@
 #ifndef HARDWARE_INTERFACES_CAMERA_PROVIDER_AIDL_VTS_CAMERA_AIDL_TEST_H_
 #define HARDWARE_INTERFACES_CAMERA_PROVIDER_AIDL_VTS_CAMERA_AIDL_TEST_H_
 
+// TODO: LOG_TAG should not be in header
+#ifndef LOG_TAG
 #define LOG_TAG "camera_aidl_hal_test"
+#endif
 
 #include <string>
 #include <unordered_map>
@@ -43,6 +46,8 @@
 #include <aidl/android/hardware/camera/device/Stream.h>
 
 #include <aidl/android/hardware/camera/provider/ICameraProvider.h>
+
+#include <aidl/android/hardware/camera/metadata/RequestAvailableColorSpaceProfilesMap.h>
 
 #include <aidl/android/hardware/graphics/common/PixelFormat.h>
 
@@ -72,6 +77,9 @@ using ::aidl::android::hardware::camera::device::StreamBuffer;
 using ::aidl::android::hardware::camera::device::StreamBufferRet;
 using ::aidl::android::hardware::camera::device::StreamConfiguration;
 using ::aidl::android::hardware::camera::device::StreamConfigurationMode;
+using ::aidl::android::hardware::camera::metadata::RequestAvailableColorSpaceProfilesMap;
+using ::aidl::android::hardware::camera::metadata::RequestAvailableDynamicRangeProfilesMap;
+using ::aidl::android::hardware::camera::metadata::ScalerAvailableStreamUseCases;
 using ::aidl::android::hardware::camera::provider::ConcurrentCameraIdCombination;
 using ::aidl::android::hardware::camera::provider::ICameraProvider;
 
@@ -121,6 +129,28 @@ class CameraAidlTest : public ::testing::TestWithParam<std::string> {
     enum ReprocessType {
         PRIV_REPROCESS,
         YUV_REPROCESS,
+    };
+
+    // Copied from ColorSpace.java (see Named)
+    enum ColorSpaceNamed {
+        SRGB,
+        LINEAR_SRGB,
+        EXTENDED_SRGB,
+        LINEAR_EXTENDED_SRGB,
+        BT709,
+        BT2020,
+        DCI_P3,
+        DISPLAY_P3,
+        NTSC_1953,
+        SMPTE_C,
+        ADOBE_RGB,
+        PRO_PHOTO_RGB,
+        ACES,
+        ACESCG,
+        CIE_XYZ,
+        CIE_LAB,
+        BT2020_HLG,
+        BT2020_PQ
     };
 
     struct AvailableZSLInputOutput {
@@ -178,10 +208,12 @@ class CameraAidlTest : public ::testing::TestWithParam<std::string> {
             bool* supportsPartialResults /*out*/, int32_t* partialResultCount /*out*/,
             bool* useHalBufManager /*out*/, std::shared_ptr<DeviceCb>* outCb /*out*/,
             uint32_t streamConfigCounter, bool maxResolution,
-            aidl::android::hardware::camera::metadata::RequestAvailableDynamicRangeProfilesMap
-                    prof = ::aidl::android::hardware::camera::metadata::
-                            RequestAvailableDynamicRangeProfilesMap::
-                                    ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD);
+            RequestAvailableDynamicRangeProfilesMap dynamicRangeProf =
+                    RequestAvailableDynamicRangeProfilesMap::
+                            ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD,
+            RequestAvailableColorSpaceProfilesMap colorSpaceProf =
+                    RequestAvailableColorSpaceProfilesMap::
+                            ANDROID_REQUEST_AVAILABLE_COLOR_SPACE_PROFILES_MAP_UNSPECIFIED);
 
     void configurePreviewStreams(
             const std::string& name, const std::shared_ptr<ICameraProvider>& provider,
@@ -200,6 +232,8 @@ class CameraAidlTest : public ::testing::TestWithParam<std::string> {
             std::vector<HalStream>* halStreams /*out*/, bool* supportsPartialResults /*out*/,
             int32_t* partialResultCount /*out*/, bool* useHalBufManager /*out*/,
             std::shared_ptr<DeviceCb>* cb /*out*/, uint32_t streamConfigCounter = 0);
+
+    void configureStreamUseCaseInternal(const AvailableStream &threshold);
 
     void configureSingleStream(
             const std::string& name, const std::shared_ptr<ICameraProvider>& provider,
@@ -229,6 +263,8 @@ class CameraAidlTest : public ::testing::TestWithParam<std::string> {
             const ::android::hardware::camera::common::V1_0::helper::CameraMetadata& metadata);
 
     static void verifyStreamUseCaseCharacteristics(const camera_metadata_t* metadata);
+
+    static void verifySettingsOverrideCharacteristics(const camera_metadata_t* metadata);
 
     static void verifyStreamCombination(const std::shared_ptr<ICameraDevice>& device,
                                         const StreamConfiguration& config, bool expectedStatus,
@@ -345,13 +381,49 @@ class CameraAidlTest : public ::testing::TestWithParam<std::string> {
 
     static void get10BitDynamicRangeProfiles(
             const camera_metadata_t* staticMeta,
+            std::vector<RequestAvailableDynamicRangeProfilesMap>* profiles);
+
+    static bool reportsColorSpaces(const camera_metadata_t* staticMeta);
+
+    static void getColorSpaceProfiles(
+            const camera_metadata_t* staticMeta,
             std::vector<aidl::android::hardware::camera::metadata::
-                                RequestAvailableDynamicRangeProfilesMap>* profiles);
+                                RequestAvailableColorSpaceProfilesMap>* profiles);
+
+    static bool isColorSpaceCompatibleWithDynamicRangeAndPixelFormat(
+            const camera_metadata_t* staticMeta, RequestAvailableColorSpaceProfilesMap colorSpace,
+            RequestAvailableDynamicRangeProfilesMap dynamicRangeProfile,
+            aidl::android::hardware::graphics::common::PixelFormat pixelFormat);
+
+    static const char* getColorSpaceProfileString(RequestAvailableColorSpaceProfilesMap colorSpace);
+
+    static const char* getDynamicRangeProfileString(
+            RequestAvailableDynamicRangeProfilesMap dynamicRangeProfile);
+
+    static int32_t halFormatToPublicFormat(
+            aidl::android::hardware::graphics::common::PixelFormat pixelFormat);
 
     // Used by switchToOffline where a new result queue is created for offline reqs
     void updateInflightResultQueue(const std::shared_ptr<ResultMetadataQueue>& resultQueue);
 
     static Size getMinSize(Size a, Size b);
+
+    void processColorSpaceRequest(RequestAvailableColorSpaceProfilesMap colorSpace,
+                                  RequestAvailableDynamicRangeProfilesMap dynamicRangeProfile);
+
+    void processZoomSettingsOverrideRequests(
+            int32_t frameCount, const bool *overrideSequence, const bool *expectedResults);
+
+    bool supportZoomSettingsOverride(const camera_metadata_t* staticMeta);
+    bool supportsCroppedRawUseCase(const camera_metadata_t *staticMeta);
+    bool isPerFrameControl(const camera_metadata_t* staticMeta);
+
+    void getSupportedSizes(const camera_metadata_t* ch, uint32_t tag, int32_t format,
+                           std::vector<std::tuple<size_t, size_t>>* sizes /*out*/);
+
+    void getSupportedDurations(const camera_metadata_t* ch, uint32_t tag, int32_t format,
+                               const std::vector<std::tuple<size_t, size_t>>& sizes,
+                               std::vector<int64_t>* durations /*out*/);
 
   protected:
     // In-flight queue for tracking completion of capture requests.
@@ -497,10 +569,8 @@ class CameraAidlTest : public ::testing::TestWithParam<std::string> {
     static bool matchDeviceName(const std::string& deviceName, const std::string& providerType,
                                 std::string* deviceVersion, std::string* cameraId);
 
-    static void verify10BitMetadata(
-            HandleImporter& importer, const InFlightRequest& request,
-            aidl::android::hardware::camera::metadata::RequestAvailableDynamicRangeProfilesMap
-                    profile);
+    static void verify10BitMetadata(HandleImporter& importer, const InFlightRequest& request,
+                                    RequestAvailableDynamicRangeProfilesMap profile);
 
     static void waitForReleaseFence(
             std::vector<InFlightRequest::StreamBufferAndTimestamp>& resultOutputBuffers);
