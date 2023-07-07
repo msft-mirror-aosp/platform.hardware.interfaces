@@ -144,6 +144,21 @@ enum UwbVendorCapabilityTlvTypes {
      */
     CCC_SUPPORTED_MAX_RANGING_SESSION_NUMBER = 0xA8,
 
+    /**
+     * Int value to indicate the smallest supported CCC uwb initiation time in ms
+     */
+    CCC_SUPPORTED_MIN_UWB_INITIATION_TIME_MS = 0xA9,
+
+    /*********************************************
+     * RADAR specific
+     ********************************************/
+    /**
+     * 1 byte bitmask to indicate the supported Radar data types.
+     * Each "1" in this bitmap corresponds to a specific radar data type where:
+     * 0x01 = "Radar Sweep Samples",
+     */
+    RADAR_SUPPORT = 0xB0,
+
     /*********************************************
      * FIRA specific
      ********************************************/
@@ -186,9 +201,9 @@ enum UwbVendorCapabilityTlvTypes {
     SUPPORTED_DIAGNOSTICS = 0xE7,
 
     /**
-     * 4 byte value to indicate supported min slot duration in ms.
+     * 4 byte value to indicate supported min slot duration in rstu.
      */
-    SUPPORTED_MIN_SLOT_DURATION_MS = 0xE8,
+    SUPPORTED_MIN_SLOT_DURATION_RSTU = 0xE8,
 
     /**
      * Int value to indicate supported max number of fira ranging sessions

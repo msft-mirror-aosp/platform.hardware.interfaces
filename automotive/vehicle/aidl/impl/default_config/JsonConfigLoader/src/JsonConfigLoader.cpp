@@ -41,8 +41,6 @@ using ::aidl::android::hardware::automotive::vehicle::ChangeModeForVehicleProper
 using ::aidl::android::hardware::automotive::vehicle::CruiseControlCommand;
 using ::aidl::android::hardware::automotive::vehicle::CruiseControlState;
 using ::aidl::android::hardware::automotive::vehicle::CruiseControlType;
-using ::aidl::android::hardware::automotive::vehicle::DriverAttentionMonitoringState;
-using ::aidl::android::hardware::automotive::vehicle::DriverAttentionMonitoringWarning;
 using ::aidl::android::hardware::automotive::vehicle::EmergencyLaneKeepAssistState;
 using ::aidl::android::hardware::automotive::vehicle::ErrorState;
 using ::aidl::android::hardware::automotive::vehicle::EvConnectorType;
@@ -57,6 +55,7 @@ using ::aidl::android::hardware::automotive::vehicle::LaneCenteringAssistCommand
 using ::aidl::android::hardware::automotive::vehicle::LaneCenteringAssistState;
 using ::aidl::android::hardware::automotive::vehicle::LaneDepartureWarningState;
 using ::aidl::android::hardware::automotive::vehicle::LaneKeepAssistState;
+using ::aidl::android::hardware::automotive::vehicle::LocationCharacterization;
 using ::aidl::android::hardware::automotive::vehicle::RawPropValues;
 using ::aidl::android::hardware::automotive::vehicle::VehicleApPowerStateReport;
 using ::aidl::android::hardware::automotive::vehicle::VehicleApPowerStateReq;
@@ -114,6 +113,7 @@ const std::unordered_map<std::string, int> CONSTANTS_BY_NAME = {
         {"WHEEL_FRONT_LEFT", WHEEL_FRONT_LEFT},
         {"CHARGE_PORT_FRONT_LEFT", CHARGE_PORT_FRONT_LEFT},
         {"CHARGE_PORT_REAR_LEFT", CHARGE_PORT_REAR_LEFT},
+        {"FAN_DIRECTION_UNKNOWN", toInt(VehicleHvacFanDirection::UNKNOWN)},
         {"FAN_DIRECTION_FLOOR", FAN_DIRECTION_FLOOR},
         {"FAN_DIRECTION_FACE", FAN_DIRECTION_FACE},
         {"FAN_DIRECTION_DEFROST", FAN_DIRECTION_DEFROST},
@@ -200,6 +200,8 @@ JsonValueParser::JsonValueParser() {
             std::make_unique<ConstantParser<VehiclePropertyAccess>>();
     mConstantParsersByType["VehiclePropertyChangeMode"] =
             std::make_unique<ConstantParser<VehiclePropertyChangeMode>>();
+    mConstantParsersByType["LocationCharacterization"] =
+            std::make_unique<ConstantParser<LocationCharacterization>>();
     mConstantParsersByType["VehicleGear"] = std::make_unique<ConstantParser<VehicleGear>>();
     mConstantParsersByType["VehicleAreaWindow"] =
             std::make_unique<ConstantParser<VehicleAreaWindow>>();
@@ -242,10 +244,6 @@ JsonValueParser::JsonValueParser() {
             std::make_unique<ConstantParser<HandsOnDetectionDriverState>>();
     mConstantParsersByType["HandsOnDetectionWarning"] =
             std::make_unique<ConstantParser<HandsOnDetectionWarning>>();
-    mConstantParsersByType["DriverAttentionMonitoringState"] =
-            std::make_unique<ConstantParser<DriverAttentionMonitoringState>>();
-    mConstantParsersByType["DriverAttentionMonitoringWarning"] =
-            std::make_unique<ConstantParser<DriverAttentionMonitoringWarning>>();
     mConstantParsersByType["ErrorState"] = std::make_unique<ConstantParser<ErrorState>>();
     mConstantParsersByType["AutomaticEmergencyBrakingState"] =
             std::make_unique<ConstantParser<AutomaticEmergencyBrakingState>>();

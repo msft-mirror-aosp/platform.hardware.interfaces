@@ -14,27 +14,28 @@
  * limitations under the License.
  */
 
-#include <cstddef>
-#define LOG_TAG "AHAL_EnvReverbSw"
-#include <Utils.h>
 #include <algorithm>
+#include <cstddef>
 #include <unordered_set>
 
+#define LOG_TAG "AHAL_EnvReverbSw"
 #include <android-base/logging.h>
 #include <fmq/AidlMessageQueue.h>
+#include <system/audio_effects/effect_uuid.h>
 
 #include "EnvReverbSw.h"
 
 using aidl::android::hardware::audio::effect::Descriptor;
 using aidl::android::hardware::audio::effect::EnvReverbSw;
+using aidl::android::hardware::audio::effect::getEffectImplUuidEnvReverbSw;
+using aidl::android::hardware::audio::effect::getEffectTypeUuidEnvReverb;
 using aidl::android::hardware::audio::effect::IEffect;
-using aidl::android::hardware::audio::effect::kEnvReverbSwImplUUID;
 using aidl::android::hardware::audio::effect::State;
 using aidl::android::media::audio::common::AudioUuid;
 
 extern "C" binder_exception_t createEffect(const AudioUuid* in_impl_uuid,
                                            std::shared_ptr<IEffect>* instanceSpp) {
-    if (!in_impl_uuid || *in_impl_uuid != kEnvReverbSwImplUUID) {
+    if (!in_impl_uuid || *in_impl_uuid != getEffectImplUuidEnvReverbSw()) {
         LOG(ERROR) << __func__ << "uuid not supported";
         return EX_ILLEGAL_ARGUMENT;
     }
@@ -49,7 +50,7 @@ extern "C" binder_exception_t createEffect(const AudioUuid* in_impl_uuid,
 }
 
 extern "C" binder_exception_t queryEffect(const AudioUuid* in_impl_uuid, Descriptor* _aidl_return) {
-    if (!in_impl_uuid || *in_impl_uuid != kEnvReverbSwImplUUID) {
+    if (!in_impl_uuid || *in_impl_uuid != getEffectImplUuidEnvReverbSw()) {
         LOG(ERROR) << __func__ << "uuid not supported";
         return EX_ILLEGAL_ARGUMENT;
     }
@@ -66,6 +67,8 @@ const std::vector<Range::EnvironmentalReverbRange> EnvReverbSw::kRanges = {
         MAKE_RANGE(EnvironmentalReverb, roomHfLevelMb, -4000, 0),
         MAKE_RANGE(EnvironmentalReverb, decayTimeMs, 0, 7000),
         MAKE_RANGE(EnvironmentalReverb, decayHfRatioPm, 100, 2000),
+        MAKE_RANGE(EnvironmentalReverb, reflectionsLevelMb, -6000, 0),
+        MAKE_RANGE(EnvironmentalReverb, reflectionsDelayMs, 0, 65),
         MAKE_RANGE(EnvironmentalReverb, levelMb, -6000, 0),
         MAKE_RANGE(EnvironmentalReverb, delayMs, 0, 65),
         MAKE_RANGE(EnvironmentalReverb, diffusionPm, 0, 1000),
@@ -75,8 +78,8 @@ const Capability EnvReverbSw::kCapability = {
         .range = Range::make<Range::environmentalReverb>(EnvReverbSw::kRanges)};
 
 const Descriptor EnvReverbSw::kDescriptor = {
-        .common = {.id = {.type = kEnvReverbTypeUUID,
-                          .uuid = kEnvReverbSwImplUUID,
+        .common = {.id = {.type = getEffectTypeUuidEnvReverb(),
+                          .uuid = getEffectImplUuidEnvReverbSw(),
                           .proxy = std::nullopt},
                    .flags = {.type = Flags::Type::INSERT,
                              .insert = Flags::Insert::FIRST,
@@ -123,6 +126,20 @@ ndk::ScopedAStatus EnvReverbSw::setParameterSpecific(const Parameter::Specific& 
                     mContext->setErDecayHfRatio(
                             erParam.get<EnvironmentalReverb::decayHfRatioPm>()) != RetCode::SUCCESS,
                     EX_ILLEGAL_ARGUMENT, "setDecayHfRatioFailed");
+            return ndk::ScopedAStatus::ok();
+        }
+        case EnvironmentalReverb::reflectionsLevelMb: {
+            RETURN_IF(mContext->setErReflectionsLevel(
+                              erParam.get<EnvironmentalReverb::reflectionsLevelMb>()) !=
+                              RetCode::SUCCESS,
+                      EX_ILLEGAL_ARGUMENT, "setReflectionsLevelFailed");
+            return ndk::ScopedAStatus::ok();
+        }
+        case EnvironmentalReverb::reflectionsDelayMs: {
+            RETURN_IF(mContext->setErReflectionsDelay(
+                              erParam.get<EnvironmentalReverb::reflectionsDelayMs>()) !=
+                              RetCode::SUCCESS,
+                      EX_ILLEGAL_ARGUMENT, "setReflectionsDelayFailed");
             return ndk::ScopedAStatus::ok();
         }
         case EnvironmentalReverb::levelMb: {
@@ -199,6 +216,14 @@ ndk::ScopedAStatus EnvReverbSw::getParameterEnvironmentalReverb(const Environmen
         }
         case EnvironmentalReverb::decayHfRatioPm: {
             erParam.set<EnvironmentalReverb::decayHfRatioPm>(mContext->getErDecayHfRatio());
+            break;
+        }
+        case EnvironmentalReverb::reflectionsLevelMb: {
+            erParam.set<EnvironmentalReverb::reflectionsLevelMb>(mContext->getErReflectionsLevel());
+            break;
+        }
+        case EnvironmentalReverb::reflectionsDelayMs: {
+            erParam.set<EnvironmentalReverb::reflectionsDelayMs>(mContext->getErReflectionsDelay());
             break;
         }
         case EnvironmentalReverb::levelMb: {

@@ -23,6 +23,7 @@
 #include <aidl/android/hardware/security/keymint/SecurityLevel.h>
 #include <android/binder_manager.h>
 #include <binder/IServiceManager.h>
+#include <cppbor.h>
 #include <cppbor_parse.h>
 #include <gmock/gmock.h>
 #include <keymaster/cppcose/cppcose.h>
@@ -46,7 +47,14 @@ using ::std::vector;
 namespace {
 
 constexpr int32_t VERSION_WITH_UNIQUE_ID_SUPPORT = 2;
+
+constexpr int32_t VERSION_WITHOUT_EEK = 3;
 constexpr int32_t VERSION_WITHOUT_TEST_MODE = 3;
+constexpr int32_t VERSION_WITH_CERTIFICATE_REQUEST_V2 = 3;
+constexpr int32_t VERSION_WITH_SUPPORTED_NUM_KEYS_IN_CSR = 3;
+
+constexpr uint8_t MIN_CHALLENGE_SIZE = 0;
+constexpr uint8_t MAX_CHALLENGE_SIZE = 64;
 
 #define INSTANTIATE_REM_PROV_AIDL_TEST(name)                                         \
     GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(name);                             \
@@ -222,21 +230,13 @@ TEST_P(GetHardwareInfoTests, supportsValidCurve) {
     RpcHardwareInfo hwInfo;
     ASSERT_TRUE(provisionable_->getHardwareInfo(&hwInfo).isOk());
 
-    const std::set<int> validCurves = {RpcHardwareInfo::CURVE_P256, RpcHardwareInfo::CURVE_25519};
-    // First check for the implementations that supports only IRPC V3+.
-    if (rpcHardwareInfo.versionNumber >= VERSION_WITHOUT_TEST_MODE) {
-        bytevec keysToSignMac;
-        DeviceInfo deviceInfo;
-        ProtectedData protectedData;
-        auto status = provisionable_->generateCertificateRequest(false, {}, {}, {}, &deviceInfo,
-                                                                 &protectedData, &keysToSignMac);
-        if (!status.isOk() &&
-            (status.getServiceSpecificError() == BnRemotelyProvisionedComponent::STATUS_REMOVED)) {
-            ASSERT_EQ(hwInfo.supportedEekCurve, RpcHardwareInfo::CURVE_NONE)
-                    << "Invalid curve: " << hwInfo.supportedEekCurve;
-            return;
-        }
+    if (rpcHardwareInfo.versionNumber >= VERSION_WITHOUT_EEK) {
+        ASSERT_EQ(hwInfo.supportedEekCurve, RpcHardwareInfo::CURVE_NONE)
+                << "Invalid curve: " << hwInfo.supportedEekCurve;
+        return;
     }
+
+    const std::set<int> validCurves = {RpcHardwareInfo::CURVE_P256, RpcHardwareInfo::CURVE_25519};
     ASSERT_EQ(validCurves.count(hwInfo.supportedEekCurve), 1)
             << "Invalid curve: " << hwInfo.supportedEekCurve;
 }
@@ -260,7 +260,7 @@ TEST_P(GetHardwareInfoTests, uniqueId) {
  * Verify implementation supports at least MIN_SUPPORTED_NUM_KEYS_IN_CSR keys in a CSR.
  */
 TEST_P(GetHardwareInfoTests, supportedNumKeysInCsr) {
-    if (rpcHardwareInfo.versionNumber < VERSION_WITHOUT_TEST_MODE) {
+    if (rpcHardwareInfo.versionNumber < VERSION_WITH_SUPPORTED_NUM_KEYS_IN_CSR) {
         return;
     }
 
@@ -361,6 +361,13 @@ TEST_P(GenerateKeyTests, generateEcdsaP256Key_testMode) {
     bytevec privateKeyBlob;
     bool testMode = true;
     auto status = provisionable_->generateEcdsaP256KeyPair(testMode, &macedPubKey, &privateKeyBlob);
+
+    if (rpcHardwareInfo.versionNumber >= VERSION_WITHOUT_TEST_MODE) {
+        ASSERT_FALSE(status.isOk());
+        EXPECT_EQ(status.getServiceSpecificError(), BnRemotelyProvisionedComponent::STATUS_REMOVED);
+        return;
+    }
+
     ASSERT_TRUE(status.isOk());
     check_maced_pubkey(macedPubKey, testMode, nullptr);
 }
@@ -406,17 +413,9 @@ class CertificateRequestTest : public CertificateRequestTestBase {
         CertificateRequestTestBase::SetUp();
         ASSERT_FALSE(HasFatalFailure());
 
-        if (rpcHardwareInfo.versionNumber >= VERSION_WITHOUT_TEST_MODE) {
-            bytevec keysToSignMac;
-            DeviceInfo deviceInfo;
-            ProtectedData protectedData;
-            auto status = provisionable_->generateCertificateRequest(
-                    false, {}, {}, {}, &deviceInfo, &protectedData, &keysToSignMac);
-            if (!status.isOk() && (status.getServiceSpecificError() ==
-                                   BnRemotelyProvisionedComponent::STATUS_REMOVED)) {
-                GTEST_SKIP() << "This test case applies to RKP v3+ only if "
-                             << "generateCertificateRequest() is implemented.";
-            }
+        if (rpcHardwareInfo.versionNumber >= VERSION_WITH_CERTIFICATE_REQUEST_V2) {
+            GTEST_SKIP() << "This test case only applies to RKP v1 and v2. "
+                         << "RKP version discovered: " << rpcHardwareInfo.versionNumber;
         }
     }
 };
@@ -692,7 +691,7 @@ class CertificateRequestV2Test : public CertificateRequestTestBase {
         CertificateRequestTestBase::SetUp();
         ASSERT_FALSE(HasFatalFailure());
 
-        if (rpcHardwareInfo.versionNumber < VERSION_WITHOUT_TEST_MODE) {
+        if (rpcHardwareInfo.versionNumber < VERSION_WITH_CERTIFICATE_REQUEST_V2) {
             GTEST_SKIP() << "This test case only applies to RKP v3 and above. "
                          << "RKP version discovered: " << rpcHardwareInfo.versionNumber;
         }
@@ -700,38 +699,63 @@ class CertificateRequestV2Test : public CertificateRequestTestBase {
 };
 
 /**
- * Generate an empty certificate request, and decrypt and verify the structure and content.
+ * Generate an empty certificate request with all possible length of challenge, and decrypt and
+ * verify the structure and content.
  */
+// @VsrTest = 3.10-015
 TEST_P(CertificateRequestV2Test, EmptyRequest) {
     bytevec csr;
 
-    auto status =
-            provisionable_->generateCertificateRequestV2({} /* keysToSign */, challenge_, &csr);
-    ASSERT_TRUE(status.isOk()) << status.getMessage();
+    for (auto size = MIN_CHALLENGE_SIZE; size <= MAX_CHALLENGE_SIZE; size++) {
+        SCOPED_TRACE(testing::Message() << "challenge[" << size << "]");
+        auto challenge = randomBytes(size);
+        auto status =
+                provisionable_->generateCertificateRequestV2({} /* keysToSign */, challenge, &csr);
+        ASSERT_TRUE(status.isOk()) << status.getMessage();
 
-    auto result = verifyProductionCsr(cppbor::Array(), csr, provisionable_.get(), challenge_);
-    ASSERT_TRUE(result) << result.message();
+        auto result = verifyProductionCsr(cppbor::Array(), csr, provisionable_.get(), challenge);
+        ASSERT_TRUE(result) << result.message();
+    }
 }
 
 /**
- * Generate a non-empty certificate request.  Decrypt, parse and validate the contents.
+ * Generate a non-empty certificate request with all possible length of challenge.  Decrypt, parse
+ * and validate the contents.
  */
+// @VsrTest = 3.10-015
 TEST_P(CertificateRequestV2Test, NonEmptyRequest) {
     generateKeys(false /* testMode */, 1 /* numKeys */);
 
     bytevec csr;
 
-    auto status = provisionable_->generateCertificateRequestV2(keysToSign_, challenge_, &csr);
-    ASSERT_TRUE(status.isOk()) << status.getMessage();
+    for (auto size = MIN_CHALLENGE_SIZE; size <= MAX_CHALLENGE_SIZE; size++) {
+        SCOPED_TRACE(testing::Message() << "challenge[" << size << "]");
+        auto challenge = randomBytes(size);
+        auto status = provisionable_->generateCertificateRequestV2(keysToSign_, challenge, &csr);
+        ASSERT_TRUE(status.isOk()) << status.getMessage();
 
-    auto result = verifyProductionCsr(cborKeysToSign_, csr, provisionable_.get(), challenge_);
-    ASSERT_TRUE(result) << result.message();
+        auto result = verifyProductionCsr(cborKeysToSign_, csr, provisionable_.get(), challenge);
+        ASSERT_TRUE(result) << result.message();
+    }
+}
+
+/**
+ * Generate an empty certificate request with invalid size of challenge
+ */
+TEST_P(CertificateRequestV2Test, EmptyRequestWithInvalidChallengeFail) {
+    bytevec csr;
+
+    auto status = provisionable_->generateCertificateRequestV2(
+            /* keysToSign */ {}, randomBytes(MAX_CHALLENGE_SIZE + 1), &csr);
+    EXPECT_FALSE(status.isOk()) << status.getMessage();
+    EXPECT_EQ(status.getServiceSpecificError(), BnRemotelyProvisionedComponent::STATUS_FAILED);
 }
 
 /**
  * Generate a non-empty certificate request.  Make sure contents are reproducible but allow for the
  * signature to be different since algorithms including ECDSA P-256 can include a random value.
  */
+// @VsrTest = 3.10-015
 TEST_P(CertificateRequestV2Test, NonEmptyRequestReproducible) {
     generateKeys(false /* testMode */, 1 /* numKeys */);
 
@@ -755,6 +779,7 @@ TEST_P(CertificateRequestV2Test, NonEmptyRequestReproducible) {
 /**
  * Generate a non-empty certificate request with multiple keys.
  */
+// @VsrTest = 3.10-015
 TEST_P(CertificateRequestV2Test, NonEmptyRequestMultipleKeys) {
     generateKeys(false /* testMode */, rpcHardwareInfo.supportedNumKeysInCsr /* numKeys */);
 
@@ -784,17 +809,154 @@ TEST_P(CertificateRequestV2Test, NonEmptyRequestCorruptMac) {
 }
 
 /**
- * Generate a non-empty certificate request in prod mode, with test keys.  Must fail with
- * STATUS_TEST_KEY_IN_PRODUCTION_REQUEST.
+ * Call generateCertificateRequest(). Make sure it's removed.
  */
-TEST_P(CertificateRequestV2Test, NonEmptyRequest_testKeyInProdCert) {
-    generateKeys(true /* testMode */, 1 /* numKeys */);
-
-    bytevec csr;
-    auto status = provisionable_->generateCertificateRequestV2(keysToSign_, challenge_, &csr);
+TEST_P(CertificateRequestV2Test, CertificateRequestV1Removed_prodMode) {
+    bytevec keysToSignMac;
+    DeviceInfo deviceInfo;
+    ProtectedData protectedData;
+    auto status = provisionable_->generateCertificateRequest(
+            false /* testMode */, {} /* keysToSign */, {} /* EEK chain */, challenge_, &deviceInfo,
+            &protectedData, &keysToSignMac);
     ASSERT_FALSE(status.isOk()) << status.getMessage();
-    ASSERT_EQ(status.getServiceSpecificError(),
-              BnRemotelyProvisionedComponent::STATUS_TEST_KEY_IN_PRODUCTION_REQUEST);
+    EXPECT_EQ(status.getServiceSpecificError(), BnRemotelyProvisionedComponent::STATUS_REMOVED);
+}
+
+/**
+ * Call generateCertificateRequest() in test mode. Make sure it's removed.
+ */
+TEST_P(CertificateRequestV2Test, CertificateRequestV1Removed_testMode) {
+    bytevec keysToSignMac;
+    DeviceInfo deviceInfo;
+    ProtectedData protectedData;
+    auto status = provisionable_->generateCertificateRequest(
+            true /* testMode */, {} /* keysToSign */, {} /* EEK chain */, challenge_, &deviceInfo,
+            &protectedData, &keysToSignMac);
+    ASSERT_FALSE(status.isOk()) << status.getMessage();
+    EXPECT_EQ(status.getServiceSpecificError(), BnRemotelyProvisionedComponent::STATUS_REMOVED);
+}
+
+void parse_root_of_trust(const vector<uint8_t>& attestation_cert,
+                         vector<uint8_t>* verified_boot_key, VerifiedBoot* verified_boot_state,
+                         bool* device_locked, vector<uint8_t>* verified_boot_hash) {
+    X509_Ptr cert(parse_cert_blob(attestation_cert));
+    ASSERT_TRUE(cert.get());
+
+    ASN1_OCTET_STRING* attest_rec = get_attestation_record(cert.get());
+    ASSERT_TRUE(attest_rec);
+
+    auto error = parse_root_of_trust(attest_rec->data, attest_rec->length, verified_boot_key,
+                                     verified_boot_state, device_locked, verified_boot_hash);
+    ASSERT_EQ(error, ErrorCode::OK);
+}
+
+/**
+ * Generate a CSR and verify DeviceInfo against IDs attested by KeyMint.
+ */
+// @VsrTest = 3.10-015
+TEST_P(CertificateRequestV2Test, DeviceInfo) {
+    // See if there is a matching IKeyMintDevice for this IRemotelyProvisionedComponent.
+    std::shared_ptr<IKeyMintDevice> keyMint;
+    if (!matching_keymint_device(GetParam(), &keyMint)) {
+        // No matching IKeyMintDevice.
+        GTEST_SKIP() << "Skipping key use test as no matching KeyMint device found";
+        return;
+    }
+    KeyMintHardwareInfo info;
+    ASSERT_TRUE(keyMint->getHardwareInfo(&info).isOk());
+
+    // Get IDs attested by KeyMint.
+    MacedPublicKey macedPubKey;
+    bytevec privateKeyBlob;
+    auto irpcStatus =
+            provisionable_->generateEcdsaP256KeyPair(false, &macedPubKey, &privateKeyBlob);
+    ASSERT_TRUE(irpcStatus.isOk());
+
+    AttestationKey attestKey;
+    attestKey.keyBlob = std::move(privateKeyBlob);
+    attestKey.issuerSubjectName = make_name_from_str("Android Keystore Key");
+
+    // Generate an ECDSA key that is attested by the generated P256 keypair.
+    AuthorizationSet keyDesc = AuthorizationSetBuilder()
+                                       .Authorization(TAG_NO_AUTH_REQUIRED)
+                                       .EcdsaSigningKey(EcCurve::P_256)
+                                       .AttestationChallenge("foo")
+                                       .AttestationApplicationId("bar")
+                                       .Digest(Digest::NONE)
+                                       .SetDefaultValidity();
+    KeyCreationResult creationResult;
+    auto kmStatus = keyMint->generateKey(keyDesc.vector_data(), attestKey, &creationResult);
+    ASSERT_TRUE(kmStatus.isOk());
+
+    vector<KeyCharacteristics> key_characteristics = std::move(creationResult.keyCharacteristics);
+    vector<Certificate> key_cert_chain = std::move(creationResult.certificateChain);
+    // We didn't provision the attestation key.
+    ASSERT_EQ(key_cert_chain.size(), 1);
+
+    // Parse attested patch levels.
+    auto auths = HwEnforcedAuthorizations(key_characteristics);
+
+    auto attestedSystemPatchLevel = auths.GetTagValue(TAG_OS_PATCHLEVEL);
+    auto attestedVendorPatchLevel = auths.GetTagValue(TAG_VENDOR_PATCHLEVEL);
+    auto attestedBootPatchLevel = auths.GetTagValue(TAG_BOOT_PATCHLEVEL);
+
+    ASSERT_TRUE(attestedSystemPatchLevel.has_value());
+    ASSERT_TRUE(attestedVendorPatchLevel.has_value());
+    ASSERT_TRUE(attestedBootPatchLevel.has_value());
+
+    // Parse attested AVB values.
+    vector<uint8_t> key;
+    VerifiedBoot attestedVbState;
+    bool attestedBootloaderState;
+    vector<uint8_t> attestedVbmetaDigest;
+    parse_root_of_trust(key_cert_chain[0].encodedCertificate, &key, &attestedVbState,
+                        &attestedBootloaderState, &attestedVbmetaDigest);
+
+    // Get IDs from DeviceInfo.
+    bytevec csr;
+    irpcStatus =
+            provisionable_->generateCertificateRequestV2({} /* keysToSign */, challenge_, &csr);
+    ASSERT_TRUE(irpcStatus.isOk()) << irpcStatus.getMessage();
+
+    auto result = verifyProductionCsr(cppbor::Array(), csr, provisionable_.get(), challenge_);
+    ASSERT_TRUE(result) << result.message();
+
+    std::unique_ptr<cppbor::Array> csrPayload = std::move(*result);
+    ASSERT_TRUE(csrPayload);
+
+    auto deviceInfo = csrPayload->get(2)->asMap();
+    ASSERT_TRUE(deviceInfo);
+
+    auto vbState = deviceInfo->get("vb_state")->asTstr();
+    auto bootloaderState = deviceInfo->get("bootloader_state")->asTstr();
+    auto vbmetaDigest = deviceInfo->get("vbmeta_digest")->asBstr();
+    auto systemPatchLevel = deviceInfo->get("system_patch_level")->asUint();
+    auto vendorPatchLevel = deviceInfo->get("vendor_patch_level")->asUint();
+    auto bootPatchLevel = deviceInfo->get("boot_patch_level")->asUint();
+    auto securityLevel = deviceInfo->get("security_level")->asTstr();
+
+    ASSERT_TRUE(vbState);
+    ASSERT_TRUE(bootloaderState);
+    ASSERT_TRUE(vbmetaDigest);
+    ASSERT_TRUE(systemPatchLevel);
+    ASSERT_TRUE(vendorPatchLevel);
+    ASSERT_TRUE(bootPatchLevel);
+    ASSERT_TRUE(securityLevel);
+
+    auto kmDeviceName = device_suffix(GetParam());
+
+    // Compare DeviceInfo against IDs attested by KeyMint.
+    ASSERT_TRUE((securityLevel->value() == "tee" && kmDeviceName == "default") ||
+                (securityLevel->value() == "strongbox" && kmDeviceName == "strongbox"));
+    ASSERT_TRUE((vbState->value() == "green" && attestedVbState == VerifiedBoot::VERIFIED) ||
+                (vbState->value() == "yellow" && attestedVbState == VerifiedBoot::SELF_SIGNED) ||
+                (vbState->value() == "orange" && attestedVbState == VerifiedBoot::UNVERIFIED));
+    ASSERT_TRUE((bootloaderState->value() == "locked" && attestedBootloaderState) ||
+                (bootloaderState->value() == "unlocked" && !attestedBootloaderState));
+    ASSERT_EQ(vbmetaDigest->value(), attestedVbmetaDigest);
+    ASSERT_EQ(systemPatchLevel->value(), attestedSystemPatchLevel.value());
+    ASSERT_EQ(vendorPatchLevel->value(), attestedVendorPatchLevel.value());
+    ASSERT_EQ(bootPatchLevel->value(), attestedBootPatchLevel.value());
 }
 
 INSTANTIATE_REM_PROV_AIDL_TEST(CertificateRequestV2Test);

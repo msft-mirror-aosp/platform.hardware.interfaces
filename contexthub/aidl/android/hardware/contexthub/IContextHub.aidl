@@ -20,6 +20,7 @@ import android.hardware.contexthub.ContextHubInfo;
 import android.hardware.contexthub.ContextHubMessage;
 import android.hardware.contexthub.HostEndpointInfo;
 import android.hardware.contexthub.IContextHubCallback;
+import android.hardware.contexthub.NanSessionStateUpdate;
 import android.hardware.contexthub.NanoappBinary;
 import android.hardware.contexthub.NanoappInfo;
 import android.hardware.contexthub.Setting;
@@ -199,9 +200,11 @@ interface IContextHub {
      * Provides the list of preloaded nanoapp IDs on the system. The output of this API must
      * not change.
      *
-     * @return The list of preloaded nanoapp IDs
+     * @param contextHubId The identifier of the Context Hub.
+     *
+     * @return The list of preloaded nanoapp IDs.
      */
-    long[] getPreloadedNanoappIds();
+    long[] getPreloadedNanoappIds(in int contextHubId);
 
     /**
      * Invoked when the state of the NAN session requested through handleNanSessionRequest()
@@ -212,9 +215,9 @@ interface IContextHub {
      * explicitly invoke handleNanSessionRequest() at a later point in time to attempt to
      * re-enable NAN.
      *
-     * @param state True if the NAN session is currently enabled.
+     * @param update Information about the latest NAN session state.
      */
-    void onNanSessionStateChanged(in boolean state);
+    void onNanSessionStateChanged(in NanSessionStateUpdate update);
 
     /**
      * Puts the context hub in and out of test mode. Test mode is a clean state

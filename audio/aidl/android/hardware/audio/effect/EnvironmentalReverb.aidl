@@ -33,7 +33,7 @@ union EnvironmentalReverb {
      */
     @VintfStability
     union Id {
-        int vendorExtensionTag;
+        VendorExtension vendorExtensionTag;
         EnvironmentalReverb.Tag commonTag;
     }
 
@@ -58,6 +58,14 @@ union EnvironmentalReverb {
      * HF decay ratio in permilles.
      */
     int decayHfRatioPm;
+    /**
+     * Reverb reflections level in millibels.
+     */
+    int reflectionsLevelMb;
+    /**
+     * Reverb reflections delay in milliseconds.
+     */
+    int reflectionsDelayMs;
     /**
      * Reverb level in millibels.
      */

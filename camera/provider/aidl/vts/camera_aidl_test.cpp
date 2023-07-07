@@ -35,6 +35,7 @@
 #include <grallocusage/GrallocUsageConversion.h>
 #include <hardware/gralloc1.h>
 #include <simple_device_cb.h>
+#include <ui/Fence.h>
 #include <ui/GraphicBufferAllocator.h>
 #include <regex>
 #include <typeinfo>
@@ -44,8 +45,6 @@ using ::aidl::android::hardware::camera::common::TorchModeStatus;
 using ::aidl::android::hardware::camera::device::CameraMetadata;
 using ::aidl::android::hardware::camera::device::ICameraDevice;
 using ::aidl::android::hardware::camera::metadata::CameraMetadataTag;
-using ::aidl::android::hardware::camera::metadata::RequestAvailableColorSpaceProfilesMap;
-using ::aidl::android::hardware::camera::metadata::RequestAvailableDynamicRangeProfilesMap;
 using ::aidl::android::hardware::camera::metadata::SensorInfoColorFilterArrangement;
 using ::aidl::android::hardware::camera::metadata::SensorPixelMode;
 using ::aidl::android::hardware::camera::provider::BnCameraProviderCallback;
@@ -138,6 +137,25 @@ void CameraAidlTest::TearDown() {
     if (mSession != nullptr) {
         ndk::ScopedAStatus ret = mSession->close();
         ASSERT_TRUE(ret.isOk());
+    }
+}
+
+void CameraAidlTest::waitForReleaseFence(
+        std::vector<InFlightRequest::StreamBufferAndTimestamp>& resultOutputBuffers) {
+    for (auto& bufferAndTimestamp : resultOutputBuffers) {
+        // wait for the fence timestamp and store it along with the buffer
+        android::sp<android::Fence> releaseFence = nullptr;
+        const native_handle_t* releaseFenceHandle = bufferAndTimestamp.buffer.releaseFence;
+        if (releaseFenceHandle != nullptr && releaseFenceHandle->numFds == 1 &&
+            releaseFenceHandle->data[0] >= 0) {
+            releaseFence = new android::Fence(dup(releaseFenceHandle->data[0]));
+        }
+        if (releaseFence && releaseFence->isValid()) {
+            releaseFence->wait(/*ms*/ 300);
+            nsecs_t releaseTime = releaseFence->getSignalTime();
+            if (bufferAndTimestamp.timeStamp < releaseTime)
+                bufferAndTimestamp.timeStamp = releaseTime;
+        }
     }
 }
 
@@ -336,7 +354,7 @@ void CameraAidlTest::verifySettingsOverrideCharacteristics(const camera_metadata
     int retcode = find_camera_metadata_ro_entry(metadata,
             ANDROID_CONTROL_AVAILABLE_SETTINGS_OVERRIDES, &entry);
     bool supportSettingsOverride = false;
-    if ((0 == retcode) && (entry.count > 0)) {
+    if (0 == retcode) {
         supportSettingsOverride = true;
         bool hasOff = false;
         for (size_t i = 0; i < entry.count; i++) {
@@ -845,7 +863,7 @@ Status CameraAidlTest::getAvailableOutputStreams(const camera_metadata_t* static
         AvailableStream depthPreviewThreshold = {kMaxPreviewWidth, kMaxPreviewHeight,
                                                  static_cast<int32_t>(PixelFormat::Y16)};
         const AvailableStream* depthThreshold =
-                (threshold != nullptr) ? threshold : &depthPreviewThreshold;
+                isDepthOnly(staticMeta) ? &depthPreviewThreshold : threshold;
         fillOutputStreams(&depthEntry, outputStreams, depthThreshold,
                           ANDROID_DEPTH_AVAILABLE_DEPTH_STREAM_CONFIGURATIONS_OUTPUT);
     }
@@ -2217,21 +2235,26 @@ void CameraAidlTest::configureStreamUseCaseInternal(const AvailableStream &thres
         }
 
         std::vector<Stream> streams(1);
-        streams[0] = {0,
-                      StreamType::OUTPUT,
-                      outputPreviewStreams[0].width,
-                      outputPreviewStreams[0].height,
-                      static_cast<PixelFormat>(outputPreviewStreams[0].format),
-                      static_cast<::aidl::android::hardware::graphics::common::BufferUsage>(
-                              GRALLOC1_CONSUMER_USAGE_CPU_READ),
-                      Dataspace::UNKNOWN,
-                      StreamRotation::ROTATION_0,
-                      std::string(),
-                      0,
-                      -1,
-                      {SensorPixelMode::ANDROID_SENSOR_PIXEL_MODE_DEFAULT},
-                      RequestAvailableDynamicRangeProfilesMap::
-                              ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD};
+        streams[0] = {
+                0,
+                StreamType::OUTPUT,
+                outputPreviewStreams[0].width,
+                outputPreviewStreams[0].height,
+                static_cast<PixelFormat>(outputPreviewStreams[0].format),
+                static_cast<::aidl::android::hardware::graphics::common::BufferUsage>(
+                        GRALLOC1_CONSUMER_USAGE_CPU_READ),
+                Dataspace::UNKNOWN,
+                StreamRotation::ROTATION_0,
+                std::string(),
+                0,
+                -1,
+                {SensorPixelMode::ANDROID_SENSOR_PIXEL_MODE_DEFAULT},
+                RequestAvailableDynamicRangeProfilesMap::
+                        ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD,
+                ScalerAvailableStreamUseCases::ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT,
+                static_cast<int>(
+                        RequestAvailableColorSpaceProfilesMap::
+                                ANDROID_REQUEST_AVAILABLE_COLOR_SPACE_PROFILES_MAP_UNSPECIFIED)};
 
         int32_t streamConfigCounter = 0;
         CameraMetadata req;
@@ -2375,7 +2398,11 @@ void CameraAidlTest::configureSingleStream(
                   /*groupId*/ -1,
                   {SensorPixelMode::ANDROID_SENSOR_PIXEL_MODE_DEFAULT},
                   RequestAvailableDynamicRangeProfilesMap::
-                          ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD};
+                          ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD,
+                  ScalerAvailableStreamUseCases::ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT,
+                  static_cast<int>(
+                          RequestAvailableColorSpaceProfilesMap::
+                                  ANDROID_REQUEST_AVAILABLE_COLOR_SPACE_PROFILES_MAP_UNSPECIFIED)};
 
     StreamConfiguration config;
     config.streams = streams;
@@ -2524,6 +2551,7 @@ void CameraAidlTest::processPreviewStabilizationCaptureRequestInternal(
         request.fmqSettingsSize = 0;
         request.settings.metadata =
                 std::vector(rawMetadata, rawMetadata + get_camera_metadata_size(releasedMetadata));
+        overrideRotateAndCrop(&request.settings);
         request.outputBuffers = std::vector<StreamBuffer>(1);
         StreamBuffer& outputBuffer = request.outputBuffers[0];
         if (useHalBufManager) {
@@ -2565,6 +2593,7 @@ void CameraAidlTest::processPreviewStabilizationCaptureRequestInternal(
                                std::chrono::seconds(kStreamBufferTimeoutSec);
                 ASSERT_NE(std::cv_status::timeout, mResultCondition.wait_until(l, timeout));
             }
+            waitForReleaseFence(inflightReq->resultOutputBuffers);
 
             ASSERT_FALSE(inflightReq->errorCodeValid);
             ASSERT_NE(inflightReq->resultOutputBuffers.size(), 0u);
@@ -2704,21 +2733,26 @@ void CameraAidlTest::configurePreviewStreams(
     std::vector<Stream> streams(physicalIds.size());
     int32_t streamId = 0;
     for (auto const& physicalId : physicalIds) {
-        streams[streamId] = {streamId,
-                             StreamType::OUTPUT,
-                             outputPreviewStreams[0].width,
-                             outputPreviewStreams[0].height,
-                             static_cast<PixelFormat>(outputPreviewStreams[0].format),
-                             static_cast<aidl::android::hardware::graphics::common::BufferUsage>(
-                                     GRALLOC1_CONSUMER_USAGE_HWCOMPOSER),
-                             Dataspace::UNKNOWN,
-                             StreamRotation::ROTATION_0,
-                             physicalId,
-                             0,
-                             -1,
-                             {SensorPixelMode::ANDROID_SENSOR_PIXEL_MODE_DEFAULT},
-                             RequestAvailableDynamicRangeProfilesMap::
-                                     ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD};
+        streams[streamId] = {
+                streamId,
+                StreamType::OUTPUT,
+                outputPreviewStreams[0].width,
+                outputPreviewStreams[0].height,
+                static_cast<PixelFormat>(outputPreviewStreams[0].format),
+                static_cast<aidl::android::hardware::graphics::common::BufferUsage>(
+                        GRALLOC1_CONSUMER_USAGE_HWCOMPOSER),
+                Dataspace::UNKNOWN,
+                StreamRotation::ROTATION_0,
+                physicalId,
+                0,
+                -1,
+                {SensorPixelMode::ANDROID_SENSOR_PIXEL_MODE_DEFAULT},
+                RequestAvailableDynamicRangeProfilesMap::
+                        ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD,
+                ScalerAvailableStreamUseCases::ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT,
+                static_cast<int>(
+                        RequestAvailableColorSpaceProfilesMap::
+                                ANDROID_REQUEST_AVAILABLE_COLOR_SPACE_PROFILES_MAP_UNSPECIFIED)};
         streamId++;
     }
 
@@ -2777,7 +2811,8 @@ void CameraAidlTest::configureStreams(const std::string& name,
                                       bool* supportsPartialResults, int32_t* partialResultCount,
                                       bool* useHalBufManager, std::shared_ptr<DeviceCb>* outCb,
                                       uint32_t streamConfigCounter, bool maxResolution,
-                                      RequestAvailableDynamicRangeProfilesMap prof) {
+                                      RequestAvailableDynamicRangeProfilesMap dynamicRangeProf,
+                                      RequestAvailableColorSpaceProfilesMap colorSpaceProf) {
     ASSERT_NE(nullptr, session);
     ASSERT_NE(nullptr, halStreams);
     ASSERT_NE(nullptr, previewStream);
@@ -2859,7 +2894,9 @@ void CameraAidlTest::configureStreams(const std::string& name,
                   -1,
                   {maxResolution ? SensorPixelMode::ANDROID_SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION
                                  : SensorPixelMode::ANDROID_SENSOR_PIXEL_MODE_DEFAULT},
-                  prof};
+                  dynamicRangeProf,
+                  ScalerAvailableStreamUseCases::ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT,
+                  static_cast<int>(colorSpaceProf)};
 
     StreamConfiguration config;
     config.streams = streams;
@@ -3084,6 +3121,10 @@ const char* CameraAidlTest::getColorSpaceProfileString(
             return "CIE_XYZ";
         case ColorSpaceNamed::CIE_LAB:
             return "CIE_LAB";
+        case ColorSpaceNamed::BT2020_HLG:
+            return "BT2020_HLG";
+        case ColorSpaceNamed::BT2020_PQ:
+            return "BT2020_PQ";
         default:
             return "INVALID";
     }
@@ -3306,7 +3347,11 @@ void CameraAidlTest::configureOfflineStillStream(
                   /*groupId*/ 0,
                   {SensorPixelMode::ANDROID_SENSOR_PIXEL_MODE_DEFAULT},
                   RequestAvailableDynamicRangeProfilesMap::
-                          ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD};
+                          ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD,
+                  ScalerAvailableStreamUseCases::ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT,
+                  static_cast<int>(
+                          RequestAvailableColorSpaceProfilesMap::
+                                  ANDROID_REQUEST_AVAILABLE_COLOR_SPACE_PROFILES_MAP_UNSPECIFIED)};
 
     StreamConfiguration config = {streams, StreamConfigurationMode::NORMAL_MODE, CameraMetadata()};
 
@@ -3332,7 +3377,6 @@ void CameraAidlTest::processColorSpaceRequest(
         RequestAvailableColorSpaceProfilesMap colorSpace,
         RequestAvailableDynamicRangeProfilesMap dynamicRangeProfile) {
     std::vector<std::string> cameraDeviceNames = getCameraDeviceNames(mProvider);
-    int64_t bufferId = 1;
     CameraMetadata settings;
 
     for (const auto& name : cameraDeviceNames) {
@@ -3422,15 +3466,12 @@ void CameraAidlTest::processColorSpaceRequest(
         Stream previewStream;
         std::shared_ptr<DeviceCb> cb;
 
-        previewStream.usage =
-            static_cast<aidl::android::hardware::graphics::common::BufferUsage>(
-                    GRALLOC1_CONSUMER_USAGE_HWCOMPOSER);
-        previewStream.dataSpace = getDataspace(PixelFormat::IMPLEMENTATION_DEFINED);
-        previewStream.colorSpace = static_cast<int32_t>(colorSpace);
+        previewStream.usage = static_cast<aidl::android::hardware::graphics::common::BufferUsage>(
+                GRALLOC1_CONSUMER_USAGE_HWCOMPOSER);
         configureStreams(name, mProvider, PixelFormat::IMPLEMENTATION_DEFINED, &mSession,
-                            &previewStream, &halStreams, &supportsPartialResults,
-                            &partialResultCount, &useHalBufManager, &cb, 0,
-                            /*maxResolution*/ false, dynamicRangeProfile);
+                         &previewStream, &halStreams, &supportsPartialResults, &partialResultCount,
+                         &useHalBufManager, &cb, 0,
+                         /*maxResolution*/ false, dynamicRangeProfile, colorSpace);
         ASSERT_NE(mSession, nullptr);
 
         ::aidl::android::hardware::common::fmq::MQDescriptor<
@@ -3451,12 +3492,12 @@ void CameraAidlTest::processColorSpaceRequest(
         // Stream as long as needed to fill the Hal inflight queue
         std::vector<CaptureRequest> requests(halStreams[0].maxBuffers);
 
-        for (int32_t frameNumber = 0; frameNumber < requests.size(); frameNumber++) {
+        for (int32_t requestId = 0; requestId < requests.size(); requestId++) {
             std::shared_ptr<InFlightRequest> inflightReq = std::make_shared<InFlightRequest>(
                     static_cast<ssize_t>(halStreams.size()), false, supportsPartialResults,
                     partialResultCount, std::unordered_set<std::string>(), resultQueue);
 
-            CaptureRequest& request = requests[frameNumber];
+            CaptureRequest& request = requests[requestId];
             std::vector<StreamBuffer>& outputBuffers = request.outputBuffers;
             outputBuffers.resize(halStreams.size());
 
@@ -3465,6 +3506,7 @@ void CameraAidlTest::processColorSpaceRequest(
             std::vector<buffer_handle_t> graphicBuffers;
             graphicBuffers.reserve(halStreams.size());
 
+            auto bufferId = requestId + 1;  // Buffer id value 0 is not valid
             for (const auto& halStream : halStreams) {
                 buffer_handle_t buffer_handle;
                 if (useHalBufManager) {
@@ -3480,17 +3522,16 @@ void CameraAidlTest::processColorSpaceRequest(
 
                     inflightReq->mOutstandingBufferIds[halStream.id][bufferId] = buffer_handle;
                     graphicBuffers.push_back(buffer_handle);
-                    outputBuffers[k] = {halStream.id, bufferId,
-                        android::makeToAidl(buffer_handle), BufferStatus::OK, NativeHandle(),
-                        NativeHandle()};
-                    bufferId++;
+                    outputBuffers[k] = {
+                            halStream.id,     bufferId,       android::makeToAidl(buffer_handle),
+                            BufferStatus::OK, NativeHandle(), NativeHandle()};
                 }
                 k++;
             }
 
             request.inputBuffer = {
                     -1, 0, NativeHandle(), BufferStatus::ERROR, NativeHandle(), NativeHandle()};
-            request.frameNumber = frameNumber;
+            request.frameNumber = bufferId;
             request.fmqSettingsSize = 0;
             request.settings = settings;
             request.inputWidth = 0;
@@ -3498,9 +3539,8 @@ void CameraAidlTest::processColorSpaceRequest(
 
             {
                 std::unique_lock<std::mutex> l(mLock);
-                mInflightMap[frameNumber] = inflightReq;
+                mInflightMap[bufferId] = inflightReq;
             }
-
         }
 
         int32_t numRequestProcessed = 0;
@@ -3514,7 +3554,10 @@ void CameraAidlTest::processColorSpaceRequest(
                 std::vector<int32_t> {halStreams[0].id});
         ASSERT_TRUE(returnStatus.isOk());
 
-        for (int32_t frameNumber = 0; frameNumber < requests.size(); frameNumber++) {
+        // We are keeping frame numbers and buffer ids consistent. Buffer id value of 0
+        // is used to indicate a buffer that is not present/available so buffer ids as well
+        // as frame numbers begin with 1.
+        for (int32_t frameNumber = 1; frameNumber <= requests.size(); frameNumber++) {
             const auto& inflightReq = mInflightMap[frameNumber];
             std::unique_lock<std::mutex> l(mLock);
             while (!inflightReq->errorCodeValid &&
@@ -3700,5 +3743,50 @@ void CameraAidlTest::processZoomSettingsOverrideRequests(
         ret = mSession->close();
         mSession = nullptr;
         ASSERT_TRUE(ret.isOk());
+    }
+}
+
+void CameraAidlTest::getSupportedSizes(const camera_metadata_t* ch, uint32_t tag, int32_t format,
+                                       std::vector<std::tuple<size_t, size_t>>* sizes /*out*/) {
+    if (sizes == nullptr) {
+        return;
+    }
+
+    camera_metadata_ro_entry entry;
+    int retcode = find_camera_metadata_ro_entry(ch, tag, &entry);
+    if ((0 == retcode) && (entry.count > 0)) {
+        // Scaler entry contains 4 elements (format, width, height, type)
+        for (size_t i = 0; i < entry.count; i += 4) {
+            if ((entry.data.i32[i] == format) &&
+                (entry.data.i32[i + 3] == ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT)) {
+                sizes->push_back(std::make_tuple(entry.data.i32[i + 1], entry.data.i32[i + 2]));
+            }
+        }
+    }
+}
+
+void CameraAidlTest::getSupportedDurations(const camera_metadata_t* ch, uint32_t tag,
+                                           int32_t format,
+                                           const std::vector<std::tuple<size_t, size_t>>& sizes,
+                                           std::vector<int64_t>* durations /*out*/) {
+    if (durations == nullptr) {
+        return;
+    }
+
+    camera_metadata_ro_entry entry;
+    int retcode = find_camera_metadata_ro_entry(ch, tag, &entry);
+    if ((0 == retcode) && (entry.count > 0)) {
+        // Duration entry contains 4 elements (format, width, height, duration)
+        for (const auto& size : sizes) {
+            int64_t width = std::get<0>(size);
+            int64_t height = std::get<1>(size);
+            for (size_t i = 0; i < entry.count; i += 4) {
+                if ((entry.data.i64[i] == format) && (entry.data.i64[i + 1] == width) &&
+                    (entry.data.i64[i + 2] == height)) {
+                    durations->push_back(entry.data.i64[i + 3]);
+                    break;
+                }
+            }
+        }
     }
 }

@@ -17,7 +17,6 @@
 #include <aidl/android/hardware/radio/RadioAccessFamily.h>
 #include <aidl/android/hardware/radio/config/IRadioConfig.h>
 #include <aidl/android/hardware/radio/data/ApnTypes.h>
-#include <android-base/logging.h>
 #include <android/binder_manager.h>
 
 #include "radio_data_utils.h"
@@ -25,6 +24,7 @@
 #define ASSERT_OK(ret) ASSERT_TRUE(ret.isOk())
 
 void RadioDataTest::SetUp() {
+    RadioServiceTest::SetUp();
     std::string serviceName = GetParam();
 
     if (!isServiceValidForDeviceConfiguration(serviceName)) {
@@ -38,8 +38,6 @@ void RadioDataTest::SetUp() {
 
     radioRsp_data = ndk::SharedRefBase::make<RadioDataResponse>(*this);
     ASSERT_NE(nullptr, radioRsp_data.get());
-
-    count_ = 0;
 
     radioInd_data = ndk::SharedRefBase::make<RadioDataIndication>(*this);
     ASSERT_NE(nullptr, radioInd_data.get());
@@ -233,14 +231,10 @@ TEST_P(RadioDataTest, getSlicingConfig) {
     EXPECT_EQ(std::cv_status::no_timeout, wait());
     EXPECT_EQ(RadioResponseType::SOLICITED, radioRsp_data->rspInfo.type);
     EXPECT_EQ(serial, radioRsp_data->rspInfo.serial);
-    if (getRadioHalCapabilities()) {
-        ASSERT_TRUE(CheckAnyOfErrors(radioRsp_data->rspInfo.error,
-                                     {RadioError::REQUEST_NOT_SUPPORTED}));
-    } else {
-        ASSERT_TRUE(CheckAnyOfErrors(radioRsp_data->rspInfo.error,
-                                     {RadioError::NONE, RadioError::RADIO_NOT_AVAILABLE,
-                                      RadioError::INTERNAL_ERR, RadioError::MODEM_ERR}));
-    }
+    ASSERT_TRUE(CheckAnyOfErrors(radioRsp_data->rspInfo.error,
+                                 {RadioError::NONE, RadioError::RADIO_NOT_AVAILABLE,
+                                  RadioError::INTERNAL_ERR, RadioError::MODEM_ERR,
+                                  RadioError::REQUEST_NOT_SUPPORTED}));
 }
 
 /*
@@ -535,8 +529,7 @@ TEST_P(RadioDataTest, startKeepalive) {
 
         ASSERT_TRUE(CheckAnyOfErrors(
                 radioRsp_data->rspInfo.error,
-                {RadioError::NONE, RadioError::RADIO_NOT_AVAILABLE, RadioError::INVALID_ARGUMENTS,
-                 RadioError::REQUEST_NOT_SUPPORTED}));
+                {RadioError::INVALID_ARGUMENTS, RadioError::REQUEST_NOT_SUPPORTED}));
     }
 }
 
@@ -553,15 +546,13 @@ TEST_P(RadioDataTest, stopKeepalive) {
 
     ASSERT_TRUE(
             CheckAnyOfErrors(radioRsp_data->rspInfo.error,
-                             {RadioError::NONE, RadioError::RADIO_NOT_AVAILABLE,
-                              RadioError::INVALID_ARGUMENTS, RadioError::REQUEST_NOT_SUPPORTED}));
+                             {RadioError::INVALID_ARGUMENTS, RadioError::REQUEST_NOT_SUPPORTED}));
 }
 
 /*
  * Test IRadioData.getDataCallList() for the response returned.
  */
 TEST_P(RadioDataTest, getDataCallList) {
-    LOG(DEBUG) << "getDataCallList";
     serial = GetRandomSerialNumber();
 
     radio_data->getDataCallList(serial);
@@ -575,14 +566,12 @@ TEST_P(RadioDataTest, getDataCallList) {
                 radioRsp_data->rspInfo.error,
                 {RadioError::NONE, RadioError::RADIO_NOT_AVAILABLE, RadioError::SIM_ABSENT}));
     }
-    LOG(DEBUG) << "getDataCallList finished";
 }
 
 /*
  * Test IRadioData.setDataAllowed() for the response returned.
  */
 TEST_P(RadioDataTest, setDataAllowed) {
-    LOG(DEBUG) << "setDataAllowed";
     serial = GetRandomSerialNumber();
     bool allow = true;
 
@@ -595,5 +584,4 @@ TEST_P(RadioDataTest, setDataAllowed) {
     if (cardStatus.cardState == CardStatus::STATE_ABSENT) {
         EXPECT_EQ(RadioError::NONE, radioRsp_data->rspInfo.error);
     }
-    LOG(DEBUG) << "setDataAllowed finished";
 }

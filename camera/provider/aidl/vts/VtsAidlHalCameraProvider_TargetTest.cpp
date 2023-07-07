@@ -551,6 +551,11 @@ TEST_P(CameraAidlTest, configureStreamsAvailableOutputs) {
             stream.rotation = StreamRotation::ROTATION_0;
             stream.dynamicRangeProfile = RequestAvailableDynamicRangeProfilesMap::
                     ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD;
+            stream.useCase = ScalerAvailableStreamUseCases::
+                    ANDROID_SCALER_AVAILABLE_STREAM_USE_CASES_DEFAULT;
+            stream.colorSpace = static_cast<int>(
+                    RequestAvailableColorSpaceProfilesMap::
+                            ANDROID_REQUEST_AVAILABLE_COLOR_SPACE_PROFILES_MAP_UNSPECIFIED);
 
             std::vector<Stream> streams = {stream};
             StreamConfiguration config;
@@ -2003,6 +2008,8 @@ TEST_P(CameraAidlTest, process10BitDynamicRangeRequest) {
                     ASSERT_NE(std::cv_status::timeout, mResultCondition.wait_until(l, timeout));
                 }
 
+                waitForReleaseFence(inflightReq->resultOutputBuffers);
+
                 ASSERT_FALSE(inflightReq->errorCodeValid);
                 ASSERT_NE(inflightReq->resultOutputBuffers.size(), 0u);
                 verify10BitMetadata(mHandleImporter, *inflightReq, profile);
@@ -2025,16 +2032,7 @@ TEST_P(CameraAidlTest, process10BitDynamicRangeRequest) {
 }
 
 TEST_P(CameraAidlTest, process8BitColorSpaceRequests) {
-    static int profiles[] = {
-        ColorSpaceNamed::BT709,
-        ColorSpaceNamed::DCI_P3,
-        ColorSpaceNamed::DISPLAY_P3,
-        ColorSpaceNamed::EXTENDED_SRGB,
-        ColorSpaceNamed::LINEAR_EXTENDED_SRGB,
-        ColorSpaceNamed::NTSC_1953,
-        ColorSpaceNamed::SMPTE_C,
-        ColorSpaceNamed::SRGB
-    };
+    static int profiles[] = {ColorSpaceNamed::DISPLAY_P3, ColorSpaceNamed::SRGB};
 
     for (int32_t i = 0; i < sizeof(profiles) / sizeof(profiles[0]); i++) {
         processColorSpaceRequest(static_cast<RequestAvailableColorSpaceProfilesMap>(profiles[i]),
@@ -2059,10 +2057,10 @@ TEST_P(CameraAidlTest, process10BitColorSpaceRequests) {
         ANDROID_REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_8B_HDR_OEM_PO
     };
 
-    // Process all dynamic range profiles with BT2020
+    // Process all dynamic range profiles with BT2020_HLG
     for (int32_t i = 0; i < sizeof(dynamicRangeProfiles) / sizeof(dynamicRangeProfiles[0]); i++) {
         processColorSpaceRequest(
-                static_cast<RequestAvailableColorSpaceProfilesMap>(ColorSpaceNamed::BT2020),
+                static_cast<RequestAvailableColorSpaceProfilesMap>(ColorSpaceNamed::BT2020_HLG),
                 static_cast<RequestAvailableDynamicRangeProfilesMap>(dynamicRangeProfiles[i]));
     }
 }
@@ -2070,18 +2068,17 @@ TEST_P(CameraAidlTest, process10BitColorSpaceRequests) {
 TEST_P(CameraAidlTest, processZoomSettingsOverrideRequests) {
     const int32_t kFrameCount = 5;
     const int32_t kTestCases = 2;
-    const bool kOverrideSequence[kTestCases][kFrameCount] = {
-        // ZOOM, ZOOM, ZOOM, ZOOM, ZOOM;
-        { true, true, true, true, true },
-        // OFF, OFF, ZOOM, ZOOM, OFF;
-        { false, false, true, true, false } };
+    const bool kOverrideSequence[kTestCases][kFrameCount] = {// ZOOM, ZOOM, ZOOM, ZOOM, ZOOM;
+                                                             {true, true, true, true, true},
+                                                             // OFF, ZOOM, ZOOM, ZOOM, OFF;
+                                                             {false, true, true, true, false}};
     const bool kExpectedOverrideResults[kTestCases][kFrameCount] = {
-        // All resuls should be overridden except the last one. The last result's
-        // zoom doesn't have speed-up.
-        { true, true, true, true, false },
-        // Because we require at least 2 frames speed-up, request #1, #2 and #3
-        // will be overridden.
-        { true, true, true, false, false } };
+            // All resuls should be overridden except the last one. The last result's
+            // zoom doesn't have speed-up.
+            {true, true, true, true, false},
+            // Because we require at least 1 frame speed-up, request #1, #2 and #3
+            // will be overridden.
+            {true, true, true, false, false}};
 
     for (int i = 0; i < kTestCases; i++) {
         processZoomSettingsOverrideRequests(kFrameCount, kOverrideSequence[i],
@@ -3049,6 +3046,51 @@ TEST_P(CameraAidlTest, configureStreamsUseCases) {
     AvailableStream previewStreamThreshold =
             {kMaxPreviewWidth, kMaxPreviewHeight, static_cast<int32_t>(PixelFormat::YCBCR_420_888)};
     configureStreamUseCaseInternal(previewStreamThreshold);
+}
+
+// Validate the integrity of stream configuration metadata
+TEST_P(CameraAidlTest, validateStreamConfigurations) {
+    std::vector<std::string> cameraDeviceNames = getCameraDeviceNames(mProvider);
+    std::vector<AvailableStream> outputStreams;
+
+    const int32_t scalerSizesTag = ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS;
+    const int32_t scalerMinFrameDurationsTag = ANDROID_SCALER_AVAILABLE_MIN_FRAME_DURATIONS;
+    const int32_t scalerStallDurationsTag = ANDROID_SCALER_AVAILABLE_STALL_DURATIONS;
+
+    for (const auto& name : cameraDeviceNames) {
+        CameraMetadata meta;
+        std::shared_ptr<ICameraDevice> cameraDevice;
+
+        openEmptyDeviceSession(name, mProvider, &mSession /*out*/, &meta /*out*/,
+                               &cameraDevice /*out*/);
+        camera_metadata_t* staticMeta = reinterpret_cast<camera_metadata_t*>(meta.metadata.data());
+
+        if (is10BitDynamicRangeCapable(staticMeta)) {
+            std::vector<std::tuple<size_t, size_t>> supportedP010Sizes, supportedBlobSizes;
+
+            getSupportedSizes(staticMeta, scalerSizesTag, HAL_PIXEL_FORMAT_BLOB,
+                              &supportedBlobSizes);
+            getSupportedSizes(staticMeta, scalerSizesTag, HAL_PIXEL_FORMAT_YCBCR_P010,
+                              &supportedP010Sizes);
+            ASSERT_FALSE(supportedP010Sizes.empty());
+
+            std::vector<int64_t> blobMinDurations, blobStallDurations;
+            getSupportedDurations(staticMeta, scalerMinFrameDurationsTag, HAL_PIXEL_FORMAT_BLOB,
+                                  supportedP010Sizes, &blobMinDurations);
+            getSupportedDurations(staticMeta, scalerStallDurationsTag, HAL_PIXEL_FORMAT_BLOB,
+                                  supportedP010Sizes, &blobStallDurations);
+            ASSERT_FALSE(blobStallDurations.empty());
+            ASSERT_FALSE(blobMinDurations.empty());
+            ASSERT_EQ(supportedP010Sizes.size(), blobMinDurations.size());
+            ASSERT_EQ(blobMinDurations.size(), blobStallDurations.size());
+        }
+
+        // TODO (b/280887191): Validate other aspects of stream configuration metadata...
+
+        ndk::ScopedAStatus ret = mSession->close();
+        mSession = nullptr;
+        ASSERT_TRUE(ret.isOk());
+    }
 }
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CameraAidlTest);

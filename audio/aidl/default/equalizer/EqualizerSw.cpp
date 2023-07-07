@@ -14,27 +14,27 @@
  * limitations under the License.
  */
 
-#include <cstddef>
-#define LOG_TAG "AHAL_EqualizerSw"
-#include <Utils.h>
 #include <algorithm>
-#include <unordered_set>
+#include <cstddef>
 
+#define LOG_TAG "AHAL_EqualizerSw"
 #include <android-base/logging.h>
 #include <fmq/AidlMessageQueue.h>
+#include <system/audio_effects/effect_uuid.h>
 
 #include "EqualizerSw.h"
 
 using aidl::android::hardware::audio::effect::Descriptor;
 using aidl::android::hardware::audio::effect::EqualizerSw;
+using aidl::android::hardware::audio::effect::getEffectImplUuidEqualizerSw;
+using aidl::android::hardware::audio::effect::getEffectTypeUuidEqualizer;
 using aidl::android::hardware::audio::effect::IEffect;
-using aidl::android::hardware::audio::effect::kEqualizerSwImplUUID;
 using aidl::android::hardware::audio::effect::State;
 using aidl::android::media::audio::common::AudioUuid;
 
 extern "C" binder_exception_t createEffect(const AudioUuid* in_impl_uuid,
                                            std::shared_ptr<IEffect>* instanceSpp) {
-    if (!in_impl_uuid || *in_impl_uuid != kEqualizerSwImplUUID) {
+    if (!in_impl_uuid || *in_impl_uuid != getEffectImplUuidEqualizerSw()) {
         LOG(ERROR) << __func__ << "uuid not supported";
         return EX_ILLEGAL_ARGUMENT;
     }
@@ -49,7 +49,7 @@ extern "C" binder_exception_t createEffect(const AudioUuid* in_impl_uuid,
 }
 
 extern "C" binder_exception_t queryEffect(const AudioUuid* in_impl_uuid, Descriptor* _aidl_return) {
-    if (!in_impl_uuid || *in_impl_uuid != kEqualizerSwImplUUID) {
+    if (!in_impl_uuid || *in_impl_uuid != getEffectImplUuidEqualizerSw()) {
         LOG(ERROR) << __func__ << "uuid not supported";
         return EX_ILLEGAL_ARGUMENT;
     }
@@ -76,11 +76,10 @@ const std::vector<Equalizer::Preset> EqualizerSw::kPresets = {
 const std::vector<Range::EqualizerRange> EqualizerSw::kRanges = {
         MAKE_RANGE(Equalizer, preset, 0, EqualizerSw::kPresets.size() - 1),
         MAKE_RANGE(Equalizer, bandLevels,
-                   std::vector<Equalizer::BandLevel>{Equalizer::BandLevel(
-                           {.index = 0, .levelMb = std::numeric_limits<int>::min()})},
                    std::vector<Equalizer::BandLevel>{
-                           Equalizer::BandLevel({.index = EqualizerSwContext::kMaxBandNumber - 1,
-                                                 .levelMb = std::numeric_limits<int>::max()})}),
+                           Equalizer::BandLevel({.index = 0, .levelMb = -15})},
+                   std::vector<Equalizer::BandLevel>{Equalizer::BandLevel(
+                           {.index = EqualizerSwContext::kMaxBandNumber - 1, .levelMb = 15})}),
         /* capability definition */
         MAKE_RANGE(Equalizer, bandFrequencies, EqualizerSw::kBandFrequency,
                    EqualizerSw::kBandFrequency),
@@ -89,9 +88,8 @@ const std::vector<Range::EqualizerRange> EqualizerSw::kRanges = {
         MAKE_RANGE(Equalizer, centerFreqMh, std::vector<int>({1}), std::vector<int>({0}))};
 
 const Capability EqualizerSw::kEqCap = {.range = EqualizerSw::kRanges};
-const Descriptor EqualizerSw::kDesc = {.common = {.id = {.type = kEqualizerTypeUUID,
-                                                         .uuid = kEqualizerSwImplUUID,
-                                                         .proxy = kEqualizerProxyUUID},
+const Descriptor EqualizerSw::kDesc = {.common = {.id = {.type = getEffectTypeUuidEqualizer(),
+                                                         .uuid = getEffectImplUuidEqualizerSw()},
                                                   .flags = {.type = Flags::Type::INSERT,
                                                             .insert = Flags::Insert::FIRST,
                                                             .volume = Flags::Volume::CTRL},
@@ -169,6 +167,14 @@ ndk::ScopedAStatus EqualizerSw::getParameterEqualizer(const Equalizer::Tag& tag,
         }
         case Equalizer::centerFreqMh: {
             eqParam.set<Equalizer::centerFreqMh>(mContext->getCenterFreqs());
+            break;
+        }
+        case Equalizer::bandFrequencies: {
+            eqParam.set<Equalizer::bandFrequencies>(kBandFrequency);
+            break;
+        }
+        case Equalizer::presets: {
+            eqParam.set<Equalizer::presets>(kPresets);
             break;
         }
         default: {

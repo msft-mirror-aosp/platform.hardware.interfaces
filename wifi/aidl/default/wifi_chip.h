@@ -53,7 +53,8 @@ class WifiChip : public BnWifiChip {
              const std::weak_ptr<mode_controller::WifiModeController> mode_controller,
              const std::shared_ptr<iface_util::WifiIfaceUtil> iface_util,
              const std::weak_ptr<feature_flags::WifiFeatureFlags> feature_flags,
-             const std::function<void(const std::string&)>& subsystemCallbackHandler);
+             const std::function<void(const std::string&)>& subsystemCallbackHandler,
+             bool using_dynamic_iface_combination);
 
     // Factory method - use instead of default constructor.
     static std::shared_ptr<WifiChip> create(
@@ -62,7 +63,8 @@ class WifiChip : public BnWifiChip {
             const std::weak_ptr<mode_controller::WifiModeController> mode_controller,
             const std::shared_ptr<iface_util::WifiIfaceUtil> iface_util,
             const std::weak_ptr<feature_flags::WifiFeatureFlags> feature_flags,
-            const std::function<void(const std::string&)>& subsystemCallbackHandler);
+            const std::function<void(const std::string&)>& subsystemCallbackHandler,
+            bool using_dynamic_iface_combination);
 
     // AIDL does not provide a built-in mechanism to let the server invalidate
     // an AIDL interface object after creation. If any client process holds onto
@@ -85,7 +87,7 @@ class WifiChip : public BnWifiChip {
     ndk::ScopedAStatus getId(int32_t* _aidl_return) override;
     ndk::ScopedAStatus registerEventCallback(
             const std::shared_ptr<IWifiChipEventCallback>& in_callback) override;
-    ndk::ScopedAStatus getCapabilities(IWifiChip::ChipCapabilityMask* _aidl_return) override;
+    ndk::ScopedAStatus getFeatureSet(int32_t* _aidl_return) override;
     ndk::ScopedAStatus getAvailableModes(std::vector<IWifiChip::ChipMode>* _aidl_return) override;
     ndk::ScopedAStatus configureChip(int32_t in_modeId) override;
     ndk::ScopedAStatus getMode(int32_t* _aidl_return) override;
@@ -136,19 +138,19 @@ class WifiChip : public BnWifiChip {
     ndk::ScopedAStatus setMultiStaUseCase(IWifiChip::MultiStaUseCase in_useCase) override;
     ndk::ScopedAStatus setCoexUnsafeChannels(
             const std::vector<IWifiChip::CoexUnsafeChannel>& in_unsafeChannels,
-            CoexRestriction in_restrictions) override;
+            int32_t in_restrictions) override;
     ndk::ScopedAStatus setCountryCode(const std::array<uint8_t, 2>& in_code) override;
-    ndk::ScopedAStatus getUsableChannels(WifiBand in_band, WifiIfaceMode in_ifaceModeMask,
-                                         UsableChannelFilter in_filterMask,
+    ndk::ScopedAStatus getUsableChannels(WifiBand in_band, int32_t in_ifaceModeMask,
+                                         int32_t in_filterMask,
                                          std::vector<WifiUsableChannel>* _aidl_return) override;
     ndk::ScopedAStatus setAfcChannelAllowance(
-            const std::vector<AvailableAfcFrequencyInfo>& availableAfcFrequencyInfo) override;
+            const AfcChannelAllowance& afcChannelAllowance) override;
     ndk::ScopedAStatus triggerSubsystemRestart() override;
-    ndk::ScopedAStatus getSupportedRadioCombinationsMatrix(
-            WifiRadioCombinationMatrix* _aidl_return) override;
+    ndk::ScopedAStatus getSupportedRadioCombinations(
+            std::vector<WifiRadioCombination>* _aidl_return) override;
     ndk::ScopedAStatus getWifiChipCapabilities(WifiChipCapabilities* _aidl_return) override;
     ndk::ScopedAStatus enableStaChannelForPeerNetwork(
-            ChannelCategoryMask in_channelCategoryEnableFlag) override;
+            int32_t in_channelCategoryEnableFlag) override;
     binder_status_t dump(int fd, const char** args, uint32_t numArgs) override;
     ndk::ScopedAStatus setMloMode(const ChipMloMode in_mode) override;
 
@@ -162,7 +164,7 @@ class WifiChip : public BnWifiChip {
     std::pair<int32_t, ndk::ScopedAStatus> getIdInternal();
     ndk::ScopedAStatus registerEventCallbackInternal(
             const std::shared_ptr<IWifiChipEventCallback>& event_callback);
-    std::pair<IWifiChip::ChipCapabilityMask, ndk::ScopedAStatus> getCapabilitiesInternal();
+    std::pair<int32_t, ndk::ScopedAStatus> getFeatureSetInternal();
     std::pair<std::vector<IWifiChip::ChipMode>, ndk::ScopedAStatus> getAvailableModesInternal();
     ndk::ScopedAStatus configureChipInternal(std::unique_lock<std::recursive_mutex>* lock,
                                              int32_t mode_id);
@@ -214,15 +216,13 @@ class WifiChip : public BnWifiChip {
     ndk::ScopedAStatus setMultiStaPrimaryConnectionInternal(const std::string& ifname);
     ndk::ScopedAStatus setMultiStaUseCaseInternal(IWifiChip::MultiStaUseCase use_case);
     ndk::ScopedAStatus setCoexUnsafeChannelsInternal(
-            std::vector<IWifiChip::CoexUnsafeChannel> unsafe_channels,
-            CoexRestriction restrictions);
+            std::vector<IWifiChip::CoexUnsafeChannel> unsafe_channels, int32_t restrictions);
     ndk::ScopedAStatus setCountryCodeInternal(const std::array<uint8_t, 2>& in_code);
     std::pair<std::vector<WifiUsableChannel>, ndk::ScopedAStatus> getUsableChannelsInternal(
-            WifiBand band, WifiIfaceMode ifaceModeMask, UsableChannelFilter filterMask);
-    ndk::ScopedAStatus enableStaChannelForPeerNetworkInternal(
-            ChannelCategoryMask channelCategoryEnableFlag);
+            WifiBand band, int32_t ifaceModeMask, int32_t filterMask);
+    ndk::ScopedAStatus enableStaChannelForPeerNetworkInternal(int32_t channelCategoryEnableFlag);
     ndk::ScopedAStatus setAfcChannelAllowanceInternal(
-            const std::vector<AvailableAfcFrequencyInfo>& availableAfcFrequencyInfo);
+            const AfcChannelAllowance& afcChannelAllowance);
     ndk::ScopedAStatus handleChipConfiguration(std::unique_lock<std::recursive_mutex>* lock,
                                                int32_t mode_id);
     ndk::ScopedAStatus registerDebugRingBufferCallback();
@@ -255,11 +255,11 @@ class WifiChip : public BnWifiChip {
     bool writeRingbufferFilesInternal();
     std::string getWlanIfaceNameWithType(IfaceType type, unsigned idx);
     void invalidateAndClearBridgedApAll();
-    void invalidateAndClearBridgedAp(const std::string& br_name);
+    void deleteApIface(const std::string& if_name);
     bool findUsingNameFromBridgedApInstances(const std::string& name);
     ndk::ScopedAStatus triggerSubsystemRestartInternal();
-    std::pair<WifiRadioCombinationMatrix, ndk::ScopedAStatus>
-    getSupportedRadioCombinationsMatrixInternal();
+    std::pair<std::vector<WifiRadioCombination>, ndk::ScopedAStatus>
+    getSupportedRadioCombinationsInternal();
     std::pair<WifiChipCapabilities, ndk::ScopedAStatus> getWifiChipCapabilitiesInternal();
     ndk::ScopedAStatus setMloModeInternal(const ChipMloMode in_mode);
     void retrieveDynamicIfaceCombination();

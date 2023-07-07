@@ -183,6 +183,7 @@ public final class AccessForVehicleProperty {
         Map.entry(VehicleProperty.GLOVE_BOX_DOOR_POS, VehiclePropertyAccess.READ_WRITE),
         Map.entry(VehicleProperty.GLOVE_BOX_LOCKED, VehiclePropertyAccess.READ_WRITE),
         Map.entry(VehicleProperty.VEHICLE_MAP_SERVICE, VehiclePropertyAccess.READ_WRITE),
+        Map.entry(VehicleProperty.LOCATION_CHARACTERIZATION, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.OBD2_LIVE_FRAME, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.OBD2_FREEZE_FRAME, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.OBD2_FREEZE_FRAME_INFO, VehiclePropertyAccess.READ),
@@ -262,10 +263,7 @@ public final class AccessForVehicleProperty {
         Map.entry(VehicleProperty.ADAPTIVE_CRUISE_CONTROL_LEAD_VEHICLE_MEASURED_DISTANCE, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.HANDS_ON_DETECTION_ENABLED, VehiclePropertyAccess.READ_WRITE),
         Map.entry(VehicleProperty.HANDS_ON_DETECTION_DRIVER_STATE, VehiclePropertyAccess.READ),
-        Map.entry(VehicleProperty.HANDS_ON_DETECTION_WARNING, VehiclePropertyAccess.READ),
-        Map.entry(VehicleProperty.DRIVER_ATTENTION_MONITORING_ENABLED, VehiclePropertyAccess.READ_WRITE),
-        Map.entry(VehicleProperty.DRIVER_ATTENTION_MONITORING_STATE, VehiclePropertyAccess.READ),
-        Map.entry(VehicleProperty.DRIVER_ATTENTION_MONITORING_WARNING, VehiclePropertyAccess.READ)
+        Map.entry(VehicleProperty.HANDS_ON_DETECTION_WARNING, VehiclePropertyAccess.READ)
     );
 
 }

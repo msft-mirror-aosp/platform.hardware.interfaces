@@ -108,25 +108,13 @@ bool KeyCharacteristicsBasicallyValid(SecurityLevel secLevel,
     return true;
 }
 
-// Extract attestation record from cert. Returned object is still part of cert; don't free it
-// separately.
-ASN1_OCTET_STRING* get_attestation_record(X509* certificate) {
-    ASN1_OBJECT_Ptr oid(OBJ_txt2obj(kAttestionRecordOid, 1 /* dotted string format */));
-    EXPECT_TRUE(!!oid.get());
-    if (!oid.get()) return nullptr;
+void check_crl_distribution_points_extension_not_present(X509* certificate) {
+    ASN1_OBJECT_Ptr crl_dp_oid(OBJ_txt2obj(kCrlDPOid, 1 /* dotted string format */));
+    ASSERT_TRUE(crl_dp_oid.get());
 
-    int location = X509_get_ext_by_OBJ(certificate, oid.get(), -1 /* search from beginning */);
-    EXPECT_NE(-1, location) << "Attestation extension not found in certificate";
-    if (location == -1) return nullptr;
-
-    X509_EXTENSION* attest_rec_ext = X509_get_ext(certificate, location);
-    EXPECT_TRUE(!!attest_rec_ext)
-            << "Found attestation extension but couldn't retrieve it?  Probably a BoringSSL bug.";
-    if (!attest_rec_ext) return nullptr;
-
-    ASN1_OCTET_STRING* attest_rec = X509_EXTENSION_get_data(attest_rec_ext);
-    EXPECT_TRUE(!!attest_rec) << "Attestation extension contained no data";
-    return attest_rec;
+    int location =
+            X509_get_ext_by_OBJ(certificate, crl_dp_oid.get(), -1 /* search from beginning */);
+    ASSERT_EQ(location, -1);
 }
 
 void check_attestation_version(uint32_t attestation_version, int32_t aidl_version) {
@@ -214,7 +202,7 @@ uint32_t KeyMintAidlTestBase::boot_patch_level() {
  * which is mandatory for KeyMint version 2 or first_api_level 33 or greater.
  */
 bool KeyMintAidlTestBase::isDeviceIdAttestationRequired() {
-    return AidlVersion() >= 2 || property_get_int32("ro.vendor.api_level", 0) >= 33;
+    return AidlVersion() >= 2 || property_get_int32("ro.vendor.api_level", 0) >= __ANDROID_API_T__;
 }
 
 /**
@@ -222,7 +210,7 @@ bool KeyMintAidlTestBase::isDeviceIdAttestationRequired() {
  * which is supported for KeyMint version 3 or first_api_level greater than 33.
  */
 bool KeyMintAidlTestBase::isSecondImeiIdAttestationRequired() {
-    return AidlVersion() >= 3 && property_get_int32("ro.vendor.api_level", 0) > 33;
+    return AidlVersion() >= 3 && property_get_int32("ro.vendor.api_level", 0) > __ANDROID_API_T__;
 }
 
 bool KeyMintAidlTestBase::Curve25519Supported() {
@@ -334,12 +322,13 @@ ErrorCode KeyMintAidlTestBase::GenerateKeyWithSelfSignedAttestKey(
         const AuthorizationSet& attest_key_desc, const AuthorizationSet& key_desc,
         vector<uint8_t>* key_blob, vector<KeyCharacteristics>* key_characteristics,
         vector<Certificate>* cert_chain) {
+    skipAttestKeyTest();
     AttestationKey attest_key;
     vector<Certificate> attest_cert_chain;
     vector<KeyCharacteristics> attest_key_characteristics;
     // Generate a key with self signed attestation.
-    auto error = GenerateKey(attest_key_desc, std::nullopt, &attest_key.keyBlob,
-                             &attest_key_characteristics, &attest_cert_chain);
+    auto error = GenerateAttestKey(attest_key_desc, std::nullopt, &attest_key.keyBlob,
+                                   &attest_key_characteristics, &attest_cert_chain);
     if (error != ErrorCode::OK) {
         return error;
     }
@@ -552,12 +541,13 @@ ErrorCode KeyMintAidlTestBase::Begin(KeyPurpose purpose, const vector<uint8_t>& 
 
 ErrorCode KeyMintAidlTestBase::Begin(KeyPurpose purpose, const vector<uint8_t>& key_blob,
                                      const AuthorizationSet& in_params,
-                                     AuthorizationSet* out_params) {
+                                     AuthorizationSet* out_params,
+                                     std::optional<HardwareAuthToken> hat) {
     SCOPED_TRACE("Begin");
     Status result;
     BeginResult out;
 
-    result = keymint_->begin(purpose, key_blob, in_params.vector_data(), std::nullopt, &out);
+    result = keymint_->begin(purpose, key_blob, in_params.vector_data(), hat, &out);
 
     if (result.isOk()) {
         *out_params = out.params;
@@ -611,8 +601,9 @@ ErrorCode KeyMintAidlTestBase::Update(const string& input, string* output) {
     return GetReturnErrorCode(result);
 }
 
-ErrorCode KeyMintAidlTestBase::Finish(const string& input, const string& signature,
-                                      string* output) {
+ErrorCode KeyMintAidlTestBase::Finish(const string& input, const string& signature, string* output,
+                                      std::optional<HardwareAuthToken> hat,
+                                      std::optional<secureclock::TimeStampToken> time_token) {
     SCOPED_TRACE("Finish");
     Status result;
 
@@ -621,8 +612,8 @@ ErrorCode KeyMintAidlTestBase::Finish(const string& input, const string& signatu
 
     vector<uint8_t> oPut;
     result = op_->finish(vector<uint8_t>(input.begin(), input.end()),
-                         vector<uint8_t>(signature.begin(), signature.end()), {} /* authToken */,
-                         {} /* timestampToken */, {} /* confirmationToken */, &oPut);
+                         vector<uint8_t>(signature.begin(), signature.end()), hat, time_token,
+                         {} /* confirmationToken */, &oPut);
 
     if (result.isOk()) output->append(oPut.begin(), oPut.end());
 
@@ -845,7 +836,7 @@ void KeyMintAidlTestBase::CheckEncryptOneByteAtATime(BlockMode block_mode, const
         int vendor_api_level = property_get_int32("ro.vendor.api_level", 0);
         if (SecLevel() == SecurityLevel::STRONGBOX) {
             // This is known to be broken on older vendor implementations.
-            if (vendor_api_level < 33) {
+            if (vendor_api_level < __ANDROID_API_T__) {
                 compare_output = false;
             } else {
                 additional_information = " (b/194134359) ";
@@ -1302,6 +1293,19 @@ std::pair<ErrorCode, vector<uint8_t>> KeyMintAidlTestBase::UpgradeKey(
 
     return retval;
 }
+
+bool KeyMintAidlTestBase::IsRkpSupportRequired() const {
+    if (get_vsr_api_level() >= __ANDROID_API_T__) {
+        return true;
+    }
+
+    if (get_vsr_api_level() >= __ANDROID_API_S__) {
+        return SecLevel() != SecurityLevel::STRONGBOX;
+    }
+
+    return false;
+}
+
 vector<uint32_t> KeyMintAidlTestBase::ValidKeySizes(Algorithm algorithm) {
     switch (algorithm) {
         case Algorithm::RSA:
@@ -1545,6 +1549,88 @@ ErrorCode KeyMintAidlTestBase::UseEcdsaKey(const vector<uint8_t>& ecdsaKeyBlob) 
     return result;
 }
 
+ErrorCode KeyMintAidlTestBase::GenerateAttestKey(const AuthorizationSet& key_desc,
+                                                 const optional<AttestationKey>& attest_key,
+                                                 vector<uint8_t>* key_blob,
+                                                 vector<KeyCharacteristics>* key_characteristics,
+                                                 vector<Certificate>* cert_chain) {
+    // The original specification for KeyMint v1 required ATTEST_KEY not be combined
+    // with any other key purpose, but the original VTS tests incorrectly did exactly that.
+    // This means that a device that launched prior to Android T (API level 33) may
+    // accept or even require KeyPurpose::SIGN too.
+    if (property_get_int32("ro.board.first_api_level", 0) < __ANDROID_API_T__) {
+        AuthorizationSet key_desc_plus_sign = key_desc;
+        key_desc_plus_sign.push_back(TAG_PURPOSE, KeyPurpose::SIGN);
+
+        auto result = GenerateKey(key_desc_plus_sign, attest_key, key_blob, key_characteristics,
+                                  cert_chain);
+        if (result == ErrorCode::OK) {
+            return result;
+        }
+        // If the key generation failed, it may be because the device is (correctly)
+        // rejecting the combination of ATTEST_KEY+SIGN.  Fall through to try again with
+        // just ATTEST_KEY.
+    }
+    return GenerateKey(key_desc, attest_key, key_blob, key_characteristics, cert_chain);
+}
+
+// Check if ATTEST_KEY feature is disabled
+bool KeyMintAidlTestBase::is_attest_key_feature_disabled(void) const {
+    if (!check_feature(FEATURE_KEYSTORE_APP_ATTEST_KEY)) {
+        GTEST_LOG_(INFO) << "Feature " + FEATURE_KEYSTORE_APP_ATTEST_KEY + " is disabled";
+        return true;
+    }
+
+    return false;
+}
+
+// Check if StrongBox KeyStore is enabled
+bool KeyMintAidlTestBase::is_strongbox_enabled(void) const {
+    if (check_feature(FEATURE_STRONGBOX_KEYSTORE)) {
+        GTEST_LOG_(INFO) << "Feature " + FEATURE_STRONGBOX_KEYSTORE + " is enabled";
+        return true;
+    }
+
+    return false;
+}
+
+// Check if chipset has received a waiver allowing it to be launched with Android S or T with
+// Keymaster 4.0 in StrongBox.
+bool KeyMintAidlTestBase::is_chipset_allowed_km4_strongbox(void) const {
+    std::array<char, PROPERTY_VALUE_MAX> buffer;
+
+    const int32_t first_api_level = property_get_int32("ro.board.first_api_level", 0);
+    if (first_api_level <= 0 || first_api_level > __ANDROID_API_T__) return false;
+
+    auto res = property_get("ro.vendor.qti.soc_model", buffer.data(), nullptr);
+    if (res <= 0) return false;
+
+    const string allowed_soc_models[] = {"SM8450", "SM8475", "SM8550", "SXR2230P"};
+
+    for (const string model : allowed_soc_models) {
+        if (model.compare(buffer.data()) == 0) {
+            GTEST_LOG_(INFO) << "QTI SOC Model " + model + " is allowed SB KM 4.0";
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Skip the test if all the following conditions hold:
+// 1. ATTEST_KEY feature is disabled
+// 2. STRONGBOX is enabled
+// 3. The device is running one of the chipsets that have received a waiver
+//     allowing it to be launched with Android S (or later) with Keymaster 4.0
+//     in StrongBox
+void KeyMintAidlTestBase::skipAttestKeyTest(void) const {
+    // Check the chipset first as that doesn't require a round-trip to Package Manager.
+    if (is_chipset_allowed_km4_strongbox() && is_strongbox_enabled() &&
+        is_attest_key_feature_disabled()) {
+        GTEST_SKIP() << "Test is not applicable";
+    }
+}
+
 void verify_serial(X509* cert, const uint64_t expected_serial) {
     BIGNUM_Ptr ser(BN_new());
     EXPECT_TRUE(ASN1_INTEGER_to_BN(X509_get_serialNumber(cert), ser.get()));
@@ -1708,6 +1794,10 @@ bool verify_attestation_record(int32_t aidl_version,                   //
     X509_Ptr cert(parse_cert_blob(attestation_cert));
     EXPECT_TRUE(!!cert.get());
     if (!cert.get()) return false;
+
+    // Make sure CRL Distribution Points extension is not present in a certificate
+    // containing attestation record.
+    check_crl_distribution_points_extension_not_present(cert.get());
 
     ASN1_OCTET_STRING* attest_rec = get_attestation_record(cert.get());
     EXPECT_TRUE(!!attest_rec);
@@ -1899,6 +1989,27 @@ X509_Ptr parse_cert_blob(const vector<uint8_t>& blob) {
     return X509_Ptr(d2i_X509(nullptr /* allocate new */, &p, blob.size()));
 }
 
+// Extract attestation record from cert. Returned object is still part of cert; don't free it
+// separately.
+ASN1_OCTET_STRING* get_attestation_record(X509* certificate) {
+    ASN1_OBJECT_Ptr oid(OBJ_txt2obj(kAttestionRecordOid, 1 /* dotted string format */));
+    EXPECT_TRUE(!!oid.get());
+    if (!oid.get()) return nullptr;
+
+    int location = X509_get_ext_by_OBJ(certificate, oid.get(), -1 /* search from beginning */);
+    EXPECT_NE(-1, location) << "Attestation extension not found in certificate";
+    if (location == -1) return nullptr;
+
+    X509_EXTENSION* attest_rec_ext = X509_get_ext(certificate, location);
+    EXPECT_TRUE(!!attest_rec_ext)
+            << "Found attestation extension but couldn't retrieve it?  Probably a BoringSSL bug.";
+    if (!attest_rec_ext) return nullptr;
+
+    ASN1_OCTET_STRING* attest_rec = X509_EXTENSION_get_data(attest_rec_ext);
+    EXPECT_TRUE(!!attest_rec) << "Attestation extension contained no data";
+    return attest_rec;
+}
+
 vector<uint8_t> make_name_from_str(const string& name) {
     X509_NAME_Ptr x509_name(X509_NAME_new());
     EXPECT_TRUE(x509_name.get() != nullptr);
@@ -2043,7 +2154,7 @@ void p256_pub_key(const vector<uint8_t>& coseKeyData, EVP_PKEY_Ptr* signingKey) 
 }
 
 void device_id_attestation_vsr_check(const ErrorCode& result) {
-    if (get_vsr_api_level() >= 34) {
+    if (get_vsr_api_level() > __ANDROID_API_T__) {
         ASSERT_FALSE(result == ErrorCode::INVALID_TAG)
                 << "It is a specification violation for INVALID_TAG to be returned due to ID "
                 << "mismatch in a Device ID Attestation call. INVALID_TAG is only intended to "

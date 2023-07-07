@@ -191,6 +191,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyChangeMode> ChangeModeForVehi
         {VehicleProperty::GLOVE_BOX_DOOR_POS, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::GLOVE_BOX_LOCKED, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::VEHICLE_MAP_SERVICE, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::LOCATION_CHARACTERIZATION, VehiclePropertyChangeMode::STATIC},
         {VehicleProperty::OBD2_LIVE_FRAME, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::OBD2_FREEZE_FRAME, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::OBD2_FREEZE_FRAME_INFO, VehiclePropertyChangeMode::ON_CHANGE},
@@ -271,9 +272,6 @@ std::unordered_map<VehicleProperty, VehiclePropertyChangeMode> ChangeModeForVehi
         {VehicleProperty::HANDS_ON_DETECTION_ENABLED, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::HANDS_ON_DETECTION_DRIVER_STATE, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::HANDS_ON_DETECTION_WARNING, VehiclePropertyChangeMode::ON_CHANGE},
-        {VehicleProperty::DRIVER_ATTENTION_MONITORING_ENABLED, VehiclePropertyChangeMode::ON_CHANGE},
-        {VehicleProperty::DRIVER_ATTENTION_MONITORING_STATE, VehiclePropertyChangeMode::ON_CHANGE},
-        {VehicleProperty::DRIVER_ATTENTION_MONITORING_WARNING, VehiclePropertyChangeMode::ON_CHANGE},
 };
 
 }  // namespace vehicle
