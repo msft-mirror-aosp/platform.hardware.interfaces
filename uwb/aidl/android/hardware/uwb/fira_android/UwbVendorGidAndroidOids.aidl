@@ -30,5 +30,22 @@ enum UwbVendorGidAndroidOids {
     ANDROID_GET_POWER_STATS = 0x0,
     // Used to set the current regulatory country code (determined usinag
     // SIM or hardcoded by OEM).
+    // Country code is sent as a 2 byte value corresponding to ISO-3166 country code.
+    // Note: "00" is used to indicate that the country code is unknown.
     ANDROID_SET_COUNTRY_CODE = 0x1,
+    // Used by the notification to get UWB ranging diagnostics stats.
+    // Supported only if the UwbVendorCapabilityTlvTypes.SUPPORTED_DIAGNOSTICS set
+    // to 1.
+    ANDROID_RANGE_DIAGNOSTICS = 0x2,
+
+    /*********************************************
+     * Range 0x10 - 0x1F reserved for RADAR specific
+     * Supported only if the UwbVendorCapabilityTlvTypes.RADAR_SUPPORT is not 0x00.
+     ********************************************/
+    // Used to set application configurations for radar session.
+    RADAR_SET_APP_CONFIG = 0x11,
+    // Used to get application configurations for radar session.
+    RADAR_GET_APP_CONFIG = 0x12,
+    // Used to report radar data for certain radar data types.
+    RADAR_DATA_NTF = 0x13,
 }
