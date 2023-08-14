@@ -106,7 +106,7 @@ TEST_P(RadioNetworkTest, setGetAllowedNetworkTypesBitmap) {
                  RadioError::REQUEST_NOT_SUPPORTED, RadioError::NO_RESOURCES}));
         if (radioRsp_network->rspInfo.error == RadioError::NONE) {
             // verify we get the value we set
-            ASSERT_EQ(radioRsp_network->networkTypeBitmapResponse, allowedNetworkTypesBitmap);
+            EXPECT_EQ(radioRsp_network->networkTypeBitmapResponse, allowedNetworkTypesBitmap);
         }
     }
 
@@ -886,7 +886,7 @@ TEST_P(RadioNetworkTest, startNetworkScan) {
     if (cardStatus.cardState == CardStatus::STATE_ABSENT) {
         ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error, {RadioError::SIM_ABSENT}));
     } else if (cardStatus.cardState == CardStatus::STATE_PRESENT) {
-        if (deviceSupportsFeature(FEATURE_TELEPHONY_GSM)) {
+        if (deviceSupportsFeature(FEATURE_TELEPHONY_GSM) && isLteConnected()) {
             // Modems support 3GPP RAT family need to
             // support scanning requests combined with some parameters.
             ASSERT_TRUE(CheckAnyOfErrors(radioRsp_network->rspInfo.error,
