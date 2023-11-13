@@ -54,6 +54,7 @@ Return<bool> Gnss::start() {
     }
 
     mIsActive = true;
+    this->reportGnssStatusValue(V1_0::IGnssCallback::GnssStatusValue::SESSION_BEGIN);
     mThread = std::thread([this]() {
         while (mIsActive == true) {
             auto svStatus = filterBlacklistedSatellitesV2_1(Utils::getMockSvInfoListV2_1());
@@ -86,6 +87,7 @@ hidl_vec<GnssSvInfo> Gnss::filterBlacklistedSatellitesV2_1(hidl_vec<GnssSvInfo> 
 Return<bool> Gnss::stop() {
     ALOGD("stop");
     mIsActive = false;
+    this->reportGnssStatusValue(V1_0::IGnssCallback::GnssStatusValue::SESSION_END);
     if (mThread.joinable()) {
         mThread.join();
     }
@@ -429,6 +431,18 @@ void Gnss::reportLocation(const V2_0::GnssLocation& location) const {
     auto ret = sGnssCallback_2_0->gnssLocationCb_2_0(location);
     if (!ret.isOk()) {
         ALOGE("%s: Unable to invoke callback v2.0", __func__);
+    }
+}
+
+void Gnss::reportGnssStatusValue(const V1_0::IGnssCallback::GnssStatusValue gnssStatusValue) const {
+    std::unique_lock<std::mutex> lock(mMutex);
+    if (sGnssCallback_2_1 == nullptr) {
+        ALOGE("%s: sGnssCallback v2.1 is null.", __func__);
+        return;
+    }
+    auto ret = sGnssCallback_2_1->gnssStatusCb(gnssStatusValue);
+    if (!ret.isOk()) {
+        ALOGE("%s: Unable to invoke callback", __func__);
     }
 }
 

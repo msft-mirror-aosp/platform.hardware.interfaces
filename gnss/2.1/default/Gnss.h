@@ -98,6 +98,7 @@ struct Gnss : public IGnss {
     void reportLocation(const V2_0::GnssLocation&) const;
     void reportLocation(const V1_0::GnssLocation&) const;
     void reportSvStatus(const hidl_vec<GnssSvInfo>&) const;
+    void reportGnssStatusValue(const V1_0::IGnssCallback::GnssStatusValue) const;
 
     static sp<V2_1::IGnssCallback> sGnssCallback_2_1;
     static sp<V2_0::IGnssCallback> sGnssCallback_2_0;
