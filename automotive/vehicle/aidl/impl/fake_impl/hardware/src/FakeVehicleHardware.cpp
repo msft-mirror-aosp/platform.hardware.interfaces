@@ -402,7 +402,7 @@ int FakeVehicleHardware::getHvacTempNumIncrements(int requestedTemp, int minTemp
                                                   int increment) {
     requestedTemp = std::max(requestedTemp, minTemp);
     requestedTemp = std::min(requestedTemp, maxTemp);
-    int numIncrements = (requestedTemp - minTemp) / increment;
+    int numIncrements = std::round((requestedTemp - minTemp) / static_cast<float>(increment));
     return numIncrements;
 }
 
