@@ -549,7 +549,7 @@ const ConfigDeclaration kVehicleProperties[]{
         {.config = {.prop = toInt(VehicleProperty::HVAC_TEMPERATURE_SET),
                     .access = VehiclePropertyAccess::READ_WRITE,
                     .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
-                    .configArray = {160, 280, 5, 605, 825, 10},
+                    .configArray = {160, 280, 5, 608, 824, 9},
                     .areaConfigs = {VehicleAreaConfig{
                                             .areaId = HVAC_LEFT,
                                             .minFloatValue = 16,
@@ -569,7 +569,7 @@ const ConfigDeclaration kVehicleProperties[]{
                          .access = VehiclePropertyAccess::READ_WRITE,
                          .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
                  },
-         .initialValue = {.floatValues = {66.2f, (float)VehicleUnit::FAHRENHEIT, 19.0f, 66.5f}}},
+         .initialValue = {.floatValues = {66.2f, (float)VehicleUnit::FAHRENHEIT, 19.0f, 66.2f}}},
 
         {.config =
                  {
