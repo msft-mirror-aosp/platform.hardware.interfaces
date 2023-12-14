@@ -108,27 +108,6 @@ bool KeyCharacteristicsBasicallyValid(SecurityLevel secLevel,
     return true;
 }
 
-// Extract attestation record from cert. Returned object is still part of cert; don't free it
-// separately.
-ASN1_OCTET_STRING* get_attestation_record(X509* certificate) {
-    ASN1_OBJECT_Ptr oid(OBJ_txt2obj(kAttestionRecordOid, 1 /* dotted string format */));
-    EXPECT_TRUE(!!oid.get());
-    if (!oid.get()) return nullptr;
-
-    int location = X509_get_ext_by_OBJ(certificate, oid.get(), -1 /* search from beginning */);
-    EXPECT_NE(-1, location) << "Attestation extension not found in certificate";
-    if (location == -1) return nullptr;
-
-    X509_EXTENSION* attest_rec_ext = X509_get_ext(certificate, location);
-    EXPECT_TRUE(!!attest_rec_ext)
-            << "Found attestation extension but couldn't retrieve it?  Probably a BoringSSL bug.";
-    if (!attest_rec_ext) return nullptr;
-
-    ASN1_OCTET_STRING* attest_rec = X509_EXTENSION_get_data(attest_rec_ext);
-    EXPECT_TRUE(!!attest_rec) << "Attestation extension contained no data";
-    return attest_rec;
-}
-
 void check_attestation_version(uint32_t attestation_version, int32_t aidl_version) {
     // Version numbers in attestation extensions should be a multiple of 100.
     EXPECT_EQ(attestation_version % 100, 0);
@@ -1783,6 +1762,27 @@ X509_Ptr parse_cert_blob(const vector<uint8_t>& blob) {
     return X509_Ptr(d2i_X509(nullptr /* allocate new */, &p, blob.size()));
 }
 
+// Extract attestation record from cert. Returned object is still part of cert; don't free it
+// separately.
+ASN1_OCTET_STRING* get_attestation_record(X509* certificate) {
+    ASN1_OBJECT_Ptr oid(OBJ_txt2obj(kAttestionRecordOid, 1 /* dotted string format */));
+    EXPECT_TRUE(!!oid.get());
+    if (!oid.get()) return nullptr;
+
+    int location = X509_get_ext_by_OBJ(certificate, oid.get(), -1 /* search from beginning */);
+    EXPECT_NE(-1, location) << "Attestation extension not found in certificate";
+    if (location == -1) return nullptr;
+
+    X509_EXTENSION* attest_rec_ext = X509_get_ext(certificate, location);
+    EXPECT_TRUE(!!attest_rec_ext)
+            << "Found attestation extension but couldn't retrieve it?  Probably a BoringSSL bug.";
+    if (!attest_rec_ext) return nullptr;
+
+    ASN1_OCTET_STRING* attest_rec = X509_EXTENSION_get_data(attest_rec_ext);
+    EXPECT_TRUE(!!attest_rec) << "Attestation extension contained no data";
+    return attest_rec;
+}
+
 vector<uint8_t> make_name_from_str(const string& name) {
     X509_NAME_Ptr x509_name(X509_NAME_new());
     EXPECT_TRUE(x509_name.get() != nullptr);
@@ -1922,6 +1922,24 @@ void p256_pub_key(const vector<uint8_t>& coseKeyData, EVP_PKEY_Ptr* signingKey) 
     ASSERT_NE(pubKey, nullptr);
     EVP_PKEY_assign_EC_KEY(pubKey.get(), ecKey.release());
     *signingKey = std::move(pubKey);
+}
+
+// Check the error code from an attempt to perform device ID attestation with an invalid value.
+void device_id_attestation_check_acceptable_error(Tag tag, const ErrorCode& result) {
+    if (result == ErrorCode::CANNOT_ATTEST_IDS) {
+        // Standard/default error code for ID mismatch.
+    } else if (result == ErrorCode::INVALID_TAG) {
+        // Depending on the situation, other error codes may be acceptable.  First, allow older
+        // implementations to use INVALID_TAG.
+    } else if (result == ErrorCode::ATTESTATION_IDS_NOT_PROVISIONED) {
+        // If the device is not a phone, it will not have IMEI/MEID values available.  Allow
+        // ATTESTATION_IDS_NOT_PROVISIONED in this case.
+        ASSERT_TRUE((tag == TAG_ATTESTATION_ID_IMEI || tag == TAG_ATTESTATION_ID_MEID))
+                << "incorrect error code on attestation ID mismatch";
+    } else {
+        ADD_FAILURE() << "Error code " << result
+                      << " returned on attestation ID mismatch, should be CANNOT_ATTEST_IDS";
+    }
 }
 
 // Check whether the given named feature is available.
