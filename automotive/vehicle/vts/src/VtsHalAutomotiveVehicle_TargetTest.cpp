@@ -19,12 +19,15 @@
 #include <IVhalClient.h>
 #include <VehicleHalTypes.h>
 #include <VehicleUtils.h>
+#include <VersionForVehicleProperty.h>
 #include <aidl/Gtest.h>
 #include <aidl/Vintf.h>
 #include <aidl/android/hardware/automotive/vehicle/IVehicle.h>
 #include <android-base/stringprintf.h>
 #include <android-base/thread_annotations.h>
 #include <android/binder_process.h>
+#include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <hidl/GtestPrinter.h>
 #include <hidl/ServiceManagement.h>
@@ -46,8 +49,11 @@ using ::aidl::android::hardware::automotive::vehicle::VehicleProperty;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyAccess;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyChangeMode;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyGroup;
+using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyStatus;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropertyType;
+using ::aidl::android::hardware::automotive::vehicle::VersionForVehicleProperty;
 using ::android::getAidlHalInstanceNames;
+using ::android::uptimeMillis;
 using ::android::base::ScopedLockAssertion;
 using ::android::base::StringPrintf;
 using ::android::frameworks::automotive::vhal::ErrorCode;
@@ -56,11 +62,17 @@ using ::android::frameworks::automotive::vhal::IHalPropConfig;
 using ::android::frameworks::automotive::vhal::IHalPropValue;
 using ::android::frameworks::automotive::vhal::ISubscriptionCallback;
 using ::android::frameworks::automotive::vhal::IVhalClient;
+using ::android::frameworks::automotive::vhal::VhalClientResult;
 using ::android::hardware::getAllHalInstanceNames;
 using ::android::hardware::Sanitize;
+using ::android::hardware::automotive::vehicle::isSystemProp;
+using ::android::hardware::automotive::vehicle::propIdToString;
 using ::android::hardware::automotive::vehicle::toInt;
+using ::testing::Ge;
 
 constexpr int32_t kInvalidProp = 0x31600207;
+// The timeout for retrying getting prop value after setting prop value.
+constexpr int64_t kRetryGetPropAfterSetPropTimeoutMillis = 10'000;
 
 struct ServiceDescriptor {
     std::string name;
@@ -115,7 +127,15 @@ class VtsVehicleCallback final : public ISubscriptionCallback {
 };
 
 class VtsHalAutomotiveVehicleTargetTest : public testing::TestWithParam<ServiceDescriptor> {
+  protected:
+    bool checkIsSupported(int32_t propertyId);
+
+    static bool isUnavailable(const VhalClientResult<std::unique_ptr<IHalPropValue>>& result);
+    static bool isResultOkayWithValue(
+            const VhalClientResult<std::unique_ptr<IHalPropValue>>& result, int32_t value);
+
   public:
+    void verifyAccessMode(int actualAccess, int expectedAccess);
     void verifyProperty(VehicleProperty propId, VehiclePropertyAccess access,
                         VehiclePropertyChangeMode changeMode, VehiclePropertyGroup group,
                         VehicleArea area, VehiclePropertyType propertyType);
@@ -155,7 +175,7 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, useHidlBackend) {
     }
 }
 
-// Test getAllPropConfig() returns at least 4 property configs.
+// Test getAllPropConfigs() returns at least 1 property configs.
 TEST_P(VtsHalAutomotiveVehicleTargetTest, getAllPropConfigs) {
     ALOGD("VtsHalAutomotiveVehicleTargetTest::getAllPropConfigs");
 
@@ -163,25 +183,29 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, getAllPropConfigs) {
 
     ASSERT_TRUE(result.ok()) << "Failed to get all property configs, error: "
                              << result.error().message();
-    ASSERT_GE(result.value().size(), 4u) << StringPrintf(
-            "Expect to get at least 4 property configs, got %zu", result.value().size());
+    ASSERT_GE(result.value().size(), 1u) << StringPrintf(
+            "Expect to get at least 1 property config, got %zu", result.value().size());
 }
 
-// Test getPropConfigs() can query all properties listed in CDD.
-TEST_P(VtsHalAutomotiveVehicleTargetTest, getRequiredPropConfigs) {
+// Test getPropConfigs() can query properties returned by getAllPropConfigs.
+TEST_P(VtsHalAutomotiveVehicleTargetTest, getPropConfigsWithValidProps) {
     ALOGD("VtsHalAutomotiveVehicleTargetTest::getRequiredPropConfigs");
 
-    // Check the properties listed in CDD
-    std::vector<int32_t> properties = {
-            toInt(VehicleProperty::GEAR_SELECTION), toInt(VehicleProperty::NIGHT_MODE),
-            toInt(VehicleProperty::PARKING_BRAKE_ON), toInt(VehicleProperty::PERF_VEHICLE_SPEED)};
+    std::vector<int32_t> properties;
+    auto result = mVhalClient->getAllPropConfigs();
 
-    auto result = mVhalClient->getPropConfigs(properties);
+    ASSERT_TRUE(result.ok()) << "Failed to get all property configs, error: "
+                             << result.error().message();
+    for (const auto& cfgPtr : result.value()) {
+        properties.push_back(cfgPtr->getPropId());
+    }
+
+    result = mVhalClient->getPropConfigs(properties);
 
     ASSERT_TRUE(result.ok()) << "Failed to get required property config, error: "
                              << result.error().message();
-    ASSERT_EQ(result.value().size(), 4u)
-            << StringPrintf("Expect to get exactly 4 configs, got %zu", result.value().size());
+    ASSERT_EQ(result.value().size(), properties.size()) << StringPrintf(
+            "Expect to get exactly %zu configs, got %zu", properties.size(), result.value().size());
 }
 
 // Test getPropConfig() with an invalid propertyId returns an error code.
@@ -195,11 +219,49 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, getPropConfigsWithInvalidProp) {
     ASSERT_NE(result.error().message(), "") << "Expect error message not to be empty";
 }
 
+// Test system property IDs returned by getPropConfigs() are defined in the VHAL property interface.
+TEST_P(VtsHalAutomotiveVehicleTargetTest, testPropConfigs_onlyDefinedSystemPropertyIdsReturned) {
+    if (!mVhalClient->isAidlVhal()) {
+        GTEST_SKIP() << "Skip for HIDL VHAL because HAL interface run-time version is only"
+                     << "introduced for AIDL";
+    }
+
+    auto result = mVhalClient->getAllPropConfigs();
+    ASSERT_TRUE(result.ok()) << "Failed to get all property configs, error: "
+                             << result.error().message();
+
+    int32_t vhalVersion = mVhalClient->getRemoteInterfaceVersion();
+    const auto& configs = result.value();
+    for (size_t i = 0; i < configs.size(); i++) {
+        int32_t propId = configs[i]->getPropId();
+        if (!isSystemProp(propId)) {
+            continue;
+        }
+
+        std::string propName = propIdToString(propId);
+        auto it = VersionForVehicleProperty.find(static_cast<VehicleProperty>(propId));
+        bool found = (it != VersionForVehicleProperty.end());
+        EXPECT_TRUE(found) << "System Property: " << propName
+                           << " is not defined in VHAL property interface";
+        if (!found) {
+            continue;
+        }
+        int32_t requiredVersion = it->second;
+        EXPECT_THAT(vhalVersion, Ge(requiredVersion))
+                << "System Property: " << propName << " requires VHAL version: " << requiredVersion
+                << ", but the current VHAL version"
+                << " is " << vhalVersion << ", must not be supported";
+    }
+}
+
 // Test get() return current value for properties.
 TEST_P(VtsHalAutomotiveVehicleTargetTest, get) {
     ALOGD("VtsHalAutomotiveVehicleTargetTest::get");
 
     int32_t propId = toInt(VehicleProperty::PERF_VEHICLE_SPEED);
+    if (!checkIsSupported(propId)) {
+        GTEST_SKIP() << "Property: " << propId << " is not supported, skip the test";
+    }
     auto result = mVhalClient->getValueSync(*mVhalClient->createHalPropValue(propId));
 
     ASSERT_TRUE(result.ok()) << StringPrintf("Failed to get value for property: %" PRId32
@@ -216,6 +278,27 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, getInvalidProp) {
 
     ASSERT_FALSE(result.ok()) << StringPrintf(
             "Expect failure to get property for invalid prop: %" PRId32, kInvalidProp);
+}
+
+bool VtsHalAutomotiveVehicleTargetTest::isResultOkayWithValue(
+        const VhalClientResult<std::unique_ptr<IHalPropValue>>& result, int32_t value) {
+    return result.ok() && result.value() != nullptr &&
+           result.value()->getStatus() == VehiclePropertyStatus::AVAILABLE &&
+           result.value()->getInt32Values().size() == 1 &&
+           result.value()->getInt32Values()[0] == value;
+}
+
+bool VtsHalAutomotiveVehicleTargetTest::isUnavailable(
+        const VhalClientResult<std::unique_ptr<IHalPropValue>>& result) {
+    if (!result.ok()) {
+        return result.error().code() == ErrorCode::NOT_AVAILABLE_FROM_VHAL;
+    }
+    if (result.value() != nullptr &&
+        result.value()->getStatus() == VehiclePropertyStatus::UNAVAILABLE) {
+        return true;
+    }
+
+    return false;
 }
 
 // Test set() on read_write properties.
@@ -240,10 +323,23 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, setProp) {
         const IHalPropConfig& cfg = *cfgPtr;
         int32_t propId = cfg.getPropId();
         // test on boolean and writable property
-        if (cfg.getAccess() == toInt(VehiclePropertyAccess::READ_WRITE) &&
-            isBooleanGlobalProp(propId) && !hvacProps.count(propId)) {
+        bool isReadWrite = (cfg.getAccess() == toInt(VehiclePropertyAccess::READ_WRITE));
+        if (cfg.getAreaConfigSize() != 0 &&
+            cfg.getAreaConfigs()[0]->getAccess() != toInt(VehiclePropertyAccess::NONE)) {
+            isReadWrite = (cfg.getAreaConfigs()[0]->getAccess() ==
+                           toInt(VehiclePropertyAccess::READ_WRITE));
+        }
+        if (isReadWrite && isBooleanGlobalProp(propId) && !hvacProps.count(propId)) {
             auto propToGet = mVhalClient->createHalPropValue(propId);
             auto getValueResult = mVhalClient->getValueSync(*propToGet);
+
+            if (isUnavailable(getValueResult)) {
+                ALOGW("getProperty for %" PRId32
+                      " returns NOT_AVAILABLE, "
+                      "skip testing setProp",
+                      propId);
+                return;
+            }
 
             ASSERT_TRUE(getValueResult.ok())
                     << StringPrintf("Failed to get value for property: %" PRId32 ", error: %s",
@@ -257,17 +353,48 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, setProp) {
                     "Expect exactly 1 int value for boolean property: %" PRId32 ", got %zu", propId,
                     intValueSize);
 
-            int setValue = value.getInt32Values()[0] == 1 ? 0 : 1;
+            int32_t setValue = value.getInt32Values()[0] == 1 ? 0 : 1;
             auto propToSet = mVhalClient->createHalPropValue(propId);
             propToSet->setInt32Values({setValue});
             auto setValueResult = mVhalClient->setValueSync(*propToSet);
 
+            if (!setValueResult.ok() &&
+                setValueResult.error().code() == ErrorCode::NOT_AVAILABLE_FROM_VHAL) {
+                ALOGW("setProperty for %" PRId32
+                      " returns NOT_AVAILABLE, "
+                      "skip verifying getProperty returns the same value",
+                      propId);
+                return;
+            }
+
             ASSERT_TRUE(setValueResult.ok())
                     << StringPrintf("Failed to set value for property: %" PRId32 ", error: %s",
                                     propId, setValueResult.error().message().c_str());
+            // Retry getting the value until we pass the timeout. getValue might not return
+            // the expected value immediately since setValue is async.
+            auto timeoutMillis = uptimeMillis() + kRetryGetPropAfterSetPropTimeoutMillis;
 
-            // check set success
-            getValueResult = mVhalClient->getValueSync(*propToGet);
+            while (true) {
+                getValueResult = mVhalClient->getValueSync(*propToGet);
+                if (isResultOkayWithValue(getValueResult, setValue)) {
+                    break;
+                }
+                if (uptimeMillis() >= timeoutMillis) {
+                    // Reach timeout, the following assert should fail.
+                    break;
+                }
+                // Sleep for 100ms between each getValueSync retry.
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+
+            if (isUnavailable(getValueResult)) {
+                ALOGW("getProperty for %" PRId32
+                      " returns NOT_AVAILABLE, "
+                      "skip verifying the return value",
+                      propId);
+                return;
+            }
+
             ASSERT_TRUE(getValueResult.ok())
                     << StringPrintf("Failed to get value for property: %" PRId32 ", error: %s",
                                     propId, getValueResult.error().message().c_str());
@@ -285,6 +412,10 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, setNotWritableProp) {
     ALOGD("VtsHalAutomotiveVehicleTargetTest::setNotWritableProp");
 
     int32_t propId = toInt(VehicleProperty::PERF_VEHICLE_SPEED);
+    if (!checkIsSupported(propId)) {
+        GTEST_SKIP() << "Property: " << propId << " is not supported, skip the test";
+    }
+
     auto getValueResult = mVhalClient->getValueSync(*mVhalClient->createHalPropValue(propId));
     ASSERT_TRUE(getValueResult.ok())
             << StringPrintf("Failed to get value for property: %" PRId32 ", error: %s", propId,
@@ -325,6 +456,9 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, subscribeAndUnsubscribe) {
     ALOGD("VtsHalAutomotiveVehicleTargetTest::subscribeAndUnsubscribe");
 
     int32_t propId = toInt(VehicleProperty::PERF_VEHICLE_SPEED);
+    if (!checkIsSupported(propId)) {
+        GTEST_SKIP() << "Property: " << propId << " is not supported, skip the test";
+    }
 
     auto propConfigsResult = mVhalClient->getPropConfigs({propId});
 
@@ -414,6 +548,9 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, testGetValuesTimestampAIDL) {
     }
 
     int32_t propId = toInt(VehicleProperty::PARKING_BRAKE_ON);
+    if (!checkIsSupported(propId)) {
+        GTEST_SKIP() << "Property: " << propId << " is not supported, skip the test";
+    }
     auto prop = mVhalClient->createHalPropValue(propId);
 
     auto result = mVhalClient->getValueSync(*prop);
@@ -447,6 +584,53 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, testGetValuesTimestampAIDL) {
                 << "getValue result must contain a timestamp updated when the value was updated, if"
                    "the value changes, expect the newer value has a larger timestamp";
     }
+}
+
+// Test that access mode is populated in exclusively one of the VehiclePropConfig or the
+// VehicleAreaConfigs. Either VehiclePropConfig.access must be populated, or all the
+// VehicleAreaConfig.access fields should be populated.
+TEST_P(VtsHalAutomotiveVehicleTargetTest, testAccessModeExclusivityAIDL) {
+    if (!mVhalClient->isAidlVhal()) {
+        GTEST_SKIP() << "Skip checking access mode for HIDL because the access mode field is only "
+                        "present for AIDL";
+    }
+
+    auto result = mVhalClient->getAllPropConfigs();
+    ASSERT_TRUE(result.ok());
+    for (const auto& cfgPtr : result.value()) {
+        const IHalPropConfig& cfg = *cfgPtr;
+
+        bool propAccessIsSet = (cfg.getAccess() != toInt(VehiclePropertyAccess::NONE));
+        bool unsetAreaAccessExists = false;
+        bool setAreaAccessExists = false;
+
+        for (const auto& areaConfig : cfg.getAreaConfigs()) {
+            if (areaConfig->getAccess() == toInt(VehiclePropertyAccess::NONE)) {
+                unsetAreaAccessExists = true;
+            } else {
+                setAreaAccessExists = true;
+            }
+        }
+
+        ASSERT_FALSE(propAccessIsSet && setAreaAccessExists) << StringPrintf(
+                "Both prop and area config access is set for propertyId %d", cfg.getPropId());
+        ASSERT_FALSE(!propAccessIsSet && !setAreaAccessExists) << StringPrintf(
+                "Neither prop and area config access is set for propertyId %d", cfg.getPropId());
+        ASSERT_FALSE(unsetAreaAccessExists && setAreaAccessExists) << StringPrintf(
+                "Area access is only set in some configs for propertyId %d", cfg.getPropId());
+    }
+}
+
+void VtsHalAutomotiveVehicleTargetTest::verifyAccessMode(int actualAccess, int expectedAccess) {
+    if (expectedAccess == toInt(VehiclePropertyAccess::READ_WRITE)) {
+        ASSERT_TRUE(actualAccess == expectedAccess ||
+                    actualAccess == toInt(VehiclePropertyAccess::READ))
+                << StringPrintf("Expect to get VehiclePropertyAccess: %i or %i, got %i",
+                                expectedAccess, toInt(VehiclePropertyAccess::READ), actualAccess);
+        return;
+    }
+    ASSERT_EQ(actualAccess, expectedAccess) << StringPrintf(
+            "Expect to get VehiclePropertyAccess: %i, got %i", expectedAccess, actualAccess);
 }
 
 // Helper function to compare actual vs expected property config
@@ -491,7 +675,6 @@ void VtsHalAutomotiveVehicleTargetTest::verifyProperty(VehicleProperty propId,
 
     const auto& config = result.value().at(0);
     int actualPropId = config->getPropId();
-    int actualAccess = config->getAccess();
     int actualChangeMode = config->getChangeMode();
     int actualGroup = actualPropId & toInt(VehiclePropertyGroup::MASK);
     int actualArea = actualPropId & toInt(VehicleArea::MASK);
@@ -500,14 +683,17 @@ void VtsHalAutomotiveVehicleTargetTest::verifyProperty(VehicleProperty propId,
     ASSERT_EQ(actualPropId, expectedPropId)
             << StringPrintf("Expect to get property ID: %i, got %i", expectedPropId, actualPropId);
 
-    if (expectedAccess == toInt(VehiclePropertyAccess::READ_WRITE)) {
-        ASSERT_TRUE(actualAccess == expectedAccess ||
-                    actualAccess == toInt(VehiclePropertyAccess::READ))
-                << StringPrintf("Expect to get VehiclePropertyAccess: %i or %i, got %i",
-                                expectedAccess, toInt(VehiclePropertyAccess::READ), actualAccess);
+    int globalAccess = config->getAccess();
+    if (config->getAreaConfigSize() == 0) {
+        verifyAccessMode(globalAccess, expectedAccess);
     } else {
-        ASSERT_EQ(actualAccess, expectedAccess) << StringPrintf(
-                "Expect to get VehiclePropertyAccess: %i, got %i", expectedAccess, actualAccess);
+        for (const auto& areaConfig : config->getAreaConfigs()) {
+            int areaConfigAccess = areaConfig->getAccess();
+            int actualAccess = (areaConfigAccess != toInt(VehiclePropertyAccess::NONE))
+                                       ? areaConfigAccess
+                                       : globalAccess;
+            verifyAccessMode(actualAccess, expectedAccess);
+        }
     }
 
     ASSERT_EQ(actualChangeMode, expectedChangeMode)
@@ -526,6 +712,44 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyLocationCharacterizationConfig) 
     verifyProperty(VehicleProperty::LOCATION_CHARACTERIZATION, VehiclePropertyAccess::READ,
                    VehiclePropertyChangeMode::STATIC, VehiclePropertyGroup::SYSTEM,
                    VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyUltrasonicsSensorPositionConfig) {
+    verifyProperty(VehicleProperty::ULTRASONICS_SENSOR_POSITION, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::STATIC, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::VENDOR, VehiclePropertyType::INT32_VEC);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyUltrasonicsSensorOrientationConfig) {
+    verifyProperty(VehicleProperty::ULTRASONICS_SENSOR_ORIENTATION, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::STATIC, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::VENDOR, VehiclePropertyType::FLOAT_VEC);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyUltrasonicsSensorFieldOfViewConfig) {
+    verifyProperty(VehicleProperty::ULTRASONICS_SENSOR_FIELD_OF_VIEW, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::STATIC, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::VENDOR, VehiclePropertyType::INT32_VEC);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyUltrasonicsSensorDetectionRangeConfig) {
+    verifyProperty(VehicleProperty::ULTRASONICS_SENSOR_DETECTION_RANGE, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::STATIC, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::VENDOR, VehiclePropertyType::INT32_VEC);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyUltrasonicsSensorSupportedRangesConfig) {
+    verifyProperty(VehicleProperty::ULTRASONICS_SENSOR_SUPPORTED_RANGES,
+                   VehiclePropertyAccess::READ, VehiclePropertyChangeMode::STATIC,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::VENDOR,
+                   VehiclePropertyType::INT32_VEC);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyUltrasonicsSensorMeasuredDistanceConfig) {
+    verifyProperty(VehicleProperty::ULTRASONICS_SENSOR_MEASURED_DISTANCE,
+                   VehiclePropertyAccess::READ, VehiclePropertyChangeMode::CONTINUOUS,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::VENDOR,
+                   VehiclePropertyType::INT32_VEC);
 }
 
 TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyEmergencyLaneKeepAssistEnabledConfig) {
@@ -597,6 +821,54 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyHandsOnDetectionDriverStateConfi
 
 TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyHandsOnDetectionWarningConfig) {
     verifyProperty(VehicleProperty::HANDS_ON_DETECTION_WARNING, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyDriverDrowsinessAttentionSystemEnabledConfig) {
+    verifyProperty(VehicleProperty::DRIVER_DROWSINESS_ATTENTION_SYSTEM_ENABLED,
+                   VehiclePropertyAccess::READ_WRITE, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyDriverDrowsinessAttentionStateConfig) {
+    verifyProperty(VehicleProperty::DRIVER_DROWSINESS_ATTENTION_STATE, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyDriverDrowsinessAttentionWarningEnabledConfig) {
+    verifyProperty(VehicleProperty::DRIVER_DROWSINESS_ATTENTION_WARNING_ENABLED,
+                   VehiclePropertyAccess::READ_WRITE, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyDriverDrowsinessAttentionWarningConfig) {
+    verifyProperty(VehicleProperty::DRIVER_DROWSINESS_ATTENTION_WARNING,
+                   VehiclePropertyAccess::READ, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyDriverDistractionSystemEnabledConfig) {
+    verifyProperty(VehicleProperty::DRIVER_DISTRACTION_SYSTEM_ENABLED,
+                   VehiclePropertyAccess::READ_WRITE, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyDriverDistractionStateConfig) {
+    verifyProperty(VehicleProperty::DRIVER_DISTRACTION_STATE, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyDriverDistractionWarningEnabledConfig) {
+    verifyProperty(VehicleProperty::DRIVER_DISTRACTION_WARNING_ENABLED,
+                   VehiclePropertyAccess::READ_WRITE, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyDriverDistractionWarningConfig) {
+    verifyProperty(VehicleProperty::DRIVER_DISTRACTION_WARNING, VehiclePropertyAccess::READ,
                    VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
                    VehicleArea::GLOBAL, VehiclePropertyType::INT32);
 }
@@ -865,6 +1137,107 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyLaneCenteringAssistStateConfig) 
                    VehicleArea::GLOBAL, VehiclePropertyType::INT32);
 }
 
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyClusterHeartbeatConfig) {
+    verifyProperty(VehicleProperty::CLUSTER_HEARTBEAT, VehiclePropertyAccess::WRITE,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::MIXED);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyVehicleDrivingAutomationCurrentLevelConfig) {
+    verifyProperty(VehicleProperty::VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL,
+                   VehiclePropertyAccess::READ, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifySeatAirbagsDeployedConfig) {
+    verifyProperty(VehicleProperty::SEAT_AIRBAGS_DEPLOYED, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::SEAT, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifySeatBeltPretensionerDeployedConfig) {
+    verifyProperty(VehicleProperty::SEAT_BELT_PRETENSIONER_DEPLOYED, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::SEAT, VehiclePropertyType::BOOLEAN);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyImpactDetectedConfig) {
+    verifyProperty(VehicleProperty::IMPACT_DETECTED, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyEvBatteryAverageTemperatureConfig) {
+    verifyProperty(VehicleProperty::EV_BATTERY_AVERAGE_TEMPERATURE, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::CONTINUOUS, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::FLOAT);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyLowSpeedCollisionWarningEnabledConfig) {
+    verifyProperty(VehicleProperty::LOW_SPEED_COLLISION_WARNING_ENABLED,
+                   VehiclePropertyAccess::READ_WRITE, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyLowSpeedCollisionWarningStateConfig) {
+    verifyProperty(VehicleProperty::LOW_SPEED_COLLISION_WARNING_STATE, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyValetModeEnabledConfig) {
+    verifyProperty(VehicleProperty::VALET_MODE_ENABLED, VehiclePropertyAccess::READ_WRITE,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyElectronicStabilityControlEnabledConfig) {
+    verifyProperty(VehicleProperty::ELECTRONIC_STABILITY_CONTROL_ENABLED,
+                   VehiclePropertyAccess::READ_WRITE, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyElectronicStabilityControlStateConfig) {
+    verifyProperty(VehicleProperty::ELECTRONIC_STABILITY_CONTROL_STATE, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyCrossTrafficMonitoringEnabledConfig) {
+    verifyProperty(VehicleProperty::CROSS_TRAFFIC_MONITORING_ENABLED,
+                   VehiclePropertyAccess::READ_WRITE, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyCrossTrafficMonitoringWarningStateConfig) {
+    verifyProperty(VehicleProperty::CROSS_TRAFFIC_MONITORING_WARNING_STATE,
+                   VehiclePropertyAccess::READ, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyHeadUpDisplayEnabledConfig) {
+    verifyProperty(VehicleProperty::HEAD_UP_DISPLAY_ENABLED, VehiclePropertyAccess::READ_WRITE,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::SEAT, VehiclePropertyType::BOOLEAN);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyLowSpeedAutomaticEmergencyBrakingEnabledConfig) {
+    verifyProperty(VehicleProperty::LOW_SPEED_AUTOMATIC_EMERGENCY_BRAKING_ENABLED,
+                   VehiclePropertyAccess::READ_WRITE, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyLowSpeedAutomaticEmergencyBrakingStateConfig) {
+    verifyProperty(VehicleProperty::LOW_SPEED_AUTOMATIC_EMERGENCY_BRAKING_STATE,
+                   VehiclePropertyAccess::READ, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+bool VtsHalAutomotiveVehicleTargetTest::checkIsSupported(int32_t propertyId) {
+    auto result = mVhalClient->getPropConfigs({propertyId});
+    return result.ok();
+}
+
 std::vector<ServiceDescriptor> getDescriptors() {
     std::vector<ServiceDescriptor> descriptors;
     for (std::string name : getAidlHalInstanceNames(IVehicle::descriptor)) {
@@ -873,7 +1246,8 @@ std::vector<ServiceDescriptor> getDescriptors() {
                 .isAidlService = true,
         });
     }
-    for (std::string name : getAllHalInstanceNames(IVehicle::descriptor)) {
+    for (std::string name : getAllHalInstanceNames(
+                 android::hardware::automotive::vehicle::V2_0::IVehicle::descriptor)) {
         descriptors.push_back({
                 .name = name,
                 .isAidlService = false,

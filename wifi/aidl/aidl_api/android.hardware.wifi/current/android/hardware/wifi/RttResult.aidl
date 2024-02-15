@@ -59,4 +59,11 @@ parcelable RttResult {
   android.hardware.wifi.WifiInformationElement lcr;
   int channelFreqMHz;
   android.hardware.wifi.RttBw packetBw;
+  byte i2rTxLtfRepetitionCount;
+  byte r2iTxLtfRepetitionCount;
+  long ntbMinMeasurementTime;
+  long ntbMaxMeasurementTime;
+  byte numTxSpatialStreams;
+  byte numRxSpatialStreams;
+  @nullable android.hardware.wifi.common.OuiKeyedData[] vendorData;
 }

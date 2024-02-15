@@ -32,7 +32,9 @@
 // later when a module using the interface is updated, e.g., Mainline modules.
 
 package android.hardware.radio.config;
+/* @hide */
 @VintfStability
 interface IRadioConfigIndication {
   oneway void simSlotsStatusChanged(in android.hardware.radio.RadioIndicationType type, in android.hardware.radio.config.SimSlotStatus[] slotStatus);
+  oneway void onSimultaneousCallingSupportChanged(in int[] enabledLogicalSlots);
 }

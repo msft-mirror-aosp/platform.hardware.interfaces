@@ -15,6 +15,7 @@
 //
 
 package {
+    default_team: "trendy_team_fwk_wifi_hal",
     // See: http://go/android-license-faq
     // A large-scale-change added 'default_applicable_licenses' to import
     // all of the 'license_kinds' from "hardware_interfaces_license"
@@ -39,7 +40,8 @@ cc_test {
     ],
     static_libs: [
         "VtsHalWifiTargetTestUtil",
-        "android.hardware.wifi-V1-ndk",
+        "android.hardware.wifi.common-V1-ndk",
+        "android.hardware.wifi-V2-ndk",
         "libwifi-system-iface",
     ],
     test_suites: [
@@ -64,7 +66,8 @@ cc_test {
     ],
     static_libs: [
         "VtsHalWifiTargetTestUtil",
-        "android.hardware.wifi-V1-ndk",
+        "android.hardware.wifi.common-V1-ndk",
+        "android.hardware.wifi-V2-ndk",
         "libwifi-system-iface",
     ],
     test_suites: [
@@ -89,7 +92,8 @@ cc_test {
     ],
     static_libs: [
         "VtsHalWifiTargetTestUtil",
-        "android.hardware.wifi-V1-ndk",
+        "android.hardware.wifi.common-V1-ndk",
+        "android.hardware.wifi-V2-ndk",
         "libwifi-system-iface",
     ],
     test_suites: [
@@ -114,7 +118,8 @@ cc_test {
     ],
     static_libs: [
         "VtsHalWifiTargetTestUtil",
-        "android.hardware.wifi-V1-ndk",
+        "android.hardware.wifi.common-V1-ndk",
+        "android.hardware.wifi-V2-ndk",
         "libwifi-system-iface",
     ],
     test_suites: [
@@ -139,7 +144,8 @@ cc_test {
     ],
     static_libs: [
         "VtsHalWifiTargetTestUtil",
-        "android.hardware.wifi-V1-ndk",
+        "android.hardware.wifi.common-V1-ndk",
+        "android.hardware.wifi-V2-ndk",
         "libwifi-system-iface",
     ],
     test_suites: [
@@ -163,7 +169,8 @@ cc_library_static {
         "libnativehelper",
     ],
     static_libs: [
-        "android.hardware.wifi-V1-ndk",
+        "android.hardware.wifi.common-V1-ndk",
+        "android.hardware.wifi-V2-ndk",
         "libwifi-system-iface",
     ],
 }

@@ -27,7 +27,7 @@ aidl_interface {
     srcs: [
         "android/hardware/automotive/vehicle/*.aidl",
     ],
-    frozen: true,
+    frozen: false,
     stability: "vintf",
     backend: {
         cpp: {
@@ -40,6 +40,9 @@ aidl_interface {
                 "//apex_available:platform",
                 "com.android.car.framework",
             ],
+        },
+        rust: {
+            enabled: true,
         },
     },
     versions_with_info: [

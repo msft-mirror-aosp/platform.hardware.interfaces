@@ -30,12 +30,11 @@
 constexpr char SERVICE_NAME[] = "android.hardware.automotive.remoteaccess.IRemoteAccess/default";
 
 int main(int /* argc */, char* /* argv */[]) {
-    LOG(INFO) << "Registering RemoteAccessService as service...";
+    android::hardware::automotive::remoteaccess::WakeupClient::StubInterface* grpcStub = nullptr;
 
-#ifndef GRPC_SERVICE_ADDRESS
-    LOG(ERROR) << "GRPC_SERVICE_ADDRESS is not defined, exiting";
-    exit(1);
-#endif
+#ifdef GRPC_SERVICE_ADDRESS
+    LOG(INFO) << "Registering RemoteAccessService as service, server: " << GRPC_SERVICE_ADDRESS
+              << "...";
     grpc::ChannelArguments grpcargs = {};
 
 #ifdef GRPC_SERVICE_IFNAME
@@ -47,12 +46,18 @@ int main(int /* argc */, char* /* argv */[]) {
     android::netdevice::waitFor({GRPC_SERVICE_IFNAME},
                                 android::netdevice::WaitCondition::PRESENT_AND_UP);
     LOG(INFO) << "Waiting for interface: " << GRPC_SERVICE_IFNAME << " done";
-#endif
-    auto channel = grpc::CreateCustomChannel(GRPC_SERVICE_ADDRESS,
-                                             grpc::InsecureChannelCredentials(), grpcargs);
+#endif  // #ifdef GRPC_SERVICE_IFNAME
+    auto channel = grpc::CreateChannel(GRPC_SERVICE_ADDRESS, grpc::InsecureChannelCredentials());
     auto clientStub = android::hardware::automotive::remoteaccess::WakeupClient::NewStub(channel);
+
+    grpcStub = clientStub.get();
+
+#else
+    LOG(INFO) << "GRPC_SERVICE_ADDRESS is not defined, work in fake mode";
+#endif  // #ifdef GRPC_SERVICE_ADDRESS
+
     auto service = ndk::SharedRefBase::make<
-            android::hardware::automotive::remoteaccess::RemoteAccessService>(clientStub.get());
+            android::hardware::automotive::remoteaccess::RemoteAccessService>(grpcStub);
 
     binder_exception_t err = AServiceManager_addService(service->asBinder().get(), SERVICE_NAME);
     if (err != EX_NONE) {

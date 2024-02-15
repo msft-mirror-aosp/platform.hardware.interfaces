@@ -32,10 +32,13 @@
 // later when a module using the interface is updated, e.g., Mainline modules.
 
 package android.hardware.radio.config;
+/* @hide */
 @JavaDerive(toString=true) @VintfStability
 parcelable PhoneCapability {
   byte maxActiveData;
   byte maxActiveInternetData;
   boolean isInternetLingeringSupported;
   byte[] logicalModemIds;
+  byte maxActiveVoice = UNKNOWN /* -1 */;
+  const byte UNKNOWN = (-1) /* -1 */;
 }

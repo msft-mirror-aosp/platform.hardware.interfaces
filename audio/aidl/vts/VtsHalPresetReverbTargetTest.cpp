@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <aidl/Vintf.h>
 #define LOG_TAG "VtsHalPresetReverbTargetTest"
 #include <android-base/logging.h>
 #include <android/binder_enums.h>
@@ -29,6 +28,7 @@ using aidl::android::hardware::audio::effect::IEffect;
 using aidl::android::hardware::audio::effect::IFactory;
 using aidl::android::hardware::audio::effect::Parameter;
 using aidl::android::hardware::audio::effect::PresetReverb;
+using android::hardware::audio::common::testing::detail::TestExecutionTracer;
 
 /**
  * Here we focus on specific parameter checking, general IEffect interfaces testing performed in
@@ -137,9 +137,7 @@ INSTANTIATE_TEST_SUITE_P(
             auto descriptor = std::get<PARAM_INSTANCE_NAME>(info.param).second;
             std::string preset =
                     std::to_string(static_cast<int>(std::get<PARAM_PRESETS>(info.param)));
-            std::string name = "Implementor_" + descriptor.common.implementor + "_name_" +
-                               descriptor.common.name + "_UUID_" +
-                               descriptor.common.id.uuid.toString() + "_preset" + preset;
+            std::string name = getPrefix(descriptor) + "_preset" + preset;
             std::replace_if(
                     name.begin(), name.end(), [](const char c) { return !std::isalnum(c); }, '_');
             return name;
@@ -149,6 +147,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(PresetReverbParamTest);
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
+    ::testing::UnitTest::GetInstance()->listeners().Append(new TestExecutionTracer());
     ABinderProcess_setThreadPoolMaxThreadCount(1);
     ABinderProcess_startThreadPool();
     return RUN_ALL_TESTS();

@@ -65,9 +65,9 @@ const Descriptor NoiseSuppressionSw::kDescriptor = {
         .common = {.id = {.type = getEffectTypeUuidNoiseSuppression(),
                           .uuid = getEffectImplUuidNoiseSuppressionSw(),
                           .proxy = std::nullopt},
-                   .flags = {.type = Flags::Type::INSERT,
+                   .flags = {.type = Flags::Type::PRE_PROC,
                              .insert = Flags::Insert::FIRST,
-                             .volume = Flags::Volume::CTRL},
+                             .volume = Flags::Volume::NONE},
                    .name = NoiseSuppressionSw::kEffectName,
                    .implementor = "The Android Open Source Project"}};
 
@@ -152,10 +152,6 @@ std::shared_ptr<EffectContext> NoiseSuppressionSw::createContext(const Parameter
     } else {
         mContext = std::make_shared<NoiseSuppressionSwContext>(1 /* statusFmqDepth */, common);
     }
-    return mContext;
-}
-
-std::shared_ptr<EffectContext> NoiseSuppressionSw::getContext() {
     return mContext;
 }
 

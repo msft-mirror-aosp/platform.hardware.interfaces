@@ -40,4 +40,11 @@ interface IRemoteAccess {
   void setRemoteTaskCallback(android.hardware.automotive.remoteaccess.IRemoteTaskCallback callback);
   void clearRemoteTaskCallback();
   void notifyApStateChange(in android.hardware.automotive.remoteaccess.ApState state);
+  boolean isTaskScheduleSupported();
+  android.hardware.automotive.remoteaccess.TaskType[] getSupportedTaskTypesForScheduling();
+  void scheduleTask(in android.hardware.automotive.remoteaccess.ScheduleInfo scheduleInfo);
+  void unscheduleTask(String clientId, String scheduleId);
+  void unscheduleAllTasks(String clientId);
+  boolean isTaskScheduled(String clientId, String scheduleId);
+  List<android.hardware.automotive.remoteaccess.ScheduleInfo> getAllPendingScheduledTasks(String clientId);
 }

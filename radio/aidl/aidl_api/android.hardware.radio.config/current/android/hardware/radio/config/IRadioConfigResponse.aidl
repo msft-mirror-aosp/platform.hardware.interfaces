@@ -32,6 +32,7 @@
 // later when a module using the interface is updated, e.g., Mainline modules.
 
 package android.hardware.radio.config;
+/* @hide */
 @VintfStability
 interface IRadioConfigResponse {
   oneway void getHalDeviceCapabilitiesResponse(in android.hardware.radio.RadioResponseInfo info, in boolean modemReducedFeatureSet1);
@@ -41,4 +42,5 @@ interface IRadioConfigResponse {
   oneway void setNumOfLiveModemsResponse(in android.hardware.radio.RadioResponseInfo info);
   oneway void setPreferredDataModemResponse(in android.hardware.radio.RadioResponseInfo info);
   oneway void setSimSlotsMappingResponse(in android.hardware.radio.RadioResponseInfo info);
+  oneway void getSimultaneousCallingSupportResponse(in android.hardware.radio.RadioResponseInfo info, in int[] enabledLogicalSlots);
 }

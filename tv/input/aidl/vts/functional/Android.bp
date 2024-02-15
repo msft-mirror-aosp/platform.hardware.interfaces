@@ -1,4 +1,5 @@
 package {
+    default_team: "trendy_team_tv_os",
     // See: http://go/android-license-faq
     // A large-scale-change added 'default_applicable_licenses' to import
     // all of the 'license_kinds' from "hardware_interfaces_license"
@@ -32,7 +33,7 @@ cc_test {
         "libvndksupport",
         "libfmq",
         "android.hardware.common.fmq-V1-ndk",
-        "android.hardware.tv.input-V1-ndk",
+        "android.hardware.tv.input-V2-ndk",
     ],
     require_root: true,
 }
