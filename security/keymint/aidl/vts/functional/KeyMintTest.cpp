@@ -1086,6 +1086,7 @@ TEST_P(NewKeyGenerationTest, RsaWithSpecifiedValidity) {
     };
     for (auto notBefore : test_vector_not_before_millis) {
         uint64_t notAfter = notBefore + 378691200000 /* 12 years milliseconds*/;
+        SCOPED_TRACE(testing::Message() << "notBefore: " << notBefore << " notAfter: " << notAfter);
         ASSERT_EQ(ErrorCode::OK,
                   GenerateKey(AuthorizationSetBuilder()
                                       .RsaSigningKey(2048, 65537)
@@ -1101,14 +1102,14 @@ TEST_P(NewKeyGenerationTest, RsaWithSpecifiedValidity) {
 
         const ASN1_TIME* not_before = X509_get0_notBefore(cert.get());
         ASSERT_NE(not_before, nullptr);
-        time_t not_before_time;
-        ASSERT_EQ(ASN1_TIME_to_time_t(not_before, &not_before_time), 1);
+        int64_t not_before_time;
+        ASSERT_EQ(ASN1_TIME_to_posix(not_before, &not_before_time), 1);
         EXPECT_EQ(not_before_time, (notBefore / 1000));
 
         const ASN1_TIME* not_after = X509_get0_notAfter(cert.get());
         ASSERT_NE(not_after, nullptr);
-        time_t not_after_time;
-        ASSERT_EQ(ASN1_TIME_to_time_t(not_after, &not_after_time), 1);
+        int64_t not_after_time;
+        ASSERT_EQ(ASN1_TIME_to_posix(not_after, &not_after_time), 1);
         EXPECT_EQ(not_after_time, (notAfter / 1000));
     }
 }
@@ -8759,40 +8760,6 @@ TEST_P(EarlyBootKeyTest, DISABLED_FullTest) {
 }
 
 INSTANTIATE_KEYMINT_AIDL_TEST(EarlyBootKeyTest);
-
-using UnlockedDeviceRequiredTest = KeyMintAidlTestBase;
-
-// This may be a problematic test.  It can't be run repeatedly without unlocking the device in
-// between runs... and on most test devices there are no enrolled credentials so it can't be
-// unlocked at all, meaning the only way to get the test to pass again on a properly-functioning
-// device is to reboot it.  For that reason, this is disabled by default.  It can be used as part of
-// a manual test process, which includes unlocking between runs, which is why it's included here.
-// Well, that and the fact that it's the only test we can do without also making calls into the
-// Gatekeeper HAL.  We haven't written any cross-HAL tests, and don't know what all of the
-// implications might be, so that may or may not be a solution.
-TEST_P(UnlockedDeviceRequiredTest, DISABLED_KeysBecomeUnusable) {
-    auto [aesKeyData, hmacKeyData, rsaKeyData, ecdsaKeyData] =
-            CreateTestKeys(TAG_UNLOCKED_DEVICE_REQUIRED, ErrorCode::OK);
-    KeyBlobDeleter aes_deleter(keymint_, aesKeyData.blob);
-    KeyBlobDeleter hmac_deleter(keymint_, hmacKeyData.blob);
-    KeyBlobDeleter rsa_deleter(keymint_, rsaKeyData.blob);
-    KeyBlobDeleter ecdsa_deleter(keymint_, ecdsaKeyData.blob);
-
-    EXPECT_EQ(ErrorCode::OK, UseAesKey(aesKeyData.blob));
-    EXPECT_EQ(ErrorCode::OK, UseHmacKey(hmacKeyData.blob));
-    EXPECT_EQ(ErrorCode::OK, UseRsaKey(rsaKeyData.blob));
-    EXPECT_EQ(ErrorCode::OK, UseEcdsaKey(ecdsaKeyData.blob));
-
-    ErrorCode rc = GetReturnErrorCode(
-            keyMint().deviceLocked(false /* passwordOnly */, {} /* timestampToken */));
-    ASSERT_EQ(ErrorCode::OK, rc);
-    EXPECT_EQ(ErrorCode::DEVICE_LOCKED, UseAesKey(aesKeyData.blob));
-    EXPECT_EQ(ErrorCode::DEVICE_LOCKED, UseHmacKey(hmacKeyData.blob));
-    EXPECT_EQ(ErrorCode::DEVICE_LOCKED, UseRsaKey(rsaKeyData.blob));
-    EXPECT_EQ(ErrorCode::DEVICE_LOCKED, UseEcdsaKey(ecdsaKeyData.blob));
-}
-
-INSTANTIATE_KEYMINT_AIDL_TEST(UnlockedDeviceRequiredTest);
 
 using VsrRequirementTest = KeyMintAidlTestBase;
 

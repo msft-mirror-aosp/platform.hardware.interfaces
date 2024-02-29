@@ -68,6 +68,7 @@ using ::aidl::android::hardware::automotive::vehicle::LowSpeedAutomaticEmergency
 using ::aidl::android::hardware::automotive::vehicle::LowSpeedCollisionWarningState;
 using ::aidl::android::hardware::automotive::vehicle::RawPropValues;
 using ::aidl::android::hardware::automotive::vehicle::VehicleAirbagLocation;
+using ::aidl::android::hardware::automotive::vehicle::VehicleApPowerBootupReason;
 using ::aidl::android::hardware::automotive::vehicle::VehicleApPowerStateReport;
 using ::aidl::android::hardware::automotive::vehicle::VehicleApPowerStateReq;
 using ::aidl::android::hardware::automotive::vehicle::VehicleAreaConfig;
@@ -303,6 +304,8 @@ JsonValueParser::JsonValueParser() {
             std::make_unique<ConstantParser<CrossTrafficMonitoringWarningState>>();
     mConstantParsersByType["LowSpeedAutomaticEmergencyBrakingState"] =
             std::make_unique<ConstantParser<LowSpeedAutomaticEmergencyBrakingState>>();
+    mConstantParsersByType["VehicleApPowerBootupReason"] =
+            std::make_unique<ConstantParser<VehicleApPowerBootupReason>>();
     mConstantParsersByType["Constants"] = std::make_unique<LocalVariableParser>();
 #ifdef ENABLE_VEHICLE_HAL_TEST_PROPERTIES
     mConstantParsersByType["TestVendorProperty"] =
@@ -541,8 +544,7 @@ bool JsonConfigParser::parsePropValues(const Json::Value& parentJsonNode,
 }
 
 void JsonConfigParser::parseAreas(const Json::Value& parentJsonNode, const std::string& fieldName,
-                                  ConfigDeclaration* config, std::vector<std::string>* errors,
-                                  VehiclePropertyAccess defaultAccess) {
+                                  ConfigDeclaration* config, std::vector<std::string>* errors) {
     if (!parentJsonNode.isObject()) {
         errors->push_back("Node: " + parentJsonNode.toStyledString() + " is not an object");
         return;
@@ -566,8 +568,8 @@ void JsonConfigParser::parseAreas(const Json::Value& parentJsonNode, const std::
         }
         VehicleAreaConfig areaConfig = {};
         areaConfig.areaId = areaId;
-        parseAccessChangeMode(jsonAreaConfig, "access", propStr, &defaultAccess, &areaConfig.access,
-                              errors);
+        parseAccessChangeMode(jsonAreaConfig, "access", propStr, &(config->config.access),
+                              &areaConfig.access, errors);
         tryParseJsonValueToVariable(jsonAreaConfig, "minInt32Value", /*optional=*/true,
                                     &areaConfig.minInt32Value, errors);
         tryParseJsonValueToVariable(jsonAreaConfig, "maxInt32Value", /*optional=*/true,
@@ -625,8 +627,8 @@ std::optional<ConfigDeclaration> JsonConfigParser::parseEachProperty(
     if (itChangeMode != ChangeModeForVehicleProperty.end()) {
         defaultChangeMode = &itChangeMode->second;
     }
-    VehiclePropertyAccess access = VehiclePropertyAccess::NONE;
-    parseAccessChangeMode(propJsonValue, "access", propStr, defaultAccessMode, &access, errors);
+    parseAccessChangeMode(propJsonValue, "access", propStr, defaultAccessMode,
+                          &configDecl.config.access, errors);
 
     parseAccessChangeMode(propJsonValue, "changeMode", propStr, defaultChangeMode,
                           &configDecl.config.changeMode, errors);
@@ -645,14 +647,14 @@ std::optional<ConfigDeclaration> JsonConfigParser::parseEachProperty(
     tryParseJsonValueToVariable(propJsonValue, "maxSampleRate", /*optional=*/true,
                                 &configDecl.config.maxSampleRate, errors);
 
-    parseAreas(propJsonValue, "areas", &configDecl, errors, access);
+    parseAreas(propJsonValue, "areas", &configDecl, errors);
 
     // If there is no area config, by default we allow variable update rate, so we have to add
     // a global area config.
     if (configDecl.config.areaConfigs.size() == 0) {
         VehicleAreaConfig areaConfig = {
                 .areaId = 0,
-                .access = access,
+                .access = configDecl.config.access,
                 .supportVariableUpdateRate = true,
         };
         configDecl.config.areaConfigs.push_back(std::move(areaConfig));

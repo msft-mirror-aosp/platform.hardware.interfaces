@@ -37,6 +37,7 @@
 
 #include <chrono>
 #include <mutex>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -58,10 +59,12 @@ using ::android::base::ScopedLockAssertion;
 using ::android::base::StringPrintf;
 using ::android::frameworks::automotive::vhal::ErrorCode;
 using ::android::frameworks::automotive::vhal::HalPropError;
+using ::android::frameworks::automotive::vhal::IHalAreaConfig;
 using ::android::frameworks::automotive::vhal::IHalPropConfig;
 using ::android::frameworks::automotive::vhal::IHalPropValue;
 using ::android::frameworks::automotive::vhal::ISubscriptionCallback;
 using ::android::frameworks::automotive::vhal::IVhalClient;
+using ::android::frameworks::automotive::vhal::SubscribeOptionsBuilder;
 using ::android::frameworks::automotive::vhal::VhalClientResult;
 using ::android::hardware::getAllHalInstanceNames;
 using ::android::hardware::Sanitize;
@@ -82,8 +85,8 @@ struct ServiceDescriptor {
 class VtsVehicleCallback final : public ISubscriptionCallback {
   private:
     std::mutex mLock;
-    std::unordered_map<int32_t, size_t> mEventsCount GUARDED_BY(mLock);
-    std::unordered_map<int32_t, std::vector<int64_t>> mEventTimestamps GUARDED_BY(mLock);
+    std::unordered_map<int32_t, std::vector<std::unique_ptr<IHalPropValue>>> mEvents
+            GUARDED_BY(mLock);
     std::condition_variable mEventCond;
 
   public:
@@ -92,8 +95,7 @@ class VtsVehicleCallback final : public ISubscriptionCallback {
             std::lock_guard<std::mutex> lockGuard(mLock);
             for (auto& value : values) {
                 int32_t propId = value->getPropId();
-                mEventsCount[propId] += 1;
-                mEventTimestamps[propId].push_back(value->getTimestamp());
+                mEvents[propId].push_back(std::move(value->clone()));
             }
         }
         mEventCond.notify_one();
@@ -109,20 +111,37 @@ class VtsVehicleCallback final : public ISubscriptionCallback {
         std::unique_lock<std::mutex> uniqueLock(mLock);
         return mEventCond.wait_for(uniqueLock, timeout, [this, propId, expectedEvents] {
             ScopedLockAssertion lockAssertion(mLock);
-            return mEventsCount[propId] >= expectedEvents;
+            return mEvents[propId].size() >= expectedEvents;
         });
     }
 
-    std::vector<int64_t> getEventTimestamps(int32_t propId) {
-        {
-            std::lock_guard<std::mutex> lockGuard(mLock);
-            return mEventTimestamps[propId];
+    std::vector<std::unique_ptr<IHalPropValue>> getEvents(int32_t propId) {
+        std::lock_guard<std::mutex> lockGuard(mLock);
+        std::vector<std::unique_ptr<IHalPropValue>> events;
+        if (mEvents.find(propId) == mEvents.end()) {
+            return events;
         }
+        for (const auto& eventPtr : mEvents[propId]) {
+            events.push_back(std::move(eventPtr->clone()));
+        }
+        return events;
+    }
+
+    std::vector<int64_t> getEventTimestamps(int32_t propId) {
+        std::lock_guard<std::mutex> lockGuard(mLock);
+        std::vector<int64_t> timestamps;
+        if (mEvents.find(propId) == mEvents.end()) {
+            return timestamps;
+        }
+        for (const auto& valuePtr : mEvents[propId]) {
+            timestamps.push_back(valuePtr->getTimestamp());
+        }
+        return timestamps;
     }
 
     void reset() {
         std::lock_guard<std::mutex> lockGuard(mLock);
-        mEventsCount.clear();
+        mEvents.clear();
     }
 };
 
@@ -136,6 +155,9 @@ class VtsHalAutomotiveVehicleTargetTest : public testing::TestWithParam<ServiceD
 
   public:
     void verifyAccessMode(int actualAccess, int expectedAccess);
+    void verifyGlobalAccessIsMaximalAreaAccessSubset(
+            int propertyLevelAccess,
+            const std::vector<std::unique_ptr<IHalAreaConfig>>& areaConfigs) const;
     void verifyProperty(VehicleProperty propId, VehiclePropertyAccess access,
                         VehiclePropertyChangeMode changeMode, VehiclePropertyGroup group,
                         VehicleArea area, VehiclePropertyType propertyType);
@@ -251,6 +273,23 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, testPropConfigs_onlyDefinedSystemPrope
                 << "System Property: " << propName << " requires VHAL version: " << requiredVersion
                 << ", but the current VHAL version"
                 << " is " << vhalVersion << ", must not be supported";
+    }
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, testPropConfigs_globalAccessIsMaximalAreaAccessSubset) {
+    if (!mVhalClient->isAidlVhal()) {
+        GTEST_SKIP() << "Skip for HIDL VHAL because HAL interface run-time version is only"
+                     << "introduced for AIDL";
+    }
+
+    auto result = mVhalClient->getAllPropConfigs();
+    ASSERT_TRUE(result.ok()) << "Failed to get all property configs, error: "
+                             << result.error().message();
+
+    const auto& configs = result.value();
+    for (size_t i = 0; i < configs.size(); i++) {
+        verifyGlobalAccessIsMaximalAreaAccessSubset(configs[i]->getAccess(),
+                                                    configs[i]->getAreaConfigs());
     }
 }
 
@@ -524,6 +563,92 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, subscribeAndUnsubscribe) {
             << "Expect not to get events after unsubscription";
 }
 
+bool isVariableUpdateRateSupported(const std::unique_ptr<IHalPropConfig>& config, int32_t areaId) {
+    for (const auto& areaConfigPtr : config->getAreaConfigs()) {
+        if (areaConfigPtr->getAreaId() == areaId &&
+            areaConfigPtr->isVariableUpdateRateSupported()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Test subscribe with variable update rate enabled if supported.
+TEST_P(VtsHalAutomotiveVehicleTargetTest, subscribe_enableVurIfSupported) {
+    ALOGD("VtsHalAutomotiveVehicleTargetTest::subscribe_enableVurIfSupported");
+
+    int32_t propId = toInt(VehicleProperty::PERF_VEHICLE_SPEED);
+    if (!checkIsSupported(propId)) {
+        GTEST_SKIP() << "Property: " << propId << " is not supported, skip the test";
+    }
+    if (!mVhalClient->isAidlVhal()) {
+        GTEST_SKIP() << "Variable update rate is only supported by AIDL VHAL";
+    }
+
+    auto propConfigsResult = mVhalClient->getPropConfigs({propId});
+
+    ASSERT_TRUE(propConfigsResult.ok()) << "Failed to get property config for PERF_VEHICLE_SPEED: "
+                                        << "error: " << propConfigsResult.error().message();
+    ASSERT_EQ(propConfigsResult.value().size(), 1u)
+            << "Expect to return 1 config for PERF_VEHICLE_SPEED";
+    auto& propConfig = propConfigsResult.value()[0];
+    float maxSampleRate = propConfig->getMaxSampleRate();
+    if (maxSampleRate < 1) {
+        GTEST_SKIP() << "Sample rate for vehicle speed < 1 times/sec, skip test since it would "
+                        "take too long";
+    }
+    // PERF_VEHICLE_SPEED is a global property, so areaId is 0.
+    if (!isVariableUpdateRateSupported(propConfig, /* areaId= */ 0)) {
+        GTEST_SKIP() << "Variable update rate is not supported for PERF_VEHICLE_SPEED, "
+                     << "skip testing";
+    }
+
+    auto client = mVhalClient->getSubscriptionClient(mCallback);
+    ASSERT_NE(client, nullptr) << "Failed to get subscription client";
+    SubscribeOptionsBuilder builder(propId);
+    // By default variable update rate is true.
+    builder.setSampleRate(maxSampleRate);
+    auto option = builder.build();
+
+    auto result = client->subscribe({option});
+
+    ASSERT_TRUE(result.ok()) << StringPrintf("Failed to subscribe to property: %" PRId32
+                                             ", error: %s",
+                                             propId, result.error().message().c_str());
+
+    ASSERT_TRUE(mCallback->waitForExpectedEvents(propId, 1, std::chrono::seconds(2)))
+            << "Must get at least 1 events within 2 seconds after subscription for rate: "
+            << maxSampleRate;
+
+    // Sleep for 1 seconds to wait for more possible events to arrive.
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    client->unsubscribe({propId});
+
+    auto events = mCallback->getEvents(propId);
+    if (events.size() == 1) {
+        // We only received one event, the value is not changing so nothing to check here.
+        return;
+    }
+
+    // Sort the values by the timestamp.
+    std::map<int64_t, float> valuesByTimestamp;
+    for (size_t i = 0; i < events.size(); i++) {
+        valuesByTimestamp[events[i]->getTimestamp()] = events[i]->getFloatValues()[0];
+    }
+
+    size_t i = 0;
+    float previousValue;
+    for (const auto& [_, value] : valuesByTimestamp) {
+        if (i != 0) {
+            ASSERT_FALSE(value != previousValue) << "received duplicate value: " << value
+                                                 << " when variable update rate is true";
+        }
+        previousValue = value;
+        i++;
+    }
+}
+
 // Test subscribe() with an invalid property.
 TEST_P(VtsHalAutomotiveVehicleTargetTest, subscribeInvalidProp) {
     ALOGD("VtsHalAutomotiveVehicleTargetTest::subscribeInvalidProp");
@@ -586,42 +711,10 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, testGetValuesTimestampAIDL) {
     }
 }
 
-// Test that access mode is populated in exclusively one of the VehiclePropConfig or the
-// VehicleAreaConfigs. Either VehiclePropConfig.access must be populated, or all the
-// VehicleAreaConfig.access fields should be populated.
-TEST_P(VtsHalAutomotiveVehicleTargetTest, testAccessModeExclusivityAIDL) {
-    if (!mVhalClient->isAidlVhal()) {
-        GTEST_SKIP() << "Skip checking access mode for HIDL because the access mode field is only "
-                        "present for AIDL";
-    }
-
-    auto result = mVhalClient->getAllPropConfigs();
-    ASSERT_TRUE(result.ok());
-    for (const auto& cfgPtr : result.value()) {
-        const IHalPropConfig& cfg = *cfgPtr;
-
-        bool propAccessIsSet = (cfg.getAccess() != toInt(VehiclePropertyAccess::NONE));
-        bool unsetAreaAccessExists = false;
-        bool setAreaAccessExists = false;
-
-        for (const auto& areaConfig : cfg.getAreaConfigs()) {
-            if (areaConfig->getAccess() == toInt(VehiclePropertyAccess::NONE)) {
-                unsetAreaAccessExists = true;
-            } else {
-                setAreaAccessExists = true;
-            }
-        }
-
-        ASSERT_FALSE(propAccessIsSet && setAreaAccessExists) << StringPrintf(
-                "Both prop and area config access is set for propertyId %d", cfg.getPropId());
-        ASSERT_FALSE(!propAccessIsSet && !setAreaAccessExists) << StringPrintf(
-                "Neither prop and area config access is set for propertyId %d", cfg.getPropId());
-        ASSERT_FALSE(unsetAreaAccessExists && setAreaAccessExists) << StringPrintf(
-                "Area access is only set in some configs for propertyId %d", cfg.getPropId());
-    }
-}
-
 void VtsHalAutomotiveVehicleTargetTest::verifyAccessMode(int actualAccess, int expectedAccess) {
+    if (actualAccess == toInt(VehiclePropertyAccess::NONE)) {
+        return;
+    }
     if (expectedAccess == toInt(VehiclePropertyAccess::READ_WRITE)) {
         ASSERT_TRUE(actualAccess == expectedAccess ||
                     actualAccess == toInt(VehiclePropertyAccess::READ))
@@ -631,6 +724,44 @@ void VtsHalAutomotiveVehicleTargetTest::verifyAccessMode(int actualAccess, int e
     }
     ASSERT_EQ(actualAccess, expectedAccess) << StringPrintf(
             "Expect to get VehiclePropertyAccess: %i, got %i", expectedAccess, actualAccess);
+}
+
+void VtsHalAutomotiveVehicleTargetTest::verifyGlobalAccessIsMaximalAreaAccessSubset(
+        int propertyLevelAccess,
+        const std::vector<std::unique_ptr<IHalAreaConfig>>& areaConfigs) const {
+    bool readOnlyPresent = false;
+    bool writeOnlyPresent = false;
+    bool readWritePresent = false;
+    int maximalAreaAccessSubset = toInt(VehiclePropertyAccess::NONE);
+    for (size_t i = 0; i < areaConfigs.size(); i++) {
+        int access = areaConfigs[i]->getAccess();
+        switch (access) {
+            case toInt(VehiclePropertyAccess::READ):
+                readOnlyPresent = true;
+                break;
+            case toInt(VehiclePropertyAccess::WRITE):
+                writeOnlyPresent = true;
+                break;
+            case toInt(VehiclePropertyAccess::READ_WRITE):
+                readWritePresent = true;
+                break;
+            default:
+                ASSERT_EQ(access, toInt(VehiclePropertyAccess::NONE)) << StringPrintf(
+                        "Area access can be NONE only if global property access is also NONE");
+                return;
+        }
+    }
+
+    if (readOnlyPresent && !writeOnlyPresent) {
+        maximalAreaAccessSubset = toInt(VehiclePropertyAccess::READ);
+    } else if (writeOnlyPresent) {
+        maximalAreaAccessSubset = toInt(VehiclePropertyAccess::WRITE);
+    } else if (readWritePresent) {
+        maximalAreaAccessSubset = toInt(VehiclePropertyAccess::READ_WRITE);
+    }
+    ASSERT_EQ(propertyLevelAccess, maximalAreaAccessSubset) << StringPrintf(
+            "Expected global access to be equal to maximal area access subset %d, Instead got %d",
+            maximalAreaAccessSubset, propertyLevelAccess);
 }
 
 // Helper function to compare actual vs expected property config
