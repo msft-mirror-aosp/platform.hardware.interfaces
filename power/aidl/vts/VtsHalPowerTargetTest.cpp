@@ -159,7 +159,10 @@ class FMQAidl : public PowerAidl {
         auto status =
                 power->createHintSessionWithConfig(getpid(), getuid(), kSelfTids, 16666666L,
                                                    SessionTag::OTHER, &mSessionConfig, &mSession);
-        ASSERT_TRUE(status.isOk());
+        mSessionSupport = status.isOk();
+        if (!mSessionSupport) {
+            GTEST_SKIP() << "DEVICE not support Hint Session.";
+        }
         ASSERT_NE(nullptr, mSession);
 
         status = power->getSessionChannel(getpid(), getuid(), &mChannelConfig);
@@ -180,8 +183,12 @@ class FMQAidl : public PowerAidl {
         ASSERT_NE(mEventFlag, nullptr);
     }
     virtual void TearDown() {
-        mSession->close();
-        ASSERT_TRUE(power->closeSessionChannel(getpid(), getuid()).isOk());
+        if (mSession) {
+            mSession->close();
+            if (mChannel->isValid()) {
+                ASSERT_TRUE(power->closeSessionChannel(getpid(), getuid()).isOk());
+            }
+        }
     }
 
   protected:
