@@ -49,7 +49,7 @@
                     "EvConnectorType"
                 ],
                 "data_enum": "EvConnectorType",
-                "description": "List of connectors this EV may use"
+                "description": "List of connectors this EV may use\nIf the vehicle has multiple charging ports, this property must return all possible connector types that can be used by at least one charging port on the vehicle."
             },
             {
                 "name": "Fuel door location",
@@ -169,12 +169,12 @@
             {
                 "name": "EV charge port open",
                 "value": 287310602,
-                "description": "EV charge port open\nThis property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to implement it as VehiclePropertyAccess.READ only."
+                "description": "EV charge port open\nIf the vehicle has multiple charging ports, this property must return true if any of the charge ports are open.\nThis property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to implement it as VehiclePropertyAccess.READ only."
             },
             {
                 "name": "EV charge port connected",
                 "value": 287310603,
-                "description": "EV charge port connected"
+                "description": "EV charge port connected\nIf the vehicle has multiple charging ports, this property must return true if any of the charge ports are connected."
             },
             {
                 "name": "EV_BATTERY_INSTANTANEOUS_CHARGE_RATE",
@@ -1277,7 +1277,7 @@
                     "EvChargeState"
                 ],
                 "data_enum": "EvChargeState",
-                "description": "Charging state of the car\nReturns the current charging state of the car."
+                "description": "Charging state of the car\nReturns the current charging state of the car.\nIf the vehicle has a target charge percentage other than 100, this property must return EvChargeState::STATE_FULLY_CHARGED when the battery charge level has reached the target level. See EV_CHARGE_PERCENT_LIMIT for more context."
             },
             {
                 "name": "EV_CHARGE_SWITCH",
