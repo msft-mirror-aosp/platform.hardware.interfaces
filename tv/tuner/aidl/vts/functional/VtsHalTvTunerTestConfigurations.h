@@ -52,8 +52,6 @@ using namespace android::media::tuner::testing::configuration::V1_0;
 const int32_t FMQ_SIZE_4M = 0x400000;
 const int32_t FMQ_SIZE_16M = 0x1000000;
 
-const string configFilePath = "/vendor/etc/tuner_vts_config_aidl_V1.xml";
-
 #define FILTER_MAIN_TYPE_BIT_COUNT 5
 #define STATUS_CHECK_INTERVAL_MS 100L
 
@@ -731,9 +729,20 @@ inline void determineLive() {
     if (videoFilterIds.empty() || audioFilterIds.empty() || frontendMap.empty()) {
         return;
     }
-    if (hasSwFe && !hasHwFe && dvrMap.empty()) {
-        ALOGD("Cannot configure Live. Only software frontends and no dvr connections");
-        return;
+    if (!hasHwFe) {
+        if (hasSwFe) {
+            if (dvrMap.empty()) {
+                ALOGD("Cannot configure Live. Only software frontends and no dvr connections.");
+                return;
+            }
+            // Live is available if there is SW FE and some DVR is attached.
+        } else {
+            // We will arrive here because frontendMap won't be empty since
+            // there will be at least a default frontend declared. But the
+            // default frontend doesn't count as "hasSwFe".
+            ALOGD("Cannot configure Live. No frontend declared at all.");
+            return;
+        }
     }
     ALOGD("Can support live");
     live.hasFrontendConnection = true;
