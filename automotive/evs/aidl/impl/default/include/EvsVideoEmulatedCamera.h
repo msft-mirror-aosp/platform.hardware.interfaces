@@ -19,13 +19,15 @@
 #include "ConfigManager.h"
 #include "EvsCamera.h"
 
+#include <aidl/android/hardware/automotive/evs/BufferDesc.h>
 #include <aidl/android/hardware/automotive/evs/CameraDesc.h>
 #include <aidl/android/hardware/automotive/evs/CameraParam.h>
 #include <aidl/android/hardware/automotive/evs/IEvsCameraStream.h>
 #include <aidl/android/hardware/automotive/evs/IEvsDisplay.h>
 #include <aidl/android/hardware/automotive/evs/ParameterRange.h>
 #include <aidl/android/hardware/automotive/evs/Stream.h>
-#include <android/hardware_buffer.h>
+#include <media/NdkMediaExtractor.h>
+
 #include <ui/GraphicBuffer.h>
 
 #include <cstdint>
@@ -36,15 +38,15 @@
 
 namespace aidl::android::hardware::automotive::evs::implementation {
 
-class EvsMockCamera : public EvsCamera {
+class EvsVideoEmulatedCamera : public EvsCamera {
   private:
     using Base = EvsCamera;
 
   public:
-    EvsMockCamera(Sigil sigil, const char* deviceName,
-                  std::unique_ptr<ConfigManager::CameraInfo>& camInfo);
-    EvsMockCamera(const EvsMockCamera&) = delete;
-    EvsMockCamera& operator=(const EvsMockCamera&) = delete;
+    EvsVideoEmulatedCamera(Sigil sigil, const char* deviceName,
+                           std::unique_ptr<ConfigManager::CameraInfo>& camInfo);
+
+    ~EvsVideoEmulatedCamera() override = default;
 
     // Methods from ::android::hardware::automotive::evs::IEvsCamera follow.
     ndk::ScopedAStatus forcePrimaryClient(
@@ -65,16 +67,41 @@ class EvsMockCamera : public EvsCamera {
     ndk::ScopedAStatus setPrimaryClient() override;
     ndk::ScopedAStatus unsetPrimaryClient() override;
 
+    // Methods from EvsCameraBase follow.
+    void shutdown() override;
+
     const evs::CameraDesc& getDesc() { return mDescription; }
 
-    static std::shared_ptr<EvsMockCamera> Create(const char* deviceName);
-    static std::shared_ptr<EvsMockCamera> Create(
+    static std::shared_ptr<EvsVideoEmulatedCamera> Create(const char* deviceName);
+    static std::shared_ptr<EvsVideoEmulatedCamera> Create(
             const char* deviceName, std::unique_ptr<ConfigManager::CameraInfo>& camInfo,
             const evs::Stream* streamCfg = nullptr);
 
   private:
+    // For the camera parameters.
+    struct CameraParameterDesc {
+        CameraParameterDesc(int min = 0, int max = 0, int step = 0, int value = 0) {
+            this->range.min = min;
+            this->range.max = max;
+            this->range.step = step;
+            this->value = value;
+        }
+
+        ParameterRange range;
+        int32_t value;
+    };
+
+    bool initialize();
+
     void generateFrames();
-    void fillMockFrame(buffer_handle_t handle, const AHardwareBuffer_Desc* pDesc);
+
+    void renderOneFrame();
+
+    void initializeParameters();
+
+    void onCodecInputAvailable(const int32_t index);
+
+    void onCodecOutputAvailable(const int32_t index, const AMediaCodecBufferInfo& info);
 
     ::android::status_t allocateOneFrame(buffer_handle_t* handle) override;
 
@@ -88,46 +115,47 @@ class EvsMockCamera : public EvsCamera {
     bool postVideoStreamStop_locked(ndk::ScopedAStatus& status,
                                     std::unique_lock<std::mutex>& lck) override;
 
-    void initializeParameters();
+    // The properties of this camera.
+    CameraDesc mDescription = {};
 
-    CameraDesc mDescription = {};  // The properties of this camera
-
-    std::thread mCaptureThread;  // The thread we'll use to synthesize frames
+    std::thread mCaptureThread;
 
     // The callback used to deliver each frame
     std::shared_ptr<evs::IEvsCameraStream> mStream;
 
+    std::string mVideoFileName;
+    // Media decoder resources - Owned by mDecoderThead when thread is running.
+    int mVideoFd = 0;
+
+    struct AMediaExtractorDeleter {
+        void operator()(AMediaExtractor* extractor) const { AMediaExtractor_delete(extractor); }
+    };
+    struct AMediaCodecDeleter {
+        void operator()(AMediaCodec* codec) const { AMediaCodec_delete(codec); }
+    };
+
+    std::unique_ptr<AMediaExtractor, AMediaExtractorDeleter> mVideoExtractor;
+    std::unique_ptr<AMediaCodec, AMediaCodecDeleter> mVideoCodec;
+
     // Horizontal pixel count in the buffers
-    uint32_t mWidth = 0;
+    int32_t mWidth = 0;
     // Vertical pixel count in the buffers
-    uint32_t mHeight = 0;
+    int32_t mHeight = 0;
     // Values from android_pixel_format_t
-    uint32_t mFormat = HAL_PIXEL_FORMAT_RGBA_8888;
+    uint32_t mFormat = 0;
     // Values from from Gralloc.h
-    uint64_t mUsage =
-            GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_SW_READ_RARELY | GRALLOC_USAGE_SW_WRITE_OFTEN;
+    uint64_t mUsage = 0;
     // Bytes per line in the buffers
     uint32_t mStride = 0;
+
+    // Camera parameters.
+    std::unordered_map<CameraParam, std::shared_ptr<CameraParameterDesc>> mParams;
 
     // Static camera module information
     std::unique_ptr<ConfigManager::CameraInfo>& mCameraInfo;
 
     // For the extended info
     std::unordered_map<uint32_t, std::vector<uint8_t>> mExtInfo;
-
-    // For the camera parameters.
-    struct CameraParameterDesc {
-        CameraParameterDesc(int min = 0, int max = 0, int step = 0, int value = 0) {
-            this->range.min = min;
-            this->range.max = max;
-            this->range.step = step;
-            this->value = value;
-        }
-
-        ParameterRange range;
-        int32_t value;
-    };
-    std::unordered_map<CameraParam, std::shared_ptr<CameraParameterDesc>> mParams;
 };
 
 }  // namespace aidl::android::hardware::automotive::evs::implementation
