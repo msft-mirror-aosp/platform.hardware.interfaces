@@ -39,7 +39,7 @@ class VirtualizerHelper : public EffectHelper {
         ASSERT_NO_FATAL_FAILURE(create(mFactory, mEffect, mDescriptor));
         initFrameCount();
         Parameter::Specific specific = getDefaultParamSpecific();
-        Parameter::Common common = EffectHelper::createParamCommon(
+        Parameter::Common common = createParamCommon(
                 0 /* session */, 1 /* ioHandle */, kSamplingFrequency /* iSampleRate */,
                 kSamplingFrequency /* oSampleRate */, mInputFrameCount /* iFrameCount */,
                 mInputFrameCount /* oFrameCount */);
@@ -150,8 +150,15 @@ class VirtualizerProcessTest : public ::testing::TestWithParam<VirtualizerProces
         std::tie(mFactory, mDescriptor) = std::get<PROCESS_INSTANCE_NAME>(GetParam());
     }
 
-    void SetUp() override { ASSERT_NO_FATAL_FAILURE(SetUpVirtualizer()); }
-    void TearDown() override { TearDownVirtualizer(); }
+    void SetUp() override {
+        SKIP_TEST_IF_DATA_UNSUPPORTED(mDescriptor.common.flags);
+        ASSERT_NO_FATAL_FAILURE(SetUpVirtualizer());
+    }
+
+    void TearDown() override {
+        SKIP_TEST_IF_DATA_UNSUPPORTED(mDescriptor.common.flags);
+        ASSERT_NO_FATAL_FAILURE(TearDownVirtualizer());
+    }
 
     void generateInput(std::vector<float>& buffer) {
         if (mZeroInput) {

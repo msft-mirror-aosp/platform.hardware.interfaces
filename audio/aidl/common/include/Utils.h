@@ -47,6 +47,9 @@ inline std::string errorToString(const ScopedAStatus& s) {
 
 namespace aidl::android::hardware::audio::common {
 
+// TODO: b/275135031 - move this string to AIDL interfaces.
+static constexpr char kDumpFromAudioServerArgument[] = "dump_from_audioserver";
+
 // Some values are reserved for use by the system code only.
 // HALs must not accept or emit values outside from the provided list.
 constexpr std::array<::aidl::android::media::audio::common::AudioMode, 5> kValidAudioModes = {
@@ -172,6 +175,12 @@ constexpr U makeBitPositionFlagMask(std::initializer_list<E> flags) {
         result |= makeBitPositionFlagMask(flag);
     }
     return result;
+}
+
+template <typename E, typename U = std::underlying_type_t<E>,
+          typename = std::enable_if_t<is_bit_position_enum<E>::value>>
+constexpr bool isAnyBitPositionFlagSet(U mask, std::initializer_list<E> flags) {
+    return (mask & makeBitPositionFlagMask<E>(flags)) != 0;
 }
 
 constexpr int32_t frameCountFromDurationUs(long durationUs, int32_t sampleRateHz) {

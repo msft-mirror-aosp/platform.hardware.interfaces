@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <iostream>
 #include <map>
+#include <set>
 
 #include <openssl/curve25519.h>
 #include <openssl/ec.h>
@@ -37,6 +38,7 @@
 #include <aidl/android/hardware/security/keymint/IRemotelyProvisionedComponent.h>
 #include <aidl/android/hardware/security/keymint/KeyFormat.h>
 
+#include <keymint_support/authorization_set.h>
 #include <keymint_support/key_param_output.h>
 #include <keymint_support/openssl_utils.h>
 
@@ -1146,17 +1148,6 @@ TEST_P(NewKeyGenerationTest, RsaWithAttestation) {
                                .SetDefaultValidity();
 
         auto result = GenerateKey(builder, &key_blob, &key_characteristics);
-        // Strongbox may not support factory provisioned attestation key.
-        if (SecLevel() == SecurityLevel::STRONGBOX) {
-            if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-                result = GenerateKeyWithSelfSignedAttestKey(
-                        AuthorizationSetBuilder()
-                                .RsaKey(key_size, 65537)
-                                .AttestKey()
-                                .SetDefaultValidity(), /* attest key params */
-                        builder, &key_blob, &key_characteristics);
-            }
-        }
         ASSERT_EQ(ErrorCode::OK, result);
         KeyBlobDeleter deleter(keymint_, key_blob);
         ASSERT_GT(key_blob.size(), 0U);
@@ -1369,17 +1360,6 @@ TEST_P(NewKeyGenerationTest, RsaEncryptionWithAttestation) {
                            .SetDefaultValidity();
 
     auto result = GenerateKey(builder, &key_blob, &key_characteristics);
-    // Strongbox may not support factory provisioned attestation key.
-    if (SecLevel() == SecurityLevel::STRONGBOX) {
-        if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-            result = GenerateKeyWithSelfSignedAttestKey(
-                    AuthorizationSetBuilder()
-                            .RsaKey(key_size, 65537)
-                            .AttestKey()
-                            .SetDefaultValidity(), /* attest key params */
-                    builder, &key_blob, &key_characteristics);
-        }
-    }
     ASSERT_EQ(ErrorCode::OK, result);
     KeyBlobDeleter deleter(keymint_, key_blob);
 
@@ -1490,17 +1470,6 @@ TEST_P(NewKeyGenerationTest, RsaWithAttestationMissAppId) {
                            .SetDefaultValidity();
 
     auto result = GenerateKey(builder, &key_blob, &key_characteristics);
-    // Strongbox may not support factory provisioned attestation key.
-    if (SecLevel() == SecurityLevel::STRONGBOX) {
-        if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-            result = GenerateKeyWithSelfSignedAttestKey(
-                    AuthorizationSetBuilder()
-                            .RsaKey(2048, 65537)
-                            .AttestKey()
-                            .SetDefaultValidity(), /* attest key params */
-                    builder, &key_blob, &key_characteristics);
-        }
-    }
     ASSERT_EQ(ErrorCode::ATTESTATION_APPLICATION_ID_MISSING, result);
 }
 
@@ -1625,17 +1594,6 @@ TEST_P(NewKeyGenerationTest, LimitedUsageRsaWithAttestation) {
                                .SetDefaultValidity();
 
         auto result = GenerateKey(builder, &key_blob, &key_characteristics);
-        // Strongbox may not support factory provisioned attestation key.
-        if (SecLevel() == SecurityLevel::STRONGBOX) {
-            if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-                result = GenerateKeyWithSelfSignedAttestKey(
-                        AuthorizationSetBuilder()
-                                .RsaKey(key_size, 65537)
-                                .AttestKey()
-                                .SetDefaultValidity(), /* attest key params */
-                        builder, &key_blob, &key_characteristics);
-            }
-        }
         ASSERT_EQ(ErrorCode::OK, result);
         KeyBlobDeleter deleter(keymint_, key_blob);
 
@@ -1877,17 +1835,6 @@ TEST_P(NewKeyGenerationTest, EcdsaAttestation) {
                                .SetDefaultValidity();
 
         auto result = GenerateKey(builder, &key_blob, &key_characteristics);
-        // Strongbox may not support factory provisioned attestation key.
-        if (SecLevel() == SecurityLevel::STRONGBOX) {
-            if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-                result = GenerateKeyWithSelfSignedAttestKey(
-                        AuthorizationSetBuilder()
-                                .EcdsaKey(curve)
-                                .AttestKey()
-                                .SetDefaultValidity(), /* attest key params */
-                        builder, &key_blob, &key_characteristics);
-            }
-        }
         ASSERT_EQ(ErrorCode::OK, result);
         KeyBlobDeleter deleter(keymint_, key_blob);
         ASSERT_GT(key_blob.size(), 0U);
@@ -2020,17 +1967,6 @@ TEST_P(NewKeyGenerationTest, EcdsaAttestationTags) {
             // Tag not required to be supported by all KeyMint implementations.
             continue;
         }
-        // Strongbox may not support factory provisioned attestation key.
-        if (SecLevel() == SecurityLevel::STRONGBOX) {
-            if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-                result = GenerateKeyWithSelfSignedAttestKey(
-                        AuthorizationSetBuilder()
-                                .EcdsaKey(EcCurve::P_256)
-                                .AttestKey()
-                                .SetDefaultValidity(), /* attest key params */
-                        builder, &key_blob, &key_characteristics);
-            }
-        }
         ASSERT_EQ(result, ErrorCode::OK);
         KeyBlobDeleter deleter(keymint_, key_blob);
         ASSERT_GT(key_blob.size(), 0U);
@@ -2082,18 +2018,6 @@ TEST_P(NewKeyGenerationTest, EcdsaAttestationTags) {
         builder.push_back(tag);
 
         auto error = GenerateKey(builder, &key_blob, &key_characteristics);
-        // Strongbox may not support factory provisioned attestation key.
-        if (SecLevel() == SecurityLevel::STRONGBOX) {
-            if (error == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-                error = GenerateKeyWithSelfSignedAttestKey(
-                        AuthorizationSetBuilder()
-                                .EcdsaKey(EcCurve::P_256)
-                                .AttestKey()
-                                .SetDefaultValidity(), /* attest key params */
-                        builder, &key_blob, &key_characteristics);
-            }
-        }
-
         device_id_attestation_check_acceptable_error(tag.tag, error);
     }
 }
@@ -2102,7 +2026,7 @@ TEST_P(NewKeyGenerationTest, EcdsaAttestationTags) {
  * NewKeyGenerationTest.EcdsaAttestationIdTags
  *
  * Verifies that creation of an attested ECDSA key includes various ID tags in the
- * attestation extension.
+ * attestation extension one by one.
  */
 TEST_P(NewKeyGenerationTest, EcdsaAttestationIdTags) {
     auto challenge = "hello";
@@ -2130,6 +2054,15 @@ TEST_P(NewKeyGenerationTest, EcdsaAttestationIdTags) {
     add_attestation_id(&extra_tags, TAG_ATTESTATION_ID_MANUFACTURER, "manufacturer");
     add_attestation_id(&extra_tags, TAG_ATTESTATION_ID_MODEL, "model");
     add_tag_from_prop(&extra_tags, TAG_ATTESTATION_ID_SERIAL, "ro.serialno");
+    string imei = get_imei(0);
+    if (!imei.empty()) {
+        extra_tags.Authorization(TAG_ATTESTATION_ID_IMEI, imei.data(), imei.size());
+    }
+    string second_imei = get_imei(1);
+    if (!second_imei.empty()) {
+        extra_tags.Authorization(TAG_ATTESTATION_ID_SECOND_IMEI, second_imei.data(),
+                                 second_imei.size());
+    }
 
     for (const KeyParameter& tag : extra_tags) {
         SCOPED_TRACE(testing::Message() << "tag-" << tag);
@@ -2138,10 +2071,6 @@ TEST_P(NewKeyGenerationTest, EcdsaAttestationIdTags) {
         AuthorizationSetBuilder builder = base_builder;
         builder.push_back(tag);
         auto result = GenerateKey(builder, &key_blob, &key_characteristics);
-        // Strongbox may not support factory provisioned attestation key.
-        if (SecLevel() == SecurityLevel::STRONGBOX) {
-            if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) return;
-        }
         if (result == ErrorCode::CANNOT_ATTEST_IDS && !isDeviceIdAttestationRequired()) {
             // ID attestation was optional till api level 32, from api level 33 it is mandatory.
             continue;
@@ -2168,6 +2097,83 @@ TEST_P(NewKeyGenerationTest, EcdsaAttestationIdTags) {
                                               hw_enforced, SecLevel(),
                                               cert_chain_[0].encodedCertificate));
     }
+}
+
+/*
+ * NewKeyGenerationTest.EcdsaAttestationIdAllTags
+ *
+ * Verifies that creation of an attested ECDSA key includes various ID tags in the
+ * attestation extension all together.
+ */
+TEST_P(NewKeyGenerationTest, EcdsaAttestationIdAllTags) {
+    auto challenge = "hello";
+    auto app_id = "foo";
+    auto subject = "cert subj 2";
+    vector<uint8_t> subject_der(make_name_from_str(subject));
+    uint64_t serial_int = 0x1010;
+    vector<uint8_t> serial_blob(build_serial_blob(serial_int));
+    AuthorizationSetBuilder builder = AuthorizationSetBuilder()
+                                              .Authorization(TAG_NO_AUTH_REQUIRED)
+                                              .EcdsaSigningKey(EcCurve::P_256)
+                                              .Digest(Digest::NONE)
+                                              .AttestationChallenge(challenge)
+                                              .AttestationApplicationId(app_id)
+                                              .Authorization(TAG_CERTIFICATE_SERIAL, serial_blob)
+                                              .Authorization(TAG_CERTIFICATE_SUBJECT, subject_der)
+                                              .SetDefaultValidity();
+
+    // Various ATTESTATION_ID_* tags that map to fields in the attestation extension ASN.1 schema.
+    auto extra_tags = AuthorizationSetBuilder();
+    add_attestation_id(&extra_tags, TAG_ATTESTATION_ID_BRAND, "brand");
+    add_attestation_id(&extra_tags, TAG_ATTESTATION_ID_DEVICE, "device");
+    add_attestation_id(&extra_tags, TAG_ATTESTATION_ID_PRODUCT, "name");
+    add_attestation_id(&extra_tags, TAG_ATTESTATION_ID_MANUFACTURER, "manufacturer");
+    add_attestation_id(&extra_tags, TAG_ATTESTATION_ID_MODEL, "model");
+    add_tag_from_prop(&extra_tags, TAG_ATTESTATION_ID_SERIAL, "ro.serialno");
+    string imei = get_imei(0);
+    if (!imei.empty()) {
+        extra_tags.Authorization(TAG_ATTESTATION_ID_IMEI, imei.data(), imei.size());
+    }
+    string second_imei = get_imei(1);
+    if (!second_imei.empty()) {
+        extra_tags.Authorization(TAG_ATTESTATION_ID_SECOND_IMEI, second_imei.data(),
+                                 second_imei.size());
+    }
+    for (const KeyParameter& tag : extra_tags) {
+        builder.push_back(tag);
+    }
+
+    vector<uint8_t> key_blob;
+    vector<KeyCharacteristics> key_characteristics;
+    auto result = GenerateKey(builder, &key_blob, &key_characteristics);
+    if (result == ErrorCode::CANNOT_ATTEST_IDS && !isDeviceIdAttestationRequired()) {
+        // ID attestation was optional till api level 32, from api level 33 it is mandatory.
+        return;
+    }
+    ASSERT_EQ(result, ErrorCode::OK);
+    KeyBlobDeleter deleter(keymint_, key_blob);
+    ASSERT_GT(key_blob.size(), 0U);
+
+    EXPECT_TRUE(ChainSignaturesAreValid(cert_chain_));
+    ASSERT_GT(cert_chain_.size(), 0);
+    verify_subject_and_serial(cert_chain_[0], serial_int, subject, /* self_signed = */ false);
+
+    AuthorizationSet hw_enforced = HwEnforcedAuthorizations(key_characteristics);
+    AuthorizationSet sw_enforced = SwEnforcedAuthorizations(key_characteristics);
+
+    // The attested key characteristics will not contain APPLICATION_ID_* fields (their
+    // spec definitions all have "Must never appear in KeyCharacteristics"), but the
+    // attestation extension should contain them, so make sure the extra tags are added.
+    for (const KeyParameter& tag : extra_tags) {
+        hw_enforced.push_back(tag);
+    }
+
+    // Verifying the attestation record will check for the specific tag because
+    // it's included in the authorizations.
+    EXPECT_TRUE(verify_attestation_record(AidlVersion(), challenge, app_id, sw_enforced,
+                                          hw_enforced, SecLevel(),
+                                          cert_chain_[0].encodedCertificate))
+            << "failed to verify " << bin2hex(cert_chain_[0].encodedCertificate);
 }
 
 /*
@@ -2199,16 +2205,6 @@ TEST_P(NewKeyGenerationTest, EcdsaAttestationUniqueId) {
             builder.Authorization(TAG_RESET_SINCE_ID_ROTATION);
         }
         auto result = GenerateKey(builder);
-        if (SecLevel() == SecurityLevel::STRONGBOX) {
-            if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-                result = GenerateKeyWithSelfSignedAttestKey(
-                        AuthorizationSetBuilder()
-                                .EcdsaKey(EcCurve::P_256)
-                                .AttestKey()
-                                .SetDefaultValidity(), /* attest key params */
-                        builder, &key_blob_, &key_characteristics_, &cert_chain_);
-            }
-        }
         ASSERT_EQ(ErrorCode::OK, result);
         ASSERT_GT(key_blob_.size(), 0U);
 
@@ -2309,17 +2305,6 @@ TEST_P(NewKeyGenerationTest, EcdsaAttestationTagNoApplicationId) {
                            .SetDefaultValidity();
 
     auto result = GenerateKey(builder, &key_blob, &key_characteristics);
-    // Strongbox may not support factory provisioned attestation key.
-    if (SecLevel() == SecurityLevel::STRONGBOX) {
-        if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-            result = GenerateKeyWithSelfSignedAttestKey(
-                    AuthorizationSetBuilder()
-                            .EcdsaKey(EcCurve::P_256)
-                            .AttestKey()
-                            .SetDefaultValidity(), /* attest key params */
-                    builder, &key_blob, &key_characteristics);
-        }
-    }
     ASSERT_EQ(result, ErrorCode::OK);
     KeyBlobDeleter deleter(keymint_, key_blob);
     ASSERT_GT(key_blob.size(), 0U);
@@ -2404,17 +2389,6 @@ TEST_P(NewKeyGenerationTest, EcdsaAttestationRequireAppId) {
                            .SetDefaultValidity();
 
     auto result = GenerateKey(builder, &key_blob, &key_characteristics);
-    // Strongbox may not support factory provisioned attestation key.
-    if (SecLevel() == SecurityLevel::STRONGBOX) {
-        if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-            result = GenerateKeyWithSelfSignedAttestKey(
-                    AuthorizationSetBuilder()
-                            .EcdsaKey(EcCurve::P_256)
-                            .AttestKey()
-                            .SetDefaultValidity(), /* attest key params */
-                    builder, &key_blob, &key_characteristics);
-        }
-    }
     ASSERT_EQ(ErrorCode::ATTESTATION_APPLICATION_ID_MISSING, result);
 }
 
@@ -2482,17 +2456,6 @@ TEST_P(NewKeyGenerationTest, AttestationApplicationIDLengthProperlyEncoded) {
                                .SetDefaultValidity();
 
         auto result = GenerateKey(builder, &key_blob, &key_characteristics);
-        // Strongbox may not support factory provisioned attestation key.
-        if (SecLevel() == SecurityLevel::STRONGBOX) {
-            if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-                result = GenerateKeyWithSelfSignedAttestKey(
-                        AuthorizationSetBuilder()
-                                .EcdsaKey(EcCurve::P_256)
-                                .AttestKey()
-                                .SetDefaultValidity(), /* attest key params */
-                        builder, &key_blob, &key_characteristics);
-            }
-        }
         ASSERT_EQ(ErrorCode::OK, result);
         KeyBlobDeleter deleter(keymint_, key_blob);
         ASSERT_GT(key_blob.size(), 0U);
@@ -2718,7 +2681,8 @@ TEST_P(NewKeyGenerationTest, HmacNoAttestation) {
                                                      .AttestationChallenge(challenge)
                                                      .AttestationApplicationId(app_id)
                                                      .Authorization(TAG_MIN_MAC_LENGTH, 128),
-                                             &key_blob, &key_characteristics));
+                                             /*attest_key=*/std::nullopt, &key_blob,
+                                             &key_characteristics, &cert_chain_));
         KeyBlobDeleter deleter(keymint_, key_blob);
 
         ASSERT_GT(key_blob.size(), 0U);
@@ -2907,7 +2871,9 @@ TEST_P(NewKeyGenerationTest, AesNoAttestation) {
                                                  .EcbMode()
                                                  .Padding(PaddingMode::PKCS7)
                                                  .AttestationChallenge(challenge)
-                                                 .AttestationApplicationId(app_id)));
+                                                 .AttestationApplicationId(app_id),
+                                         /*attest_key=*/std::nullopt, &key_blob_,
+                                         &key_characteristics_, &cert_chain_));
 
     ASSERT_EQ(cert_chain_.size(), 0);
 }
@@ -2928,7 +2894,9 @@ TEST_P(NewKeyGenerationTest, TripleDesNoAttestation) {
                                                  .Authorization(TAG_NO_AUTH_REQUIRED)
                                                  .Padding(PaddingMode::NONE)
                                                  .AttestationChallenge(challenge)
-                                                 .AttestationApplicationId(app_id)));
+                                                 .AttestationApplicationId(app_id),
+                                         /*attest_key=*/std::nullopt, &key_blob_,
+                                         &key_characteristics_, &cert_chain_));
     ASSERT_EQ(cert_chain_.size(), 0);
 }
 
@@ -3703,6 +3671,42 @@ TEST_P(SigningOperationsTest, HmacAllDigests) {
         EXPECT_EQ(160U / 8U, signature.size())
                 << "Failed to sign with HMAC key with digest " << digest;
         CheckedDeleteKey();
+    }
+}
+
+/*
+ * SigningOperationsTest.HmacMessageDigestUnique
+ *
+ * Verifies that HMAC with different keys gives different results.
+ */
+TEST_P(SigningOperationsTest, HmacMessageDigestUnique) {
+    for (int key_len : {64, 128, 192, 256, 512}) {
+        for (int msg_len = 0; msg_len <= 30; msg_len += 10) {
+            string message = string(msg_len, 'x');
+            for (auto digest : ValidDigests(false /* withNone */, false /* withMD5 */)) {
+                SCOPED_TRACE(testing::Message() << "Digest::" << digest << "::MsgLen::" << msg_len);
+
+                int count = 10;
+                std::set<string> results;
+                for (int ii = 0; ii < count; ii++) {
+                    ASSERT_EQ(ErrorCode::OK,
+                              GenerateKey(AuthorizationSetBuilder()
+                                                  .Authorization(TAG_NO_AUTH_REQUIRED)
+                                                  .HmacKey(key_len)
+                                                  .Digest(digest)
+                                                  .Authorization(TAG_MIN_MAC_LENGTH, 160)))
+                            << "Failed to create HMAC key with digest " << digest;
+                    string signature = MacMessage(message, digest, 160);
+                    EXPECT_EQ(160U / 8U, signature.size())
+                            << "Failed to sign with HMAC key with digest " << digest;
+                    CheckedDeleteKey();
+                    results.insert(signature);
+                }
+                EXPECT_EQ(results.size(), count)
+                        << "HMAC of a message '" << message << "' with " << count
+                        << " fresh keys only gave " << results.size() << " distinct results";
+            }
+        }
     }
 }
 
@@ -8510,17 +8514,6 @@ class KeyAgreementTest : public KeyMintAidlTestBase {
                                .Authorization(TAG_ATTESTATION_CHALLENGE, challenge)
                                .SetDefaultValidity();
         ErrorCode result = GenerateKey(builder);
-
-        if (SecLevel() == SecurityLevel::STRONGBOX) {
-            if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-                result = GenerateKeyWithSelfSignedAttestKey(
-                        AuthorizationSetBuilder()
-                                .EcdsaKey(EcCurve::P_256)
-                                .AttestKey()
-                                .SetDefaultValidity(), /* attest key params */
-                        builder, &key_blob_, &key_characteristics_, &cert_chain_);
-            }
-        }
         ASSERT_EQ(ErrorCode::OK, result) << "Failed to generate key";
         ASSERT_GT(cert_chain_.size(), 0);
         X509_Ptr kmKeyCert(parse_cert_blob(cert_chain_[0].encodedCertificate));
@@ -8811,11 +8804,6 @@ TEST_P(EarlyBootKeyTest, CreateAttestedEarlyBootKey) {
     KeyBlobDeleter ecdsa_deleter(keymint_, ecdsaKeyData.blob);
 
     for (const auto& keyData : {aesKeyData, hmacKeyData, rsaKeyData, ecdsaKeyData}) {
-        // Strongbox may not support factory attestation. Key creation might fail with
-        // ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED
-        if (SecLevel() == SecurityLevel::STRONGBOX && keyData.blob.size() == 0U) {
-            continue;
-        }
         ASSERT_GT(keyData.blob.size(), 0U);
         AuthorizationSet crypto_params = SecLevelAuthorizations(keyData.characteristics);
         EXPECT_TRUE(crypto_params.Contains(TAG_EARLY_BOOT_ONLY)) << crypto_params;
@@ -9015,13 +9003,6 @@ TEST_F(InstanceTest, FeatureVersionInAidl) {
 using aidl::android::hardware::security::keymint::test::KeyMintAidlTestBase;
 
 int main(int argc, char** argv) {
-    std::cout << "Testing ";
-    auto halInstances = KeyMintAidlTestBase::build_params();
-    std::cout << "HAL instances:\n";
-    for (auto& entry : halInstances) {
-        std::cout << "    " << entry << '\n';
-    }
-
     ::testing::InitGoogleTest(&argc, argv);
     for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {
