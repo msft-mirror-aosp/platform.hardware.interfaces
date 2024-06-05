@@ -46,7 +46,8 @@ enum class RetCode {
     ERROR_NULL_POINTER,      /* NULL pointer */
     ERROR_ALIGNMENT_ERROR,   /* Memory alignment error */
     ERROR_BLOCK_SIZE_EXCEED, /* Maximum block size exceeded */
-    ERROR_EFFECT_LIB_ERROR
+    ERROR_EFFECT_LIB_ERROR,  /* Effect implementation library error */
+    ERROR_EVENT_FLAG_ERROR   /* Error with effect event flags */
 };
 
 static const int INVALID_AUDIO_SESSION_ID = -1;
@@ -67,54 +68,56 @@ inline std::ostream& operator<<(std::ostream& out, const RetCode& code) {
             return out << "ERROR_BLOCK_SIZE_EXCEED";
         case RetCode::ERROR_EFFECT_LIB_ERROR:
             return out << "ERROR_EFFECT_LIB_ERROR";
+        case RetCode::ERROR_EVENT_FLAG_ERROR:
+            return out << "ERROR_EVENT_FLAG_ERROR";
     }
 
     return out << "EnumError: " << code;
 }
 
-#define RETURN_IF_ASTATUS_NOT_OK(status, message)                                              \
-    do {                                                                                       \
-        const ::ndk::ScopedAStatus curr_status = (status);                                     \
-        if (!curr_status.isOk()) {                                                             \
-            LOG(ERROR) << __func__ << ":" << __LINE__                                          \
-                       << "return with status: " << curr_status.getDescription() << (message); \
-            return ndk::ScopedAStatus::fromExceptionCodeWithMessage(                           \
-                    curr_status.getExceptionCode(), (message));                                \
-        }                                                                                      \
+#define RETURN_IF_ASTATUS_NOT_OK(status, message)                                               \
+    do {                                                                                        \
+        const ::ndk::ScopedAStatus curr_status = (status);                                      \
+        if (!curr_status.isOk()) {                                                              \
+            LOG(ERROR) << __func__ << ": line" << __LINE__                                      \
+                       << " return with status: " << curr_status.getDescription() << (message); \
+            return ndk::ScopedAStatus::fromExceptionCodeWithMessage(                            \
+                    curr_status.getExceptionCode(), (message));                                 \
+        }                                                                                       \
     } while (0)
 
 #define RETURN_IF(expr, exception, message)                                                  \
     do {                                                                                     \
         if (expr) {                                                                          \
-            LOG(ERROR) << __func__ << ":" << __LINE__ << " return with expr " << #expr;      \
+            LOG(ERROR) << __func__ << ": line" << __LINE__ << " return with expr " << #expr; \
             return ndk::ScopedAStatus::fromExceptionCodeWithMessage((exception), (message)); \
         }                                                                                    \
     } while (0)
 
-#define RETURN_OK_IF(expr)                                                             \
-    do {                                                                               \
-        if (expr) {                                                                    \
-            LOG(INFO) << __func__ << ":" << __LINE__ << " return with expr " << #expr; \
-            return ndk::ScopedAStatus::ok();                                           \
-        }                                                                              \
+#define RETURN_OK_IF(expr)                                                                  \
+    do {                                                                                    \
+        if (expr) {                                                                         \
+            LOG(INFO) << __func__ << ": line" << __LINE__ << " return with expr " << #expr; \
+            return ndk::ScopedAStatus::ok();                                                \
+        }                                                                                   \
     } while (0)
 
-#define RETURN_VALUE_IF(expr, ret, log)                                                  \
-    do {                                                                                 \
-        if (expr) {                                                                      \
-            LOG(ERROR) << __func__ << ":" << __LINE__ << " return with expr \"" << #expr \
-                       << "\":" << (log);                                                \
-            return ret;                                                                  \
-        }                                                                                \
+#define RETURN_VALUE_IF(expr, ret, log)                                                       \
+    do {                                                                                      \
+        if (expr) {                                                                           \
+            LOG(ERROR) << __func__ << ": line" << __LINE__ << " return with expr \"" << #expr \
+                       << "\":" << (log);                                                     \
+            return ret;                                                                       \
+        }                                                                                     \
     } while (0)
 
-#define RETURN_IF_BINDER_EXCEPTION(functor)                                 \
-    {                                                                       \
-        binder_exception_t exception = functor;                             \
-        if (EX_NONE != exception) {                                         \
-            LOG(ERROR) << #functor << ":  failed with error " << exception; \
-            return ndk::ScopedAStatus::fromExceptionCode(exception);        \
-        }                                                                   \
+#define RETURN_IF_BINDER_EXCEPTION(functor)                                \
+    {                                                                      \
+        binder_exception_t exception = functor;                            \
+        if (EX_NONE != exception) {                                        \
+            LOG(ERROR) << #functor << ": failed with error " << exception; \
+            return ndk::ScopedAStatus::fromExceptionCode(exception);       \
+        }                                                                  \
     }
 
 /**

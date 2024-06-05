@@ -402,7 +402,10 @@ aidl::android::hardware::camera::common::Status importBufferImpl(
         buffer_handle_t buf,
         /*out*/ buffer_handle_t** outBufPtr) {
     using ::aidl::android::hardware::camera::common::Status;
-    if (buf == nullptr && bufId == BUFFER_ID_NO_BUFFER) {
+    // AIDL does not have null NativeHandles. It sends empty handles instead.
+    // We check for when the buf is empty instead of when buf is null.
+    bool isBufEmpty = buf == nullptr || (buf->numFds == 0 && buf->numInts == 0);
+    if (isBufEmpty && bufId == BUFFER_ID_NO_BUFFER) {
         ALOGE("%s: bufferId %" PRIu64 " has null buffer handle!", __FUNCTION__, bufId);
         return Status::ILLEGAL_ARGUMENT;
     }
@@ -747,18 +750,12 @@ Size getMaxThumbnailResolution(const common::V1_0::helper::CameraMetadata& chars
 
 void freeReleaseFences(std::vector<CaptureResult>& results) {
     for (auto& result : results) {
-        native_handle_t* inputReleaseFence =
-                ::android::makeFromAidl(result.inputBuffer.releaseFence);
-        if (inputReleaseFence != nullptr) {
-            native_handle_close(inputReleaseFence);
-            native_handle_delete(inputReleaseFence);
-        }
+        // NativeHandles free fd's on desctruction. Simply delete the objects!
+        result.inputBuffer.releaseFence.fds.clear();  // Implicitly closes fds
+        result.inputBuffer.releaseFence.ints.clear();
         for (auto& buf : result.outputBuffers) {
-            native_handle_t* outReleaseFence = ::android::makeFromAidl(buf.releaseFence);
-            if (outReleaseFence != nullptr) {
-                native_handle_close(outReleaseFence);
-                native_handle_delete(outReleaseFence);
-            }
+            buf.releaseFence.fds.clear();  // Implicitly closes fds
+            buf.releaseFence.ints.clear();
         }
     }
 }

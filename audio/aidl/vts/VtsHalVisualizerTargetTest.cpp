@@ -16,7 +16,6 @@
 
 #include <unordered_set>
 
-#include <aidl/Vintf.h>
 #define LOG_TAG "VtsHalVisualizerTest"
 #include <android-base/logging.h>
 #include <android/binder_enums.h>
@@ -31,6 +30,7 @@ using aidl::android::hardware::audio::effect::IEffect;
 using aidl::android::hardware::audio::effect::IFactory;
 using aidl::android::hardware::audio::effect::Parameter;
 using aidl::android::hardware::audio::effect::Visualizer;
+using android::hardware::audio::common::testing::detail::TestExecutionTracer;
 
 /**
  * Here we focus on specific parameter checking, general IEffect interfaces testing performed in
@@ -62,7 +62,7 @@ class VisualizerParamTest : public ::testing::TestWithParam<VisualizerParamTestP
         ASSERT_NE(nullptr, mFactory);
         ASSERT_NO_FATAL_FAILURE(create(mFactory, mEffect, mDescriptor));
 
-        Parameter::Common common = EffectHelper::createParamCommon(
+        Parameter::Common common = createParamCommon(
                 0 /* session */, 1 /* ioHandle */, 44100 /* iSampleRate */, 44100 /* oSampleRate */,
                 kInputFrameCount /* iFrameCount */, kOutputFrameCount /* oFrameCount */);
         IEffect::OpenEffectReturn ret;
@@ -195,9 +195,7 @@ INSTANTIATE_TEST_SUITE_P(
                     std::get<PARAM_MEASUREMENT_MODE>(info.param));
             std::string latency = std::to_string(std::get<PARAM_LATENCY>(info.param));
 
-            std::string name = "Implementor_" + descriptor.common.implementor + "_name_" +
-                               descriptor.common.name + "_UUID_" +
-                               descriptor.common.id.uuid.toString() + "_captureSize" + captureSize +
+            std::string name = getPrefix(descriptor) + "_captureSize" + captureSize +
                                "_scalingMode" + scalingMode + "_measurementMode" + measurementMode +
                                "_latency" + latency;
             std::replace_if(
@@ -209,6 +207,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(VisualizerParamTest);
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
+    ::testing::UnitTest::GetInstance()->listeners().Append(new TestExecutionTracer());
     ABinderProcess_setThreadPoolMaxThreadCount(1);
     ABinderProcess_startThreadPool();
     return RUN_ALL_TESTS();

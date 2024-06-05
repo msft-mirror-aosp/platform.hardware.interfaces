@@ -56,6 +56,9 @@ my_gen_check_manifest :=
 
 endif # DEVICE_FRAMEWORK_COMPATIBILITY_MATRIX_FILE
 
+# TODO(b/296875906): use POLICYVERS from Soong
+POLICYVERS ?= 30
+
 LOCAL_ADD_VBMETA_VERSION := true
 LOCAL_ASSEMBLE_VINTF_ENV_VARS := \
     POLICYVERS \
@@ -98,24 +101,23 @@ include $(BUILD_FRAMEWORK_COMPATIBILITY_MATRIX)
 endif # DEVICE_PRODUCT_COMPATIBILITY_MATRIX_FILE
 
 my_system_matrix_deps := \
-    framework_compatibility_matrix.4.xml \
     framework_compatibility_matrix.5.xml \
     framework_compatibility_matrix.6.xml \
     framework_compatibility_matrix.7.xml \
     framework_compatibility_matrix.8.xml \
+    framework_compatibility_matrix.202404.xml \
     framework_compatibility_matrix.device.xml \
+
+# Only allow the use of the unreleased compatibility matrix when we can use unfrozen
+# interfaces (in the `next` release configuration).
+ifeq ($(RELEASE_AIDL_USE_UNFROZEN),true)
+my_system_matrix_deps += \
+    framework_compatibility_matrix.202504.xml \
+
+endif
 
 my_framework_matrix_deps += \
     $(my_system_matrix_deps)
-
-# Phony target that installs all system compatibility matrix files
-include $(CLEAR_VARS)
-LOCAL_MODULE := system_compatibility_matrix.xml
-LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0
-LOCAL_LICENSE_CONDITIONS := notice
-LOCAL_NOTICE_FILE := $(LOCAL_PATH)/../NOTICE
-LOCAL_REQUIRED_MODULES := $(my_system_matrix_deps)
-include $(BUILD_PHONY_PACKAGE)
 
 # Phony target that installs all framework compatibility matrix files (system + product)
 include $(CLEAR_VARS)

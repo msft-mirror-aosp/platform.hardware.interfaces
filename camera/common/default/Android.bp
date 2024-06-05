@@ -1,4 +1,5 @@
 package {
+    default_team: "trendy_team_camera_framework",
     // See: http://go/android-license-faq
     // A large-scale-change added 'default_applicable_licenses' to import
     // all of the 'license_kinds' from "hardware_interfaces_license"
@@ -30,13 +31,12 @@ cc_library_static {
         "libgralloctypes",
         "libhardware",
         "libcamera_metadata",
-        "android.hardware.graphics.mapper@2.0",
-        "android.hardware.graphics.mapper@3.0",
-        "android.hardware.graphics.mapper@4.0",
         "libexif",
+        "libui",
     ],
     include_dirs: ["system/media/private/camera/include"],
     export_include_dirs: ["include"],
+    export_shared_lib_headers: ["libui"],
 }
 
 // NOTE: Deprecated module kept for compatibility reasons.

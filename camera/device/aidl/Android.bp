@@ -1,4 +1,5 @@
 package {
+    default_team: "trendy_team_camera_framework",
     // See: http://go/android-license-faq
     // A large-scale-change added 'default_applicable_licenses' to import
     // all of the 'license_kinds' from "hardware_interfaces_license"
@@ -17,8 +18,8 @@ aidl_interface {
         "android.hardware.common-V2",
         "android.hardware.common.fmq-V1",
         "android.hardware.camera.common-V1",
-        "android.hardware.camera.metadata-V2",
-        "android.hardware.graphics.common-V4",
+        "android.hardware.camera.metadata-V3",
+        "android.hardware.graphics.common-V5",
     ],
     backend: {
         cpp: {
@@ -37,7 +38,7 @@ aidl_interface {
                 "android.hardware.common.fmq-V1",
                 "android.hardware.camera.common-V1",
                 "android.hardware.camera.metadata-V1",
-                "android.hardware.graphics.common-V4",
+                "android.hardware.graphics.common-V5",
             ],
         },
         {
@@ -47,7 +48,17 @@ aidl_interface {
                 "android.hardware.common.fmq-V1",
                 "android.hardware.camera.common-V1",
                 "android.hardware.camera.metadata-V2",
-                "android.hardware.graphics.common-V4",
+                "android.hardware.graphics.common-V5",
+            ],
+        },
+        {
+            version: "3",
+            imports: [
+                "android.hardware.common-V2",
+                "android.hardware.common.fmq-V1",
+                "android.hardware.camera.common-V1",
+                "android.hardware.camera.metadata-V3",
+                "android.hardware.graphics.common-V5",
             ],
         },
 

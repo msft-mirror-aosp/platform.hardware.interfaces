@@ -15,6 +15,7 @@
 //
 
 package {
+    default_team: "trendy_team_camera_framework",
     // See: http://go/android-license-faq
     // A large-scale-change added 'default_applicable_licenses' to import
     // all of the 'license_kinds' from "hardware_interfaces_license"
@@ -25,7 +26,10 @@ package {
 
 cc_library_shared {
     name: "camera.device-external-impl",
-    defaults: ["hidl_defaults"],
+    defaults: [
+        "android.hardware.graphics.common-ndk_shared",
+        "hidl_defaults",
+    ],
     proprietary: true,
     srcs: [
         "ExternalCameraDevice.cpp",
@@ -37,8 +41,7 @@ cc_library_shared {
     shared_libs: [
         "android.hardware.camera.common-V1-ndk",
         "android.hardware.camera.device-V1-ndk",
-        "android.hardware.graphics.allocator-V1-ndk",
-        "android.hardware.graphics.common-V4-ndk",
+        "android.hardware.graphics.allocator-V2-ndk",
         "android.hardware.graphics.mapper@2.0",
         "android.hardware.graphics.mapper@3.0",
         "android.hardware.graphics.mapper@4.0",
@@ -58,6 +61,7 @@ cc_library_shared {
         "libsync",
         "libtinyxml2",
         "libutils",
+        "libui",
         "libyuv",
     ],
     static_libs: [

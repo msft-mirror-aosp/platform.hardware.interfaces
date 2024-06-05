@@ -1,6 +1,5 @@
 aidl_interface {
     name: "android.hardware.threadnetwork",
-    owner: "google",
     vendor_available: true,
     srcs: [
         "android/hardware/threadnetwork/*.aidl",
@@ -16,11 +15,16 @@ aidl_interface {
             apex_available: [
                 "//apex_available:platform",
                 "com.android.tethering",
-                // Keep the threadnetwork apex to make it buildable on udc-mainline-prod.
-                // TODO: remove it after moving ot-daemon into tethering.
-                "com.android.threadnetwork",
             ],
             min_sdk_version: "30",
         },
     },
+    versions_with_info: [
+        {
+            version: "1",
+            imports: [],
+        },
+    ],
+    frozen: true,
+
 }

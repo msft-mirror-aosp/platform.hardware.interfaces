@@ -33,6 +33,7 @@
 #include <string.h>
 
 #include <android/hardware/graphics/composer/2.1/IComposer.h>
+#include <android/hardware/graphics/composer/2.1/IComposerClient.h>
 #include <fmq/MessageQueue.h>
 #include <log/log.h>
 #include <sync/sync.h>
@@ -649,7 +650,8 @@ class CommandReaderBase {
         *outLength = static_cast<uint16_t>(val & length_mask);
 
         if (mDataRead + *outLength > mDataSize) {
-            ALOGE("command 0x%x has invalid command length %" PRIu16, *outCommand, *outLength);
+            ALOGE("command %s has invalid command length %" PRIu16,
+                  toString(*outCommand).c_str(), *outLength);
             // undo the read() above
             mDataRead--;
             return false;
@@ -678,6 +680,10 @@ class CommandReaderBase {
     uint32_t getCommandLoc() const { return mCommandBegin; }
 
     uint32_t read() { return mData[mDataRead++]; }
+
+    bool isReadSizeValid(uint32_t size) const {
+        return mDataRead * sizeof(uint32_t) + size <= mDataSize;
+    }
 
     int32_t readSigned() {
         int32_t val;
@@ -760,7 +766,7 @@ class CommandReaderBase {
     std::unique_ptr<uint32_t[]> mData;
     uint32_t mDataRead;
 
-   private:
+  private:
     std::unique_ptr<CommandQueueType> mQueue;
     uint32_t mDataMaxSize;
 

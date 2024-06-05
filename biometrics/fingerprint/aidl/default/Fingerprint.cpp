@@ -17,6 +17,7 @@
 #include "Fingerprint.h"
 #include "Session.h"
 
+#include <android-base/properties.h>
 #include <fingerprint.sysprop.h>
 
 #include <android-base/file.h>
@@ -42,7 +43,7 @@ constexpr char SW_VERSION[] = "vendor/version/revision";
 }  // namespace
 
 Fingerprint::Fingerprint() : mWorker(MAX_WORKER_QUEUE_SIZE) {
-    std::string sensorTypeProp = FingerprintHalProperties::type().value_or("");
+    std::string sensorTypeProp = Fingerprint::cfg().get<std::string>("type");
     if (sensorTypeProp == "" || sensorTypeProp == "default" || sensorTypeProp == "rear") {
         mSensorType = FingerprintSensorType::REAR;
         mEngine = std::make_unique<FakeFingerprintEngineRear>();
@@ -59,6 +60,7 @@ Fingerprint::Fingerprint() : mWorker(MAX_WORKER_QUEUE_SIZE) {
                              << sensorTypeProp;
     }
     LOG(INFO) << "sensorTypeProp:" << sensorTypeProp;
+    LOG(INFO) << "ro.product.name=" << ::android::base::GetProperty("ro.product.name", "UNKNOWN");
 }
 
 ndk::ScopedAStatus Fingerprint::getSensorProps(std::vector<SensorProps>* out) {
@@ -66,15 +68,13 @@ ndk::ScopedAStatus Fingerprint::getSensorProps(std::vector<SensorProps>* out) {
             {HW_COMPONENT_ID, HW_VERSION, FW_VERSION, SERIAL_NUMBER, "" /* softwareVersion */},
             {SW_COMPONENT_ID, "" /* hardwareVersion */, "" /* firmwareVersion */,
              "" /* serialNumber */, SW_VERSION}};
-    auto sensorId = FingerprintHalProperties::sensor_id().value_or(SENSOR_ID);
-    auto sensorStrength =
-            FingerprintHalProperties::sensor_strength().value_or((int)SENSOR_STRENGTH);
-    auto maxEnrollments =
-            FingerprintHalProperties::max_enrollments().value_or(MAX_ENROLLMENTS_PER_USER);
-    auto navigationGuesture = FingerprintHalProperties::navigation_guesture().value_or(false);
-    auto detectInteraction = FingerprintHalProperties::detect_interaction().value_or(false);
-    auto displayTouch = FingerprintHalProperties::display_touch().value_or(true);
-    auto controlIllumination = FingerprintHalProperties::control_illumination().value_or(false);
+    auto sensorId = Fingerprint::cfg().get<std::int32_t>("sensor_id");
+    auto sensorStrength = Fingerprint::cfg().get<std::int32_t>("sensor_strength");
+    auto maxEnrollments = Fingerprint::cfg().get<std::int32_t>("max_enrollments");
+    auto navigationGuesture = Fingerprint::cfg().get<bool>("navigation_guesture");
+    auto detectInteraction = Fingerprint::cfg().get<bool>("detect_interaction");
+    auto displayTouch = Fingerprint::cfg().get<bool>("display_touch");
+    auto controlIllumination = Fingerprint::cfg().get<bool>("control_illumination");
 
     common::CommonProps commonProps = {sensorId, (common::SensorStrength)sensorStrength,
                                        maxEnrollments, componentInfo};
@@ -105,16 +105,16 @@ ndk::ScopedAStatus Fingerprint::createSession(int32_t sensorId, int32_t userId,
 
     mSession->linkToDeath(cb->asBinder().get());
 
-    LOG(INFO) << "createSession: sensorId:" << sensorId << " userId:" << userId;
+    LOG(INFO) << __func__ << ": sensorId:" << sensorId << " userId:" << userId;
     return ndk::ScopedAStatus::ok();
 }
 
 binder_status_t Fingerprint::dump(int fd, const char** /*args*/, uint32_t numArgs) {
     if (fd < 0) {
-        LOG(ERROR) << "Fingerprint::dump fd invalid: " << fd;
+        LOG(ERROR) << __func__ << "fd invalid: " << fd;
         return STATUS_BAD_VALUE;
     } else {
-        LOG(INFO) << "Fingerprint::dump fd:" << fd << "numArgs:" << numArgs;
+        LOG(INFO) << __func__ << " fd:" << fd << "numArgs:" << numArgs;
     }
 
     dprintf(fd, "----- FingerprintVirtualHal::dump -----\n");
@@ -125,17 +125,19 @@ binder_status_t Fingerprint::dump(int fd, const char** /*args*/, uint32_t numArg
     }
     ::android::base::WriteStringToFd(mEngine->toString(), fd);
 
+    ::android::base::WriteStringToFd(Fingerprint::cfg().toString(), fd);
+
     fsync(fd);
     return STATUS_OK;
 }
 
 binder_status_t Fingerprint::handleShellCommand(int in, int out, int err, const char** args,
                                                 uint32_t numArgs) {
-    LOG(INFO) << "Fingerprint::handleShellCommand in:" << in << " out:" << out << " err:" << err
+    LOG(INFO) << __func__ << " in:" << in << " out:" << out << " err:" << err
               << " numArgs:" << numArgs;
 
     if (numArgs == 0) {
-        LOG(INFO) << "Fingerprint::handleShellCommand: available commands";
+        LOG(INFO) << __func__ << ": available commands";
         onHelp(out);
         return STATUS_OK;
     }
@@ -163,7 +165,15 @@ void Fingerprint::onHelp(int fd) {
 }
 
 void Fingerprint::resetConfigToDefault() {
-    LOG(INFO) << "reset virtual HAL configuration to default";
+    LOG(INFO) << __func__ << ": reset virtual HAL configuration to default";
+    Fingerprint::cfg().init();
+#ifdef FPS_DEBUGGABLE
+    clearConfigSysprop();
+#endif
+}
+
+void Fingerprint::clearConfigSysprop() {
+    LOG(INFO) << __func__ << ": clear all sysprop configuration";
 #define RESET_CONFIG_O(__NAME__) \
     if (FingerprintHalProperties::__NAME__()) FingerprintHalProperties::__NAME__(std::nullopt)
 #define RESET_CONFIG_V(__NAME__)                       \
@@ -199,6 +209,21 @@ void Fingerprint::resetConfigToDefault() {
     RESET_CONFIG_O(lockout_timed_threshold);
     RESET_CONFIG_O(lockout_timed_duration);
     RESET_CONFIG_O(lockout_permanent_threshold);
+}
+
+const char* Fingerprint::type2String(FingerprintSensorType type) {
+    switch (type) {
+        case FingerprintSensorType::REAR:
+            return "rear";
+        case FingerprintSensorType::POWER_BUTTON:
+            return "side";
+        case FingerprintSensorType::UNDER_DISPLAY_OPTICAL:
+            return "udfps";
+        case FingerprintSensorType::UNDER_DISPLAY_ULTRASONIC:
+            return "udfps";
+        default:
+            return "unknown";
+    }
 }
 
 }  // namespace aidl::android::hardware::biometrics::fingerprint

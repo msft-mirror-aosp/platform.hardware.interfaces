@@ -18,7 +18,6 @@
 #include <string>
 #include <unordered_set>
 
-#include <aidl/Vintf.h>
 #define LOG_TAG "VtsHalDynamicsProcessingTest"
 #include <android-base/logging.h>
 
@@ -36,6 +35,7 @@ using aidl::android::hardware::audio::effect::getEffectTypeUuidDynamicsProcessin
 using aidl::android::hardware::audio::effect::IEffect;
 using aidl::android::hardware::audio::effect::IFactory;
 using aidl::android::hardware::audio::effect::Parameter;
+using android::hardware::audio::common::testing::detail::TestExecutionTracer;
 
 /**
  * Here we focus on specific parameter checking, general IEffect interfaces testing performed in
@@ -57,7 +57,7 @@ class DynamicsProcessingTestHelper : public EffectHelper {
         ASSERT_NO_FATAL_FAILURE(create(mFactory, mEffect, mDescriptor));
 
         Parameter::Specific specific = getDefaultParamSpecific();
-        Parameter::Common common = EffectHelper::createParamCommon(
+        Parameter::Common common = createParamCommon(
                 0 /* session */, 1 /* ioHandle */, 44100 /* iSampleRate */, 44100 /* oSampleRate */,
                 0x100 /* iFrameCount */, 0x100 /* oFrameCount */,
                 AudioChannelLayout::make<AudioChannelLayout::layoutMask>(mChannelLayout),
@@ -195,48 +195,42 @@ const std::set<std::vector<DynamicsProcessing::InputGain>>
 
 template <typename T>
 bool DynamicsProcessingTestHelper::isBandConfigValid(const std::vector<T>& cfgs, int bandCount) {
-    std::vector<float> freqs(cfgs.size(), -1);
+    std::unordered_set<int> freqs;
     for (auto cfg : cfgs) {
         if (cfg.channel < 0 || cfg.channel >= mChannelCount) return false;
         if (cfg.band < 0 || cfg.band >= bandCount) return false;
-        freqs[cfg.band] = cfg.cutoffFrequencyHz;
+        // duplicated band index
+        if (freqs.find(cfg.band) != freqs.end()) return false;
+        freqs.insert(cfg.band);
     }
-    if (std::count(freqs.begin(), freqs.end(), -1)) return false;
-    return std::is_sorted(freqs.begin(), freqs.end());
+    return true;
 }
 
 bool DynamicsProcessingTestHelper::isParamValid(const DynamicsProcessing::Tag& tag,
                                                 const DynamicsProcessing& dp) {
     switch (tag) {
         case DynamicsProcessing::preEq: {
-            if (!mEngineConfigApplied.preEqStage.inUse) return false;
             return isChannelConfigValid(dp.get<DynamicsProcessing::preEq>());
         }
         case DynamicsProcessing::postEq: {
-            if (!mEngineConfigApplied.postEqStage.inUse) return false;
             return isChannelConfigValid(dp.get<DynamicsProcessing::postEq>());
         }
         case DynamicsProcessing::mbc: {
-            if (!mEngineConfigApplied.mbcStage.inUse) return false;
             return isChannelConfigValid(dp.get<DynamicsProcessing::mbc>());
         }
         case DynamicsProcessing::preEqBand: {
-            if (!mEngineConfigApplied.preEqStage.inUse) return false;
             return isBandConfigValid(dp.get<DynamicsProcessing::preEqBand>(),
                                      mEngineConfigApplied.preEqStage.bandCount);
         }
         case DynamicsProcessing::postEqBand: {
-            if (!mEngineConfigApplied.postEqStage.inUse) return false;
             return isBandConfigValid(dp.get<DynamicsProcessing::postEqBand>(),
                                      mEngineConfigApplied.postEqStage.bandCount);
         }
         case DynamicsProcessing::mbcBand: {
-            if (!mEngineConfigApplied.mbcStage.inUse) return false;
             return isBandConfigValid(dp.get<DynamicsProcessing::mbcBand>(),
                                      mEngineConfigApplied.mbcStage.bandCount);
         }
         case DynamicsProcessing::limiter: {
-            if (!mEngineConfigApplied.limiterInUse) return false;
             return isChannelConfigValid(dp.get<DynamicsProcessing::limiter>());
         }
         case DynamicsProcessing::inputGain: {
@@ -459,12 +453,11 @@ enum EngineArchitectureTestParamName {
     ENGINE_TEST_INSTANCE_NAME,
     ENGINE_TEST_RESOLUTION_PREFERENCE,
     ENGINE_TEST_PREFERRED_DURATION,
-    ENGINE_TEST_STAGE_ENABLEMENT,
-    ENGINE_TEST_LIMITER_IN_USE
+    ENGINE_TEST_STAGE_ENABLEMENT
 };
 using EngineArchitectureTestParams = std::tuple<std::pair<std::shared_ptr<IFactory>, Descriptor>,
                                                 DynamicsProcessing::ResolutionPreference, float,
-                                                DynamicsProcessing::StageEnablement, bool>;
+                                                DynamicsProcessing::StageEnablement>;
 
 void fillEngineArchConfig(DynamicsProcessing::EngineArchitecture& cfg,
                           const EngineArchitectureTestParams& params) {
@@ -472,7 +465,7 @@ void fillEngineArchConfig(DynamicsProcessing::EngineArchitecture& cfg,
     cfg.preferredProcessingDurationMs = std::get<ENGINE_TEST_PREFERRED_DURATION>(params);
     cfg.preEqStage = cfg.postEqStage = cfg.mbcStage =
             std::get<ENGINE_TEST_STAGE_ENABLEMENT>(params);
-    cfg.limiterInUse = std::get<ENGINE_TEST_LIMITER_IN_USE>(params);
+    cfg.limiterInUse = true;
 }
 
 class DynamicsProcessingTestEngineArchitecture
@@ -507,15 +500,13 @@ INSTANTIATE_TEST_SUITE_P(
                         static_cast<DynamicsProcessing::ResolutionPreference>(-1)),  // variant
                 testing::Values(-10.f, 0.f, 10.f),  // processing duration
                 testing::ValuesIn(
-                        DynamicsProcessingTestHelper::kStageEnablementTestSet),  // preEQ/postEQ/mbc
-                testing::Bool()),                                                // limiter enable
+                        DynamicsProcessingTestHelper::kStageEnablementTestSet)  // preEQ/postEQ/mbc
+                ),
         [](const auto& info) {
             auto descriptor = std::get<ENGINE_TEST_INSTANCE_NAME>(info.param).second;
             DynamicsProcessing::EngineArchitecture cfg;
             fillEngineArchConfig(cfg, info.param);
-            std::string name = "Implementor_" + descriptor.common.implementor + "_name_" +
-                               descriptor.common.name + "_UUID_" +
-                               descriptor.common.id.uuid.toString() + "_Cfg_" + cfg.toString();
+            std::string name = getPrefix(descriptor) + "_Cfg_" + cfg.toString();
             std::replace_if(
                     name.begin(), name.end(), [](const char c) { return !std::isalnum(c); }, '_');
             return name;
@@ -561,7 +552,7 @@ INSTANTIATE_TEST_SUITE_P(
                     ::android::internal::ToString(std::get<INPUT_GAIN_PARAM>(info.param));
             std::string name = "Implementor_" + descriptor.common.implementor + "_name_" +
                                descriptor.common.name + "_UUID_" +
-                               descriptor.common.id.uuid.toString() + "_inputGains_" + gains;
+                               toString(descriptor.common.id.uuid) + "_inputGains_" + gains;
             std::replace_if(
                     name.begin(), name.end(), [](const char c) { return !std::isalnum(c); }, '_');
             return name;
@@ -576,7 +567,6 @@ enum LimiterConfigTestParamName {
     LIMITER_CHANNEL,
     LIMITER_ENABLE,
     LIMITER_LINK_GROUP,
-    LIMITER_ENGINE_IN_USE,
     LIMITER_ADDITIONAL,
 };
 enum LimiterConfigTestAdditionalParam {
@@ -595,9 +585,8 @@ static constexpr std::array<LimiterConfigTestAdditional, 4> kLimiterConfigTestAd
          {1, -60, 2.5, -2, 3.14},
          {1, 60, 2.5, -2, 3.14}}};
 
-using LimiterConfigTestParams =
-        std::tuple<std::pair<std::shared_ptr<IFactory>, Descriptor>, int32_t, bool, int32_t, bool,
-                   LimiterConfigTestAdditional>;
+using LimiterConfigTestParams = std::tuple<std::pair<std::shared_ptr<IFactory>, Descriptor>,
+                                           int32_t, bool, int32_t, LimiterConfigTestAdditional>;
 
 void fillLimiterConfig(DynamicsProcessing::LimiterConfig& cfg,
                        const LimiterConfigTestParams& params) {
@@ -617,8 +606,7 @@ class DynamicsProcessingTestLimiterConfig
       public DynamicsProcessingTestHelper {
   public:
     DynamicsProcessingTestLimiterConfig()
-        : DynamicsProcessingTestHelper(std::get<LIMITER_INSTANCE_NAME>(GetParam())),
-          mLimiterInUseEngine(std::get<LIMITER_ENGINE_IN_USE>(GetParam())) {
+        : DynamicsProcessingTestHelper(std::get<LIMITER_INSTANCE_NAME>(GetParam())) {
         fillLimiterConfig(mCfg, GetParam());
     }
 
@@ -627,11 +615,9 @@ class DynamicsProcessingTestLimiterConfig
     void TearDown() override { TearDownDynamicsProcessingEffect(); }
 
     DynamicsProcessing::LimiterConfig mCfg;
-    bool mLimiterInUseEngine;
 };
 
 TEST_P(DynamicsProcessingTestLimiterConfig, SetAndGetLimiterConfig) {
-    mEngineConfigPreset.limiterInUse = mLimiterInUseEngine;
     EXPECT_NO_FATAL_FAILURE(addEngineConfig(mEngineConfigPreset));
     EXPECT_NO_FATAL_FAILURE(addLimiterConfig({mCfg}));
     SetAndGetDynamicsProcessingParameters();
@@ -641,21 +627,18 @@ INSTANTIATE_TEST_SUITE_P(
         DynamicsProcessingTest, DynamicsProcessingTestLimiterConfig,
         ::testing::Combine(testing::ValuesIn(EffectFactoryHelper::getAllEffectDescriptors(
                                    IFactory::descriptor, getEffectTypeUuidDynamicsProcessing())),
-                           testing::Values(-1, 0, 1, 2),  // channel count
-                           testing::Bool(),               // enable
-                           testing::Values(3),            // link group
-                           testing::Bool(),               // engine limiter enable
+                           testing::Values(-1, 0, 1, 2),                           // channel count
+                           testing::Bool(),                                        // enable
+                           testing::Values(3),                                     // link group
                            testing::ValuesIn(kLimiterConfigTestAdditionalParam)),  // Additional
         [](const auto& info) {
             auto descriptor = std::get<LIMITER_INSTANCE_NAME>(info.param).second;
             DynamicsProcessing::LimiterConfig cfg;
             fillLimiterConfig(cfg, info.param);
-            std::string engineLimiterInUse =
-                    std::to_string(std::get<LIMITER_ENGINE_IN_USE>(info.param));
             std::string name = "Implementor_" + descriptor.common.implementor + "_name_" +
                                descriptor.common.name + "_UUID_" +
-                               descriptor.common.id.uuid.toString() + "_limiterConfig_" +
-                               cfg.toString() + "_engineSetting_" + engineLimiterInUse;
+                               toString(descriptor.common.id.uuid) + "_limiterConfig_" +
+                               cfg.toString();
             std::replace_if(
                     name.begin(), name.end(), [](const char c) { return !std::isalnum(c); }, '_');
             return name;
@@ -667,11 +650,10 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(DynamicsProcessingTestLimiterConfi
  */
 enum ChannelConfigTestParamName {
     BAND_CHANNEL_TEST_INSTANCE_NAME,
-    BAND_CHANNEL_TEST_CHANNEL_CONFIG,
-    BAND_CHANNEL_TEST_ENGINE_IN_USE
+    BAND_CHANNEL_TEST_CHANNEL_CONFIG
 };
 using ChannelConfigTestParams = std::tuple<std::pair<std::shared_ptr<IFactory>, Descriptor>,
-                                           std::vector<DynamicsProcessing::ChannelConfig>, bool>;
+                                           std::vector<DynamicsProcessing::ChannelConfig>>;
 
 class DynamicsProcessingTestChannelConfig
     : public ::testing::TestWithParam<ChannelConfigTestParams>,
@@ -679,33 +661,28 @@ class DynamicsProcessingTestChannelConfig
   public:
     DynamicsProcessingTestChannelConfig()
         : DynamicsProcessingTestHelper(std::get<BAND_CHANNEL_TEST_INSTANCE_NAME>(GetParam())),
-          mCfg(std::get<BAND_CHANNEL_TEST_CHANNEL_CONFIG>(GetParam())),
-          mInUseEngine(std::get<BAND_CHANNEL_TEST_ENGINE_IN_USE>(GetParam())) {}
+          mCfg(std::get<BAND_CHANNEL_TEST_CHANNEL_CONFIG>(GetParam())) {}
 
     void SetUp() override { SetUpDynamicsProcessingEffect(); }
 
     void TearDown() override { TearDownDynamicsProcessingEffect(); }
 
     std::vector<DynamicsProcessing::ChannelConfig> mCfg;
-    const bool mInUseEngine;
 };
 
 TEST_P(DynamicsProcessingTestChannelConfig, SetAndGetPreEqChannelConfig) {
-    mEngineConfigPreset.preEqStage.inUse = mInUseEngine;
     EXPECT_NO_FATAL_FAILURE(addEngineConfig(mEngineConfigPreset));
     EXPECT_NO_FATAL_FAILURE(addPreEqChannelConfig(mCfg));
     SetAndGetDynamicsProcessingParameters();
 }
 
 TEST_P(DynamicsProcessingTestChannelConfig, SetAndGetPostEqChannelConfig) {
-    mEngineConfigPreset.postEqStage.inUse = mInUseEngine;
     EXPECT_NO_FATAL_FAILURE(addEngineConfig(mEngineConfigPreset));
     EXPECT_NO_FATAL_FAILURE(addPostEqChannelConfig(mCfg));
     SetAndGetDynamicsProcessingParameters();
 }
 
 TEST_P(DynamicsProcessingTestChannelConfig, SetAndGetMbcChannelConfig) {
-    mEngineConfigPreset.mbcStage.inUse = mInUseEngine;
     EXPECT_NO_FATAL_FAILURE(addEngineConfig(mEngineConfigPreset));
     EXPECT_NO_FATAL_FAILURE(addMbcChannelConfig(mCfg));
     SetAndGetDynamicsProcessingParameters();
@@ -717,19 +694,15 @@ INSTANTIATE_TEST_SUITE_P(
                 testing::ValuesIn(EffectFactoryHelper::getAllEffectDescriptors(
                         IFactory::descriptor, getEffectTypeUuidDynamicsProcessing())),
                 testing::ValuesIn(
-                        DynamicsProcessingTestHelper::kChannelConfigTestSet),  // channel config
-                testing::Bool()),                                              // Engine inUse
+                        DynamicsProcessingTestHelper::kChannelConfigTestSet)),  // channel config
         [](const auto& info) {
             auto descriptor = std::get<BAND_CHANNEL_TEST_INSTANCE_NAME>(info.param).second;
-            std::string engineInUse =
-                    std::to_string(std::get<BAND_CHANNEL_TEST_ENGINE_IN_USE>(info.param));
             std::string channelConfig = ::android::internal::ToString(
                     std::get<BAND_CHANNEL_TEST_CHANNEL_CONFIG>(info.param));
 
             std::string name = "Implementor_" + descriptor.common.implementor + "_name_" +
                                descriptor.common.name + "_UUID_" +
-                               descriptor.common.id.uuid.toString() + "_" + channelConfig +
-                               "_engineInUse_" + engineInUse;
+                               toString(descriptor.common.id.uuid) + "_" + channelConfig;
             std::replace_if(
                     name.begin(), name.end(), [](const char c) { return !std::isalnum(c); }, '_');
             return name;
@@ -744,11 +717,10 @@ enum EqBandConfigTestParamName {
     EQ_BAND_CHANNEL,
     EQ_BAND_ENABLE,
     EQ_BAND_CUT_OFF_FREQ,
-    EQ_BAND_GAIN,
-    EQ_BAND_STAGE_IN_USE
+    EQ_BAND_GAIN
 };
 using EqBandConfigTestParams = std::tuple<std::pair<std::shared_ptr<IFactory>, Descriptor>, int32_t,
-                                          bool, std::vector<std::pair<int, float>>, float, bool>;
+                                          bool, std::vector<std::pair<int, float>>, float>;
 
 void fillEqBandConfig(std::vector<DynamicsProcessing::EqBandConfig>& cfgs,
                       const EqBandConfigTestParams& params) {
@@ -768,8 +740,7 @@ class DynamicsProcessingTestEqBandConfig : public ::testing::TestWithParam<EqBan
                                            public DynamicsProcessingTestHelper {
   public:
     DynamicsProcessingTestEqBandConfig()
-        : DynamicsProcessingTestHelper(std::get<EQ_BAND_INSTANCE_NAME>(GetParam())),
-          mStageInUse(std::get<EQ_BAND_STAGE_IN_USE>(GetParam())) {
+        : DynamicsProcessingTestHelper(std::get<EQ_BAND_INSTANCE_NAME>(GetParam())) {
         fillEqBandConfig(mCfgs, GetParam());
     }
 
@@ -778,11 +749,9 @@ class DynamicsProcessingTestEqBandConfig : public ::testing::TestWithParam<EqBan
     void TearDown() override { TearDownDynamicsProcessingEffect(); }
 
     std::vector<DynamicsProcessing::EqBandConfig> mCfgs;
-    const bool mStageInUse;
 };
 
 TEST_P(DynamicsProcessingTestEqBandConfig, SetAndGetPreEqBandConfig) {
-    mEngineConfigPreset.preEqStage.inUse = mStageInUse;
     mEngineConfigPreset.preEqStage.bandCount = mCfgs.size();
     EXPECT_NO_FATAL_FAILURE(addEngineConfig(mEngineConfigPreset));
     std::vector<DynamicsProcessing::ChannelConfig> cfgs(mChannelCount);
@@ -796,7 +765,6 @@ TEST_P(DynamicsProcessingTestEqBandConfig, SetAndGetPreEqBandConfig) {
 }
 
 TEST_P(DynamicsProcessingTestEqBandConfig, SetAndGetPostEqBandConfig) {
-    mEngineConfigPreset.postEqStage.inUse = mStageInUse;
     mEngineConfigPreset.postEqStage.bandCount = mCfgs.size();
     EXPECT_NO_FATAL_FAILURE(addEngineConfig(mEngineConfigPreset));
     std::vector<DynamicsProcessing::ChannelConfig> cfgs(mChannelCount);
@@ -857,21 +825,19 @@ INSTANTIATE_TEST_SUITE_P(
         DynamicsProcessingTest, DynamicsProcessingTestEqBandConfig,
         ::testing::Combine(testing::ValuesIn(EffectFactoryHelper::getAllEffectDescriptors(
                                    IFactory::descriptor, getEffectTypeUuidDynamicsProcessing())),
-                           testing::Values(-1, 0, 10),      // channel ID
-                           testing::Bool(),                 // band enable
-                           testing::ValuesIn(kBands),       // cut off frequencies
-                           testing::Values(-3.14f, 3.14f),  // gain
-                           testing::Values(true)),          // stage in use
+                           testing::Values(-1, 0, 10),     // channel ID
+                           testing::Bool(),                // band enable
+                           testing::ValuesIn(kBands),      // cut off frequencies
+                           testing::Values(-3.14f, 3.14f)  // gain
+                           ),
         [](const auto& info) {
             auto descriptor = std::get<EQ_BAND_INSTANCE_NAME>(info.param).second;
             std::vector<DynamicsProcessing::EqBandConfig> cfgs;
             fillEqBandConfig(cfgs, info.param);
             std::string bands = ::android::internal::ToString(cfgs);
-            std::string stageInUse = std::to_string(std::get<EQ_BAND_STAGE_IN_USE>(info.param));
             std::string name = "Implementor_" + descriptor.common.implementor + "_name_" +
                                descriptor.common.name + "_UUID_" +
-                               descriptor.common.id.uuid.toString() + "_bands_" + bands +
-                               "_stageInUse_" + stageInUse;
+                               toString(descriptor.common.id.uuid) + "_bands_" + bands;
             std::replace_if(
                     name.begin(), name.end(), [](const char c) { return !std::isalnum(c); }, '_');
             return name;
@@ -887,7 +853,6 @@ enum MbcBandConfigParamName {
     MBC_BAND_CHANNEL,
     MBC_BAND_ENABLE,
     MBC_BAND_CUTOFF_FREQ,
-    MBC_BAND_STAGE_IN_USE,
     MBC_BAND_ADDITIONAL
 };
 enum MbcBandConfigAdditional {
@@ -913,7 +878,7 @@ static constexpr std::array<TestParamsMbcBandConfigAdditional, 4> kMbcBandConfig
 
 using TestParamsMbcBandConfig =
         std::tuple<std::pair<std::shared_ptr<IFactory>, Descriptor>, int32_t, bool,
-                   std::vector<std::pair<int, float>>, bool, TestParamsMbcBandConfigAdditional>;
+                   std::vector<std::pair<int, float>>, TestParamsMbcBandConfigAdditional>;
 
 void fillMbcBandConfig(std::vector<DynamicsProcessing::MbcBandConfig>& cfgs,
                        const TestParamsMbcBandConfig& params) {
@@ -944,8 +909,7 @@ class DynamicsProcessingTestMbcBandConfig
       public DynamicsProcessingTestHelper {
   public:
     DynamicsProcessingTestMbcBandConfig()
-        : DynamicsProcessingTestHelper(std::get<MBC_BAND_INSTANCE_NAME>(GetParam())),
-          mStageInUse(std::get<MBC_BAND_STAGE_IN_USE>(GetParam())) {
+        : DynamicsProcessingTestHelper(std::get<MBC_BAND_INSTANCE_NAME>(GetParam())) {
         fillMbcBandConfig(mCfgs, GetParam());
     }
 
@@ -954,11 +918,9 @@ class DynamicsProcessingTestMbcBandConfig
     void TearDown() override { TearDownDynamicsProcessingEffect(); }
 
     std::vector<DynamicsProcessing::MbcBandConfig> mCfgs;
-    const bool mStageInUse;
 };
 
 TEST_P(DynamicsProcessingTestMbcBandConfig, SetAndGetMbcBandConfig) {
-    mEngineConfigPreset.mbcStage.inUse = mStageInUse;
     mEngineConfigPreset.mbcStage.bandCount = mCfgs.size();
     EXPECT_NO_FATAL_FAILURE(addEngineConfig(mEngineConfigPreset));
     std::vector<DynamicsProcessing::ChannelConfig> cfgs(mChannelCount);
@@ -978,18 +940,15 @@ INSTANTIATE_TEST_SUITE_P(
                            testing::Values(-1, 0, 10),  // channel count
                            testing::Bool(),             // enable
                            testing::ValuesIn(kBands),   // cut off frequencies
-                           testing::Bool(),             // stage in use
                            testing::ValuesIn(kMbcBandConfigAdditionalParam)),  // Additional
         [](const auto& info) {
             auto descriptor = std::get<MBC_BAND_INSTANCE_NAME>(info.param).second;
             std::vector<DynamicsProcessing::MbcBandConfig> cfgs;
             fillMbcBandConfig(cfgs, info.param);
             std::string mbcBands = ::android::internal::ToString(cfgs);
-            std::string stageInUse = std::to_string(std::get<MBC_BAND_STAGE_IN_USE>(info.param));
             std::string name = "Implementor_" + descriptor.common.implementor + "_name_" +
                                descriptor.common.name + "_UUID_" +
-                               descriptor.common.id.uuid.toString() + "_bands_" + mbcBands +
-                               "_stageInUse_" + stageInUse;
+                               toString(descriptor.common.id.uuid) + "_bands_" + mbcBands;
             std::replace_if(
                     name.begin(), name.end(), [](const char c) { return !std::isalnum(c); }, '_');
             return name;
@@ -998,6 +957,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(DynamicsProcessingTestMbcBandConfi
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
+    ::testing::UnitTest::GetInstance()->listeners().Append(new TestExecutionTracer());
     ABinderProcess_setThreadPoolMaxThreadCount(1);
     ABinderProcess_startThreadPool();
     return RUN_ALL_TESTS();

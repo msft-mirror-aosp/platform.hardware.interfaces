@@ -11,10 +11,8 @@ aidl_interface {
     name: "android.hardware.common.fmq",
     host_supported: true,
     vendor_available: true,
-    vndk: {
-        enabled: true,
-        support_system_process: true,
-    },
+    product_available: true,
+    double_loadable: true,
     srcs: [
         "android/hardware/common/fmq/*.aidl",
     ],
@@ -43,8 +41,9 @@ aidl_interface {
             min_sdk_version: "29",
         },
         rust: {
-            // FMQ is not supported in the rust backend
-            enabled: false,
+            // FMQ is not supported in the rust backend, but we need this AIDL interface for
+            // HardwareBuffer.
+            enabled: true,
         },
     },
     frozen: true,

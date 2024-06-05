@@ -20,7 +20,30 @@ package {
     // all of the 'license_kinds' from "hardware_interfaces_license"
     // to get the below license kinds:
     //   SPDX-license-identifier-Apache-2.0
+    default_team: "trendy_team_aaos_framework",
     default_applicable_licenses: ["hardware_interfaces_license"],
+}
+
+cc_defaults {
+    name: "BroadcastRadioHalDefaults",
+    defaults: [
+        "latest_android_hardware_broadcastradio_ndk_static",
+    ],
+    static_libs: [
+        "android.hardware.broadcastradio@common-utils-aidl-lib-latest",
+        "android.hardware.broadcastradio@common-utils-lib",
+    ],
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+        "liblog",
+        "libcutils",
+    ],
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+    ],
 }
 
 cc_binary {
@@ -29,26 +52,49 @@ cc_binary {
     init_rc: ["broadcastradio-default.rc"],
     vintf_fragments: ["broadcastradio-default.xml"],
     vendor: true,
-    cflags: [
-        "-Wall",
-        "-Wextra",
-        "-Werror",
+    defaults: [
+        "BroadcastRadioHalDefaults",
+    ],
+    srcs: [
+        "main.cpp",
+    ],
+    static_libs: [
+        "DefaultBroadcastRadioHal",
+    ],
+}
+
+cc_library {
+    name: "DefaultBroadcastRadioHal",
+    vendor_available: true,
+    export_include_dirs: ["."],
+    defaults: [
+        "BroadcastRadioHalDefaults",
     ],
     srcs: [
         "BroadcastRadio.cpp",
-        "main.cpp",
         "VirtualProgram.cpp",
         "VirtualRadio.cpp",
     ],
+}
+
+cc_fuzz {
+    name: "android.hardware.broadcastradio-service.default_fuzzer",
+    // TODO(b/307611931): avoid fuzzing on vendor until hermiticity issue is fixed
+    // vendor: true,
+    defaults: [
+        "latest_android_hardware_broadcastradio_ndk_static",
+        "BroadcastRadioHalDefaults",
+        "service_fuzzer_defaults",
+    ],
     static_libs: [
-        "android.hardware.broadcastradio@common-utils-aidl-lib",
-        "android.hardware.broadcastradio@common-utils-lib",
+        "DefaultBroadcastRadioHal",
     ],
-    shared_libs: [
-        "android.hardware.broadcastradio-V1-ndk",
-        "libbase",
-        "libbinder_ndk",
-        "liblog",
-        "libcutils",
+    srcs: [
+        "fuzzer.cpp",
     ],
+    fuzz_config: {
+        cc: [
+            "xuweilin@google.com",
+        ],
+    },
 }

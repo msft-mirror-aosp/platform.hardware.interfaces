@@ -16,10 +16,10 @@
 
 #define LOG_TAG "keymint_1_attest_key_test"
 #include <android-base/logging.h>
-#include <android-base/strings.h>
 #include <cutils/log.h>
 #include <cutils/properties.h>
 
+#include <keymint_support/authorization_set.h>
 #include <keymint_support/key_param_output.h>
 #include <keymint_support/openssl_utils.h>
 
@@ -28,65 +28,10 @@
 namespace aidl::android::hardware::security::keymint::test {
 
 namespace {
-string TELEPHONY_CMD_GET_IMEI = "cmd phone get-imei ";
 
 bool IsSelfSigned(const vector<Certificate>& chain) {
     if (chain.size() != 1) return false;
     return ChainSignaturesAreValid(chain);
-}
-
-/*
- * Run a shell command and collect the output of it. If any error, set an empty string as the
- * output.
- */
-string exec_command(string command) {
-    char buffer[128];
-    string result = "";
-
-    FILE* pipe = popen(command.c_str(), "r");
-    if (!pipe) {
-        LOG(ERROR) << "popen failed.";
-        return result;
-    }
-
-    // read till end of process:
-    while (!feof(pipe)) {
-        if (fgets(buffer, 128, pipe) != NULL) {
-            result += buffer;
-        }
-    }
-
-    pclose(pipe);
-    return result;
-}
-
-/*
- * Get IMEI using Telephony service shell command. If any error while executing the command
- * then empty string will be returned as output.
- */
-string get_imei(int slot) {
-    string cmd = TELEPHONY_CMD_GET_IMEI + std::to_string(slot);
-    string output = exec_command(cmd);
-
-    if (output.empty()) {
-        LOG(ERROR) << "Command failed. Cmd: " << cmd;
-        return "";
-    }
-
-    vector<string> out = ::android::base::Tokenize(::android::base::Trim(output), "Device IMEI:");
-
-    if (out.size() != 1) {
-        LOG(ERROR) << "Error in parsing the command output. Cmd: " << cmd;
-        return "";
-    }
-
-    string imei = ::android::base::Trim(out[0]);
-    if (imei.compare("null") == 0) {
-        LOG(ERROR) << "Error in getting IMEI from Telephony service: value is null. Cmd: " << cmd;
-        return "";
-    }
-
-    return imei;
 }
 
 }  // namespace
@@ -94,7 +39,7 @@ string get_imei(int slot) {
 class AttestKeyTest : public KeyMintAidlTestBase {
   public:
     void SetUp() override {
-        skipAttestKeyTest();
+        skipAttestKeyTestIfNeeded();
         KeyMintAidlTestBase::SetUp();
     }
 };
@@ -120,6 +65,7 @@ TEST_P(AttestKeyTest, AllRsaSizes) {
                                             .SetDefaultValidity(),
                                     {} /* attestation signing key */, &attest_key.keyBlob,
                                     &attest_key_characteristics, &attest_key_cert_chain));
+        KeyBlobDeleter attest_deleter(keymint_, attest_key.keyBlob);
 
         ASSERT_GT(attest_key_cert_chain.size(), 0);
         EXPECT_EQ(attest_key_cert_chain.size(), 1);
@@ -132,7 +78,7 @@ TEST_P(AttestKeyTest, AllRsaSizes) {
         vector<uint8_t> attested_key_blob;
         vector<KeyCharacteristics> attested_key_characteristics;
         vector<Certificate> attested_key_cert_chain;
-        EXPECT_EQ(ErrorCode::OK,
+        ASSERT_EQ(ErrorCode::OK,
                   GenerateKey(AuthorizationSetBuilder()
                                       .RsaSigningKey(2048, 65537)
                                       .Authorization(TAG_NO_AUTH_REQUIRED)
@@ -141,12 +87,13 @@ TEST_P(AttestKeyTest, AllRsaSizes) {
                                       .SetDefaultValidity(),
                               attest_key, &attested_key_blob, &attested_key_characteristics,
                               &attested_key_cert_chain));
+        KeyBlobDeleter attested_deleter(keymint_, attested_key_blob);
 
-        CheckedDeleteKey(&attested_key_blob);
+        ASSERT_GT(attested_key_cert_chain.size(), 0);
 
         AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
         AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
-        EXPECT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced, hw_enforced,
+        ASSERT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced, hw_enforced,
                                               SecLevel(),
                                               attested_key_cert_chain[0].encodedCertificate));
 
@@ -163,7 +110,7 @@ TEST_P(AttestKeyTest, AllRsaSizes) {
          */
         attested_key_characteristics.resize(0);
         attested_key_cert_chain.resize(0);
-        EXPECT_EQ(ErrorCode::OK,
+        ASSERT_EQ(ErrorCode::OK,
                   GenerateKey(AuthorizationSetBuilder()
                                       .RsaEncryptionKey(2048, 65537)
                                       .Digest(Digest::NONE)
@@ -174,12 +121,13 @@ TEST_P(AttestKeyTest, AllRsaSizes) {
                                       .SetDefaultValidity(),
                               attest_key, &attested_key_blob, &attested_key_characteristics,
                               &attested_key_cert_chain));
+        KeyBlobDeleter attested_deleter2(keymint_, attested_key_blob);
 
-        CheckedDeleteKey(&attested_key_blob);
+        ASSERT_GT(attested_key_cert_chain.size(), 0);
 
         hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
         sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
-        EXPECT_TRUE(verify_attestation_record(AidlVersion(), "foo2", "bar2", sw_enforced,
+        ASSERT_TRUE(verify_attestation_record(AidlVersion(), "foo2", "bar2", sw_enforced,
                                               hw_enforced, SecLevel(),
                                               attested_key_cert_chain[0].encodedCertificate));
 
@@ -197,7 +145,7 @@ TEST_P(AttestKeyTest, AllRsaSizes) {
         attested_key_characteristics.resize(0);
         attested_key_cert_chain.resize(0);
         uint64_t timestamp = 1619621648000;
-        EXPECT_EQ(ErrorCode::OK,
+        ASSERT_EQ(ErrorCode::OK,
                   GenerateKey(AuthorizationSetBuilder()
                                       .EcdsaSigningKey(EcCurve::P_256)
                                       .Authorization(TAG_NO_AUTH_REQUIRED)
@@ -207,15 +155,15 @@ TEST_P(AttestKeyTest, AllRsaSizes) {
                                       .SetDefaultValidity(),
                               attest_key, &attested_key_blob, &attested_key_characteristics,
                               &attested_key_cert_chain));
+        KeyBlobDeleter attested_deleter3(keymint_, attested_key_blob);
+
+        ASSERT_GT(attested_key_cert_chain.size(), 0);
 
         // The returned key characteristics will include CREATION_DATETIME (checked below)
         // in SecurityLevel::KEYSTORE; this will be stripped out in the CheckCharacteristics()
         // call below, to match what getKeyCharacteristics() returns (which doesn't include
         // any SecurityLevel::KEYSTORE characteristics).
         CheckCharacteristics(attested_key_blob, attested_key_characteristics);
-
-        CheckedDeleteKey(&attested_key_blob);
-        CheckedDeleteKey(&attest_key.keyBlob);
 
         hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
         sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
@@ -226,7 +174,7 @@ TEST_P(AttestKeyTest, AllRsaSizes) {
         EXPECT_TRUE(sw_enforced.Contains(TAG_CREATION_DATETIME, timestamp))
                 << "expected CREATION_TIMESTAMP in sw_enforced:" << sw_enforced
                 << " not in hw_enforced:" << hw_enforced;
-        EXPECT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced, hw_enforced,
+        ASSERT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced, hw_enforced,
                                               SecLevel(),
                                               attested_key_cert_chain[0].encodedCertificate));
 
@@ -271,7 +219,7 @@ TEST_P(AttestKeyTest, RsaAttestKeyMultiPurposeFail) {
 /*
  * AttestKeyTest.RsaAttestedAttestKeys
  *
- * This test creates an RSA attestation key signed by factory keys, and varifies it can be
+ * This test creates an RSA attestation key signed by factory keys, and verifies it can be
  * used to sign other RSA and EC keys.
  */
 TEST_P(AttestKeyTest, RsaAttestedAttestKeys) {
@@ -303,11 +251,11 @@ TEST_P(AttestKeyTest, RsaAttestedAttestKeys) {
                                             .SetDefaultValidity(),
                                     {} /* attestation signing key */, &attest_key.keyBlob,
                                     &attest_key_characteristics, &attest_key_cert_chain);
-    // Strongbox may not support factory provisioned attestation key.
-    if (SecLevel() == SecurityLevel::STRONGBOX) {
-        if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) return;
+    if (isRkpOnly() && result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
+        GTEST_SKIP() << "RKP-only devices do not have a factory key";
     }
     ASSERT_EQ(ErrorCode::OK, result);
+    KeyBlobDeleter attest_deleter(keymint_, attest_key.keyBlob);
 
     EXPECT_GT(attest_key_cert_chain.size(), 1);
     verify_subject_and_serial(attest_key_cert_chain[0], serial_int, subject, false);
@@ -315,7 +263,7 @@ TEST_P(AttestKeyTest, RsaAttestedAttestKeys) {
 
     AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attest_key_characteristics);
     AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attest_key_characteristics);
-    EXPECT_TRUE(verify_attestation_record(AidlVersion(), challenge, app_id,  //
+    ASSERT_TRUE(verify_attestation_record(AidlVersion(), challenge, app_id,  //
                                           sw_enforced, hw_enforced, SecLevel(),
                                           attest_key_cert_chain[0].encodedCertificate));
 
@@ -333,7 +281,7 @@ TEST_P(AttestKeyTest, RsaAttestedAttestKeys) {
     uint64_t serial_int2 = 255;
     vector<uint8_t> serial_blob2(build_serial_blob(serial_int2));
 
-    EXPECT_EQ(ErrorCode::OK,
+    ASSERT_EQ(ErrorCode::OK,
               GenerateKey(AuthorizationSetBuilder()
                                   .RsaSigningKey(2048, 65537)
                                   .Authorization(TAG_NO_AUTH_REQUIRED)
@@ -344,13 +292,13 @@ TEST_P(AttestKeyTest, RsaAttestedAttestKeys) {
                                   .SetDefaultValidity(),
                           attest_key, &attested_key_blob, &attested_key_characteristics,
                           &attested_key_cert_chain));
+    KeyBlobDeleter attested_deleter(keymint_, attested_key_blob);
 
-    CheckedDeleteKey(&attested_key_blob);
-    CheckedDeleteKey(&attest_key.keyBlob);
+    ASSERT_GT(attested_key_cert_chain.size(), 0);
 
     AuthorizationSet hw_enforced2 = HwEnforcedAuthorizations(attested_key_characteristics);
     AuthorizationSet sw_enforced2 = SwEnforcedAuthorizations(attested_key_characteristics);
-    EXPECT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced2, hw_enforced2,
+    ASSERT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced2, hw_enforced2,
                                           SecLevel(),
                                           attested_key_cert_chain[0].encodedCertificate));
 
@@ -376,6 +324,7 @@ TEST_P(AttestKeyTest, RsaAttestKeyChaining) {
     const int chain_size = 6;
     vector<vector<uint8_t>> key_blob_list(chain_size);
     vector<vector<Certificate>> cert_chain_list(chain_size);
+    vector<KeyBlobDeleter> deleters;
 
     for (int i = 0; i < chain_size; i++) {
         string sub = "attest key chaining ";
@@ -396,29 +345,32 @@ TEST_P(AttestKeyTest, RsaAttestKeyChaining) {
             attest_key_opt = attest_key;
         }
 
-        auto result = GenerateAttestKey(AuthorizationSetBuilder()
-                                                .RsaKey(2048, 65537)
-                                                .AttestKey()
-                                                .AttestationChallenge("foo")
-                                                .AttestationApplicationId("bar")
-                                                .Authorization(TAG_NO_AUTH_REQUIRED)
-                                                .Authorization(TAG_CERTIFICATE_SERIAL, serial_blob)
-                                                .Authorization(TAG_CERTIFICATE_SUBJECT, subject_der)
-                                                .SetDefaultValidity(),
-                                        attest_key_opt, &key_blob_list[i],
-                                        &attested_key_characteristics, &cert_chain_list[i]);
-        // Strongbox may not support factory provisioned attestation key.
-        if (SecLevel() == SecurityLevel::STRONGBOX) {
-            if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) return;
+        AuthorizationSetBuilder auth_set_builder =
+                AuthorizationSetBuilder()
+                        .RsaKey(2048, 65537)
+                        .AttestKey()
+                        .AttestationApplicationId("bar")
+                        .Authorization(TAG_NO_AUTH_REQUIRED)
+                        .Authorization(TAG_CERTIFICATE_SERIAL, serial_blob)
+                        .Authorization(TAG_CERTIFICATE_SUBJECT, subject_der)
+                        .SetDefaultValidity();
+        // In RKP-only systems, the first key cannot be attested due to lack of batch key
+        if (!isRkpOnly() || i > 0) {
+            auth_set_builder.AttestationChallenge("foo");
         }
+        auto result = GenerateAttestKey(auth_set_builder, attest_key_opt, &key_blob_list[i],
+                                        &attested_key_characteristics, &cert_chain_list[i]);
         ASSERT_EQ(ErrorCode::OK, result);
+        deleters.push_back(KeyBlobDeleter(keymint_, key_blob_list[i]));
 
-        AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
-        AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
-        ASSERT_GT(cert_chain_list[i].size(), 0);
-        EXPECT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced, hw_enforced,
-                                              SecLevel(),
-                                              cert_chain_list[i][0].encodedCertificate));
+        if (!isRkpOnly() || i > 0) {
+            AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
+            AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
+            ASSERT_GT(cert_chain_list[i].size(), 0);
+            ASSERT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced,
+                                                  hw_enforced, SecLevel(),
+                                                  cert_chain_list[i][0].encodedCertificate));
+        }
 
         if (i > 0) {
             /*
@@ -434,12 +386,8 @@ TEST_P(AttestKeyTest, RsaAttestKeyChaining) {
         }
 
         EXPECT_TRUE(ChainSignaturesAreValid(cert_chain_list[i]));
-        EXPECT_GT(cert_chain_list[i].size(), i + 1);
+        EXPECT_GT(cert_chain_list[i].size(), i + (isRkpOnly() ? 0 : 1));
         verify_subject_and_serial(cert_chain_list[i][0], serial_int, subject, false);
-    }
-
-    for (int i = 0; i < chain_size; i++) {
-        CheckedDeleteKey(&key_blob_list[i]);
     }
 }
 
@@ -453,6 +401,7 @@ TEST_P(AttestKeyTest, EcAttestKeyChaining) {
     const int chain_size = 6;
     vector<vector<uint8_t>> key_blob_list(chain_size);
     vector<vector<Certificate>> cert_chain_list(chain_size);
+    vector<KeyBlobDeleter> deleters;
 
     for (int i = 0; i < chain_size; i++) {
         string sub = "Ec attest key chaining ";
@@ -473,35 +422,34 @@ TEST_P(AttestKeyTest, EcAttestKeyChaining) {
             attest_key_opt = attest_key;
         }
 
-        auto result = GenerateAttestKey(AuthorizationSetBuilder()
-                                                .EcdsaKey(EcCurve::P_256)
-                                                .AttestKey()
-                                                .AttestationChallenge("foo")
-                                                .AttestationApplicationId("bar")
-                                                .Authorization(TAG_CERTIFICATE_SERIAL, serial_blob)
-                                                .Authorization(TAG_CERTIFICATE_SUBJECT, subject_der)
-                                                .Authorization(TAG_NO_AUTH_REQUIRED)
-                                                .SetDefaultValidity(),
-                                        attest_key_opt, &key_blob_list[i],
-                                        &attested_key_characteristics, &cert_chain_list[i]);
-        // Strongbox may not support factory provisioned attestation key.
-        if (SecLevel() == SecurityLevel::STRONGBOX) {
-            if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) return;
+        AuthorizationSetBuilder auth_set_builder =
+                AuthorizationSetBuilder()
+                        .EcdsaKey(EcCurve::P_256)
+                        .AttestKey()
+                        .AttestationApplicationId("bar")
+                        .Authorization(TAG_CERTIFICATE_SERIAL, serial_blob)
+                        .Authorization(TAG_CERTIFICATE_SUBJECT, subject_der)
+                        .Authorization(TAG_NO_AUTH_REQUIRED)
+                        .SetDefaultValidity();
+        // In RKP-only systems, the first key cannot be attested due to lack of batch key
+        if (!isRkpOnly() || i > 0) {
+            auth_set_builder.AttestationChallenge("foo");
         }
+        auto result = GenerateAttestKey(auth_set_builder, attest_key_opt, &key_blob_list[i],
+                                        &attested_key_characteristics, &cert_chain_list[i]);
         ASSERT_EQ(ErrorCode::OK, result);
+        deleters.push_back(KeyBlobDeleter(keymint_, key_blob_list[i]));
 
-        AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
-        AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
-        ASSERT_GT(cert_chain_list[i].size(), 0);
-        EXPECT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced, hw_enforced,
-                                              SecLevel(),
-                                              cert_chain_list[i][0].encodedCertificate));
+        if (!isRkpOnly() || i > 0) {
+            AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
+            AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
+            ASSERT_GT(cert_chain_list[i].size(), 0);
+            ASSERT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced,
+                                                  hw_enforced, SecLevel(),
+                                                  cert_chain_list[i][0].encodedCertificate));
+        }
 
         if (i > 0) {
-            /*
-             * The first key is attestated with factory chain, but all the rest of the keys are
-             * not supposed to be returned in attestation certificate chains.
-             */
             EXPECT_FALSE(ChainSignaturesAreValid(cert_chain_list[i]));
 
             // Appending the attest_key chain to the attested_key_chain should yield a valid chain.
@@ -511,12 +459,8 @@ TEST_P(AttestKeyTest, EcAttestKeyChaining) {
         }
 
         EXPECT_TRUE(ChainSignaturesAreValid(cert_chain_list[i]));
-        EXPECT_GT(cert_chain_list[i].size(), i + 1);
+        EXPECT_GT(cert_chain_list[i].size(), i + (isRkpOnly() ? 0 : 1));
         verify_subject_and_serial(cert_chain_list[i][0], serial_int, subject, false);
-    }
-
-    for (int i = 0; i < chain_size; i++) {
-        CheckedDeleteKey(&key_blob_list[i]);
     }
 }
 
@@ -557,6 +501,7 @@ TEST_P(AttestKeyTest, AlternateAttestKeyChaining) {
     const int chain_size = 6;
     vector<vector<uint8_t>> key_blob_list(chain_size);
     vector<vector<Certificate>> cert_chain_list(chain_size);
+    vector<KeyBlobDeleter> deleters;
 
     for (int i = 0; i < chain_size; i++) {
         string sub = "Alt attest key chaining ";
@@ -576,44 +521,36 @@ TEST_P(AttestKeyTest, AlternateAttestKeyChaining) {
             attest_key.keyBlob = key_blob_list[i - 1];
             attest_key_opt = attest_key;
         }
-        ErrorCode result;
+        AuthorizationSetBuilder auth_set_builder =
+                AuthorizationSetBuilder()
+                        .AttestKey()
+                        .AttestationApplicationId("bar")
+                        .Authorization(TAG_CERTIFICATE_SERIAL, serial_blob)
+                        .Authorization(TAG_CERTIFICATE_SUBJECT, subject_der)
+                        .Authorization(TAG_NO_AUTH_REQUIRED)
+                        .SetDefaultValidity();
+        // In RKP-only systems, the first key cannot be attested due to lack of batch key
+        if (!isRkpOnly() || i > 0) {
+            auth_set_builder.AttestationChallenge("foo");
+        }
         if ((i & 0x1) == 1) {
-            result = GenerateAttestKey(AuthorizationSetBuilder()
-                                               .EcdsaKey(EcCurve::P_256)
-                                               .AttestKey()
-                                               .AttestationChallenge("foo")
-                                               .AttestationApplicationId("bar")
-                                               .Authorization(TAG_CERTIFICATE_SERIAL, serial_blob)
-                                               .Authorization(TAG_CERTIFICATE_SUBJECT, subject_der)
-                                               .Authorization(TAG_NO_AUTH_REQUIRED)
-                                               .SetDefaultValidity(),
-                                       attest_key_opt, &key_blob_list[i],
-                                       &attested_key_characteristics, &cert_chain_list[i]);
+            auth_set_builder.EcdsaKey(EcCurve::P_256);
         } else {
-            result = GenerateAttestKey(AuthorizationSetBuilder()
-                                               .RsaKey(2048, 65537)
-                                               .AttestKey()
-                                               .AttestationChallenge("foo")
-                                               .AttestationApplicationId("bar")
-                                               .Authorization(TAG_CERTIFICATE_SERIAL, serial_blob)
-                                               .Authorization(TAG_CERTIFICATE_SUBJECT, subject_der)
-                                               .Authorization(TAG_NO_AUTH_REQUIRED)
-                                               .SetDefaultValidity(),
-                                       attest_key_opt, &key_blob_list[i],
-                                       &attested_key_characteristics, &cert_chain_list[i]);
+            auth_set_builder.RsaKey(2048, 65537);
         }
-        // Strongbox may not support factory provisioned attestation key.
-        if (SecLevel() == SecurityLevel::STRONGBOX) {
-            if (result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) return;
-        }
+        ErrorCode result = GenerateAttestKey(auth_set_builder, attest_key_opt, &key_blob_list[i],
+                                             &attested_key_characteristics, &cert_chain_list[i]);
         ASSERT_EQ(ErrorCode::OK, result);
+        deleters.push_back(KeyBlobDeleter(keymint_, key_blob_list[i]));
 
-        AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
-        AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
-        ASSERT_GT(cert_chain_list[i].size(), 0);
-        EXPECT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced, hw_enforced,
-                                              SecLevel(),
-                                              cert_chain_list[i][0].encodedCertificate));
+        if (!isRkpOnly() || i > 0) {
+            AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
+            AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
+            ASSERT_GT(cert_chain_list[i].size(), 0);
+            ASSERT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced,
+                                                  hw_enforced, SecLevel(),
+                                                  cert_chain_list[i][0].encodedCertificate));
+        }
 
         if (i > 0) {
             /*
@@ -629,12 +566,8 @@ TEST_P(AttestKeyTest, AlternateAttestKeyChaining) {
         }
 
         EXPECT_TRUE(ChainSignaturesAreValid(cert_chain_list[i]));
-        EXPECT_GT(cert_chain_list[i].size(), i + 1);
+        EXPECT_GT(cert_chain_list[i].size(), i + (isRkpOnly() ? 0 : 1));
         verify_subject_and_serial(cert_chain_list[i][0], serial_int, subject, false);
-    }
-
-    for (int i = 0; i < chain_size; i++) {
-        CheckedDeleteKey(&key_blob_list[i]);
     }
 }
 
@@ -653,6 +586,7 @@ TEST_P(AttestKeyTest, MissingChallenge) {
                                             .SetDefaultValidity(),
                                     {} /* attestation signing key */, &attest_key.keyBlob,
                                     &attest_key_characteristics, &attest_key_cert_chain));
+        KeyBlobDeleter attest_deleter(keymint_, attest_key.keyBlob);
 
         EXPECT_EQ(attest_key_cert_chain.size(), 1);
         EXPECT_TRUE(IsSelfSigned(attest_key_cert_chain)) << "Failed on size " << size;
@@ -664,7 +598,7 @@ TEST_P(AttestKeyTest, MissingChallenge) {
         vector<uint8_t> attested_key_blob;
         vector<KeyCharacteristics> attested_key_characteristics;
         vector<Certificate> attested_key_cert_chain;
-        EXPECT_EQ(ErrorCode::ATTESTATION_CHALLENGE_MISSING,
+        ASSERT_EQ(ErrorCode::ATTESTATION_CHALLENGE_MISSING,
                   GenerateKey(AuthorizationSetBuilder()
                                       .RsaSigningKey(2048, 65537)
                                       .Authorization(TAG_NO_AUTH_REQUIRED)
@@ -673,7 +607,7 @@ TEST_P(AttestKeyTest, MissingChallenge) {
                               attest_key, &attested_key_blob, &attested_key_characteristics,
                               &attested_key_cert_chain));
 
-        EXPECT_EQ(ErrorCode::ATTESTATION_CHALLENGE_MISSING,
+        ASSERT_EQ(ErrorCode::ATTESTATION_CHALLENGE_MISSING,
                   GenerateKey(AuthorizationSetBuilder()
                                       .EcdsaSigningKey(EcCurve::P_256)
                                       .Authorization(TAG_NO_AUTH_REQUIRED)
@@ -681,8 +615,6 @@ TEST_P(AttestKeyTest, MissingChallenge) {
                                       .SetDefaultValidity(),
                               attest_key, &attested_key_blob, &attested_key_characteristics,
                               &attested_key_cert_chain));
-
-        CheckedDeleteKey(&attest_key.keyBlob);
     }
 }
 
@@ -700,6 +632,7 @@ TEST_P(AttestKeyTest, AllEcCurves) {
                         AuthorizationSetBuilder().EcdsaKey(curve).AttestKey().SetDefaultValidity(),
                         {} /* attestation signing key */, &attest_key.keyBlob,
                         &attest_key_characteristics, &attest_key_cert_chain));
+        KeyBlobDeleter attest_deleter(keymint_, attest_key.keyBlob);
 
         ASSERT_GT(attest_key_cert_chain.size(), 0);
         EXPECT_EQ(attest_key_cert_chain.size(), 1);
@@ -712,7 +645,7 @@ TEST_P(AttestKeyTest, AllEcCurves) {
         vector<uint8_t> attested_key_blob;
         vector<KeyCharacteristics> attested_key_characteristics;
         vector<Certificate> attested_key_cert_chain;
-        EXPECT_EQ(ErrorCode::OK,
+        ASSERT_EQ(ErrorCode::OK,
                   GenerateKey(AuthorizationSetBuilder()
                                       .RsaSigningKey(2048, 65537)
                                       .Authorization(TAG_NO_AUTH_REQUIRED)
@@ -721,13 +654,13 @@ TEST_P(AttestKeyTest, AllEcCurves) {
                                       .SetDefaultValidity(),
                               attest_key, &attested_key_blob, &attested_key_characteristics,
                               &attested_key_cert_chain));
+        KeyBlobDeleter attested_deleter(keymint_, attested_key_blob);
 
         ASSERT_GT(attested_key_cert_chain.size(), 0);
-        CheckedDeleteKey(&attested_key_blob);
 
         AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
         AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
-        EXPECT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced, hw_enforced,
+        ASSERT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced, hw_enforced,
                                               SecLevel(),
                                               attested_key_cert_chain[0].encodedCertificate));
 
@@ -743,7 +676,7 @@ TEST_P(AttestKeyTest, AllEcCurves) {
         /*
          * Use attestation key to sign EC key
          */
-        EXPECT_EQ(ErrorCode::OK,
+        ASSERT_EQ(ErrorCode::OK,
                   GenerateKey(AuthorizationSetBuilder()
                                       .EcdsaSigningKey(EcCurve::P_256)
                                       .Authorization(TAG_NO_AUTH_REQUIRED)
@@ -752,14 +685,13 @@ TEST_P(AttestKeyTest, AllEcCurves) {
                                       .SetDefaultValidity(),
                               attest_key, &attested_key_blob, &attested_key_characteristics,
                               &attested_key_cert_chain));
+        KeyBlobDeleter attested_deleter2(keymint_, attested_key_blob);
 
         ASSERT_GT(attested_key_cert_chain.size(), 0);
-        CheckedDeleteKey(&attested_key_blob);
-        CheckedDeleteKey(&attest_key.keyBlob);
 
         hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
         sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
-        EXPECT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced, hw_enforced,
+        ASSERT_TRUE(verify_attestation_record(AidlVersion(), "foo", "bar", sw_enforced, hw_enforced,
                                               SecLevel(),
                                               attested_key_cert_chain[0].encodedCertificate));
 
@@ -797,7 +729,7 @@ TEST_P(AttestKeyTest, AttestWithNonAttestKey) {
     vector<uint8_t> attested_key_blob;
     vector<KeyCharacteristics> attested_key_characteristics;
     vector<Certificate> attested_key_cert_chain;
-    EXPECT_EQ(ErrorCode::INCOMPATIBLE_PURPOSE,
+    ASSERT_EQ(ErrorCode::INCOMPATIBLE_PURPOSE,
               GenerateKey(AuthorizationSetBuilder()
                                   .EcdsaSigningKey(EcCurve::P_256)
                                   .Authorization(TAG_NO_AUTH_REQUIRED)
@@ -809,11 +741,6 @@ TEST_P(AttestKeyTest, AttestWithNonAttestKey) {
 }
 
 TEST_P(AttestKeyTest, EcdsaAttestationID) {
-    if (is_gsi_image()) {
-        // GSI sets up a standard set of device identifiers that may not match
-        // the device identifiers held by the device.
-        GTEST_SKIP() << "Test not applicable under GSI";
-    }
     // Create attestation key.
     AttestationKey attest_key;
     vector<KeyCharacteristics> attest_key_characteristics;
@@ -825,6 +752,7 @@ TEST_P(AttestKeyTest, EcdsaAttestationID) {
                                         .SetDefaultValidity(),
                                 {} /* attestation signing key */, &attest_key.keyBlob,
                                 &attest_key_characteristics, &attest_key_cert_chain));
+    KeyBlobDeleter attest_deleter(keymint_, attest_key.keyBlob);
     attest_key.issuerSubjectName = make_name_from_str("Android Keystore Key");
     ASSERT_GT(attest_key_cert_chain.size(), 0);
     EXPECT_EQ(attest_key_cert_chain.size(), 1);
@@ -832,39 +760,12 @@ TEST_P(AttestKeyTest, EcdsaAttestationID) {
 
     // Collection of valid attestation ID tags.
     auto attestation_id_tags = AuthorizationSetBuilder();
-    // Use ro.product.brand_for_attestation property for attestation if it is present else fallback
-    // to ro.product.brand
-    std::string prop_value =
-            ::android::base::GetProperty("ro.product.brand_for_attestation", /* default= */ "");
-    if (!prop_value.empty()) {
-        add_tag_from_prop(&attestation_id_tags, TAG_ATTESTATION_ID_BRAND,
-                          "ro.product.brand_for_attestation");
-    } else {
-        add_tag_from_prop(&attestation_id_tags, TAG_ATTESTATION_ID_BRAND, "ro.product.brand");
-    }
-    add_tag_from_prop(&attestation_id_tags, TAG_ATTESTATION_ID_DEVICE, "ro.product.device");
-    // Use ro.product.name_for_attestation property for attestation if it is present else fallback
-    // to ro.product.name
-    prop_value = ::android::base::GetProperty("ro.product.name_for_attestation", /* default= */ "");
-    if (!prop_value.empty()) {
-        add_tag_from_prop(&attestation_id_tags, TAG_ATTESTATION_ID_PRODUCT,
-                          "ro.product.name_for_attestation");
-    } else {
-        add_tag_from_prop(&attestation_id_tags, TAG_ATTESTATION_ID_PRODUCT, "ro.product.name");
-    }
+    add_attestation_id(&attestation_id_tags, TAG_ATTESTATION_ID_BRAND, "brand");
+    add_attestation_id(&attestation_id_tags, TAG_ATTESTATION_ID_DEVICE, "device");
+    add_attestation_id(&attestation_id_tags, TAG_ATTESTATION_ID_PRODUCT, "name");
+    add_attestation_id(&attestation_id_tags, TAG_ATTESTATION_ID_MANUFACTURER, "manufacturer");
+    add_attestation_id(&attestation_id_tags, TAG_ATTESTATION_ID_MODEL, "model");
     add_tag_from_prop(&attestation_id_tags, TAG_ATTESTATION_ID_SERIAL, "ro.serialno");
-    add_tag_from_prop(&attestation_id_tags, TAG_ATTESTATION_ID_MANUFACTURER,
-                      "ro.product.manufacturer");
-    // Use ro.product.model_for_attestation property for attestation if it is present else fallback
-    // to ro.product.model
-    prop_value =
-            ::android::base::GetProperty("ro.product.model_for_attestation", /* default= */ "");
-    if (!prop_value.empty()) {
-        add_tag_from_prop(&attestation_id_tags, TAG_ATTESTATION_ID_MODEL,
-                          "ro.product.model_for_attestation");
-    } else {
-        add_tag_from_prop(&attestation_id_tags, TAG_ATTESTATION_ID_MODEL, "ro.product.model");
-    }
 
     string imei = get_imei(0);
     if (!imei.empty()) {
@@ -891,8 +792,8 @@ TEST_P(AttestKeyTest, EcdsaAttestationID) {
         }
 
         ASSERT_EQ(result, ErrorCode::OK);
-
-        CheckedDeleteKey(&attested_key_blob);
+        ASSERT_GT(attested_key_cert_chain.size(), 0);
+        KeyBlobDeleter attested_deleter(keymint_, attested_key_blob);
 
         AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
         AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
@@ -902,11 +803,10 @@ TEST_P(AttestKeyTest, EcdsaAttestationID) {
         // attestation extension should contain them, so make sure the extra tag is added.
         hw_enforced.push_back(tag);
 
-        EXPECT_TRUE(verify_attestation_record(AidlVersion(), "challenge", "foo", sw_enforced,
+        ASSERT_TRUE(verify_attestation_record(AidlVersion(), "challenge", "foo", sw_enforced,
                                               hw_enforced, SecLevel(),
                                               attested_key_cert_chain[0].encodedCertificate));
     }
-    CheckedDeleteKey(&attest_key.keyBlob);
 }
 
 TEST_P(AttestKeyTest, EcdsaAttestationMismatchID) {
@@ -921,6 +821,7 @@ TEST_P(AttestKeyTest, EcdsaAttestationMismatchID) {
                                         .SetDefaultValidity(),
                                 {} /* attestation signing key */, &attest_key.keyBlob,
                                 &attest_key_characteristics, &attest_key_cert_chain));
+    KeyBlobDeleter attest_deleter(keymint_, attest_key.keyBlob);
     attest_key.issuerSubjectName = make_name_from_str("Android Keystore Key");
     ASSERT_GT(attest_key_cert_chain.size(), 0);
     EXPECT_EQ(attest_key_cert_chain.size(), 1);
@@ -965,16 +866,9 @@ TEST_P(AttestKeyTest, EcdsaAttestationMismatchID) {
                                   &attested_key_characteristics, &attested_key_cert_chain);
         device_id_attestation_check_acceptable_error(invalid_tag.tag, result);
     }
-    CheckedDeleteKey(&attest_key.keyBlob);
 }
 
 TEST_P(AttestKeyTest, SecondIMEIAttestationIDSuccess) {
-    if (is_gsi_image()) {
-        // GSI sets up a standard set of device identifiers that may not match
-        // the device identifiers held by the device.
-        GTEST_SKIP() << "Test not applicable under GSI";
-    }
-
     // Skip the test if there is no second IMEI exists.
     string second_imei = get_imei(1);
     if (second_imei.empty()) {
@@ -996,6 +890,7 @@ TEST_P(AttestKeyTest, SecondIMEIAttestationIDSuccess) {
                                         .SetDefaultValidity(),
                                 {} /* attestation signing key */, &attest_key.keyBlob,
                                 &attest_key_characteristics, &attest_key_cert_chain));
+    KeyBlobDeleter attest_deleter(keymint_, attest_key.keyBlob);
     attest_key.issuerSubjectName = make_name_from_str("Android Keystore Key");
     EXPECT_EQ(attest_key_cert_chain.size(), 1);
     EXPECT_TRUE(IsSelfSigned(attest_key_cert_chain));
@@ -1024,8 +919,8 @@ TEST_P(AttestKeyTest, SecondIMEIAttestationIDSuccess) {
     }
 
     ASSERT_EQ(result, ErrorCode::OK);
-
-    CheckedDeleteKey(&attested_key_blob);
+    ASSERT_GT(attested_key_cert_chain.size(), 0);
+    KeyBlobDeleter attested_deleter(keymint_, attested_key_blob);
 
     AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
     AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
@@ -1037,20 +932,12 @@ TEST_P(AttestKeyTest, SecondIMEIAttestationIDSuccess) {
     KeyParameter imei_tag = Authorization(TAG_ATTESTATION_ID_SECOND_IMEI, imei_blob);
     hw_enforced.push_back(imei_tag);
 
-    EXPECT_TRUE(verify_attestation_record(AidlVersion(), "challenge", "foo", sw_enforced,
+    ASSERT_TRUE(verify_attestation_record(AidlVersion(), "challenge", "foo", sw_enforced,
                                           hw_enforced, SecLevel(),
                                           attested_key_cert_chain[0].encodedCertificate));
-
-    CheckedDeleteKey(&attest_key.keyBlob);
 }
 
 TEST_P(AttestKeyTest, MultipleIMEIAttestationIDSuccess) {
-    if (is_gsi_image()) {
-        // GSI sets up a standard set of device identifiers that may not match
-        // the device identifiers held by the device.
-        GTEST_SKIP() << "Test not applicable under GSI";
-    }
-
     // Skip the test if there is no first IMEI exists.
     string imei = get_imei(0);
     if (imei.empty()) {
@@ -1078,6 +965,7 @@ TEST_P(AttestKeyTest, MultipleIMEIAttestationIDSuccess) {
                                         .SetDefaultValidity(),
                                 {} /* attestation signing key */, &attest_key.keyBlob,
                                 &attest_key_characteristics, &attest_key_cert_chain));
+    KeyBlobDeleter attest_deleter(keymint_, attest_key.keyBlob);
     attest_key.issuerSubjectName = make_name_from_str("Android Keystore Key");
     EXPECT_EQ(attest_key_cert_chain.size(), 1);
     EXPECT_TRUE(IsSelfSigned(attest_key_cert_chain));
@@ -1103,8 +991,8 @@ TEST_P(AttestKeyTest, MultipleIMEIAttestationIDSuccess) {
     }
 
     ASSERT_EQ(result, ErrorCode::OK);
-
-    CheckedDeleteKey(&attested_key_blob);
+    ASSERT_GT(attested_key_cert_chain.size(), 0);
+    KeyBlobDeleter attested_deleter(keymint_, attested_key_blob);
 
     AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
     AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
@@ -1119,11 +1007,9 @@ TEST_P(AttestKeyTest, MultipleIMEIAttestationIDSuccess) {
     KeyParameter sec_imei_tag = Authorization(TAG_ATTESTATION_ID_SECOND_IMEI, sec_imei_blob);
     hw_enforced.push_back(sec_imei_tag);
 
-    EXPECT_TRUE(verify_attestation_record(AidlVersion(), "challenge", "foo", sw_enforced,
+    ASSERT_TRUE(verify_attestation_record(AidlVersion(), "challenge", "foo", sw_enforced,
                                           hw_enforced, SecLevel(),
                                           attested_key_cert_chain[0].encodedCertificate));
-
-    CheckedDeleteKey(&attest_key.keyBlob);
 }
 
 INSTANTIATE_KEYMINT_AIDL_TEST(AttestKeyTest);

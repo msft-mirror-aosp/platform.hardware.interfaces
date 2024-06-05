@@ -41,6 +41,8 @@ using android::hardware::vibrator::IVibratorManager;
 using android::hardware::vibrator::PrimitivePwle;
 using std::chrono::high_resolution_clock;
 
+using namespace ::std::chrono_literals;
+
 const std::vector<Effect> kEffects{android::enum_range<Effect>().begin(),
                                    android::enum_range<Effect>().end()};
 const std::vector<EffectStrength> kEffectStrengths{android::enum_range<EffectStrength>().begin(),
@@ -70,6 +72,9 @@ const std::vector<CompositePrimitive> kInvalidPrimitives = {
     static_cast<CompositePrimitive>(static_cast<int32_t>(kCompositePrimitives.front()) - 1),
     static_cast<CompositePrimitive>(static_cast<int32_t>(kCompositePrimitives.back()) + 1),
 };
+
+// Timeout to wait for vibration callback completion.
+static constexpr auto VIBRATION_CALLBACK_TIMEOUT = 100ms;
 
 class CompletionCallback : public BnVibratorCallback {
   public:
@@ -107,6 +112,11 @@ class VibratorAidl : public testing::TestWithParam<std::tuple<int32_t, int32_t>>
 
         ASSERT_NE(vibrator, nullptr);
         ASSERT_TRUE(vibrator->getCapabilities(&capabilities).isOk());
+    }
+
+    virtual void TearDown() override {
+        // Reset vibrator state between tests.
+        EXPECT_TRUE(vibrator->off().isOk());
     }
 
     sp<IVibrator> vibrator;
@@ -216,7 +226,7 @@ TEST_P(VibratorAidl, OnWithCallback) {
     sp<CompletionCallback> callback =
         new CompletionCallback([&completionPromise] { completionPromise.set_value(); });
     uint32_t durationMs = 250;
-    std::chrono::milliseconds timeout{durationMs * 2};
+    auto timeout = std::chrono::milliseconds(durationMs) + VIBRATION_CALLBACK_TIMEOUT;
     EXPECT_TRUE(vibrator->on(durationMs, callback).isOk());
     EXPECT_EQ(completionFuture.wait_for(timeout), std::future_status::ready);
     EXPECT_TRUE(vibrator->off().isOk());
@@ -283,10 +293,10 @@ TEST_P(VibratorAidl, ValidateEffectWithCallback) {
             if (!status.isOk())
                 continue;
 
-            //TODO(b/187207798): revert back to conservative timeout values once
-            //latencies have been fixed
-            std::chrono::milliseconds timeout{lengthMs * 8};
+            auto timeout = std::chrono::milliseconds(lengthMs) + VIBRATION_CALLBACK_TIMEOUT;
             EXPECT_EQ(completionFuture.wait_for(timeout), std::future_status::ready);
+
+            EXPECT_TRUE(vibrator->off().isOk());
         }
     }
 }
@@ -429,189 +439,200 @@ TEST_P(VibratorAidl, GetPrimitiveDuration) {
 }
 
 TEST_P(VibratorAidl, ComposeValidPrimitives) {
-    if (capabilities & IVibrator::CAP_COMPOSE_EFFECTS) {
-        std::vector<CompositePrimitive> supported;
-        int32_t maxDelay, maxSize;
+    if (!(capabilities & IVibrator::CAP_COMPOSE_EFFECTS)) {
+        GTEST_SKIP() << "CAP_COMPOSE_EFFECTS not supported";
+    }
 
-        ASSERT_TRUE(vibrator->getSupportedPrimitives(&supported).isOk());
-        EXPECT_EQ(Status::EX_NONE, vibrator->getCompositionDelayMax(&maxDelay).exceptionCode());
-        EXPECT_EQ(Status::EX_NONE, vibrator->getCompositionSizeMax(&maxSize).exceptionCode());
+    std::vector<CompositePrimitive> supported;
+    int32_t maxDelay, maxSize;
 
-        std::vector<CompositeEffect> composite;
+    ASSERT_TRUE(vibrator->getSupportedPrimitives(&supported).isOk());
+    EXPECT_EQ(Status::EX_NONE, vibrator->getCompositionDelayMax(&maxDelay).exceptionCode());
+    EXPECT_EQ(Status::EX_NONE, vibrator->getCompositionSizeMax(&maxSize).exceptionCode());
 
-        for (auto primitive : supported) {
-            CompositeEffect effect;
+    std::vector<CompositeEffect> composite;
 
-            effect.delayMs = std::rand() % (maxDelay + 1);
-            effect.primitive = primitive;
-            effect.scale = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-            composite.emplace_back(effect);
+    for (int i = 0; i < supported.size(); i++) {
+        auto primitive = supported[i];
+        float t = static_cast<float>(i + 1) / supported.size();
+        CompositeEffect effect;
 
-            if (composite.size() == maxSize) {
-                EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
-                composite.clear();
-                vibrator->off();
-            }
+        effect.delayMs = maxDelay * t;
+        effect.primitive = primitive;
+        effect.scale = t;
+
+        if (composite.size() == maxSize) {
+            break;
         }
+    }
 
-        if (composite.size() != 0) {
-            EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
-            vibrator->off();
-        }
+    if (composite.size() != 0) {
+        EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
+        EXPECT_TRUE(vibrator->off().isOk());
     }
 }
 
 TEST_P(VibratorAidl, ComposeUnsupportedPrimitives) {
-    if (capabilities & IVibrator::CAP_COMPOSE_EFFECTS) {
-        auto unsupported = kInvalidPrimitives;
-        std::vector<CompositePrimitive> supported;
+    if (!(capabilities & IVibrator::CAP_COMPOSE_EFFECTS)) {
+        GTEST_SKIP() << "CAP_COMPOSE_EFFECTS not supported";
+    }
 
-        ASSERT_TRUE(vibrator->getSupportedPrimitives(&supported).isOk());
+    auto unsupported = kInvalidPrimitives;
+    std::vector<CompositePrimitive> supported;
 
-        for (auto primitive : kCompositePrimitives) {
-            bool isPrimitiveSupported =
+    ASSERT_TRUE(vibrator->getSupportedPrimitives(&supported).isOk());
+
+    for (auto primitive : kCompositePrimitives) {
+        bool isPrimitiveSupported =
                 std::find(supported.begin(), supported.end(), primitive) != supported.end();
 
-            if (!isPrimitiveSupported) {
-                unsupported.push_back(primitive);
-            }
+        if (!isPrimitiveSupported) {
+            unsupported.push_back(primitive);
         }
+    }
 
-        for (auto primitive : unsupported) {
-            std::vector<CompositeEffect> composite(1);
+    for (auto primitive : unsupported) {
+        std::vector<CompositeEffect> composite(1);
 
-            for (auto &effect : composite) {
-                effect.delayMs = 0;
-                effect.primitive = primitive;
-                effect.scale = 1.0f;
-            }
-            Status status = vibrator->compose(composite, nullptr);
-            EXPECT_TRUE(isUnknownOrUnsupported(status)) << status;
-            vibrator->off();
+        for (auto& effect : composite) {
+            effect.delayMs = 0;
+            effect.primitive = primitive;
+            effect.scale = 1.0f;
         }
+        Status status = vibrator->compose(composite, nullptr);
+        EXPECT_TRUE(isUnknownOrUnsupported(status)) << status;
     }
 }
 
 TEST_P(VibratorAidl, ComposeScaleBoundary) {
-    if (capabilities & IVibrator::CAP_COMPOSE_EFFECTS) {
-        std::vector<CompositeEffect> composite(1);
-        CompositeEffect &effect = composite[0];
-
-        effect.delayMs = 0;
-        effect.primitive = CompositePrimitive::CLICK;
-
-        effect.scale = std::nextafter(0.0f, -1.0f);
-        EXPECT_EQ(Status::EX_ILLEGAL_ARGUMENT,
-                  vibrator->compose(composite, nullptr).exceptionCode());
-
-        effect.scale = 0.0f;
-        EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
-
-        effect.scale = 1.0f;
-        EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
-
-        effect.scale = std::nextafter(1.0f, 2.0f);
-        EXPECT_EQ(Status::EX_ILLEGAL_ARGUMENT,
-                  vibrator->compose(composite, nullptr).exceptionCode());
-
-        vibrator->off();
+    if (!(capabilities & IVibrator::CAP_COMPOSE_EFFECTS)) {
+        GTEST_SKIP() << "CAP_COMPOSE_EFFECTS not supported";
     }
+
+    std::vector<CompositeEffect> composite(1);
+    CompositeEffect& effect = composite[0];
+
+    effect.delayMs = 0;
+    effect.primitive = CompositePrimitive::CLICK;
+
+    effect.scale = std::nextafter(0.0f, -1.0f);
+    EXPECT_EQ(Status::EX_ILLEGAL_ARGUMENT, vibrator->compose(composite, nullptr).exceptionCode());
+
+    effect.scale = 0.0f;
+    EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
+    EXPECT_TRUE(vibrator->off().isOk());
+
+    effect.scale = 1.0f;
+    EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
+    EXPECT_TRUE(vibrator->off().isOk());
+
+    effect.scale = std::nextafter(1.0f, 2.0f);
+    EXPECT_EQ(Status::EX_ILLEGAL_ARGUMENT, vibrator->compose(composite, nullptr).exceptionCode());
 }
 
 TEST_P(VibratorAidl, ComposeDelayBoundary) {
-    if (capabilities & IVibrator::CAP_COMPOSE_EFFECTS) {
-        int32_t maxDelay;
-
-        EXPECT_EQ(Status::EX_NONE, vibrator->getCompositionDelayMax(&maxDelay).exceptionCode());
-
-        std::vector<CompositeEffect> composite(1);
-        CompositeEffect effect;
-
-        effect.delayMs = 1;
-        effect.primitive = CompositePrimitive::CLICK;
-        effect.scale = 1.0f;
-
-        std::fill(composite.begin(), composite.end(), effect);
-        EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
-
-        effect.delayMs = maxDelay + 1;
-
-        std::fill(composite.begin(), composite.end(), effect);
-        EXPECT_EQ(Status::EX_ILLEGAL_ARGUMENT,
-                  vibrator->compose(composite, nullptr).exceptionCode());
-        vibrator->off();
+    if (!(capabilities & IVibrator::CAP_COMPOSE_EFFECTS)) {
+        GTEST_SKIP() << "CAP_COMPOSE_EFFECTS not supported";
     }
+
+    int32_t maxDelay;
+
+    EXPECT_EQ(Status::EX_NONE, vibrator->getCompositionDelayMax(&maxDelay).exceptionCode());
+
+    std::vector<CompositeEffect> composite(1);
+    CompositeEffect& effect = composite[0];
+
+    effect.primitive = CompositePrimitive::CLICK;
+    effect.scale = 1.0f;
+
+    effect.delayMs = 0;
+    EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
+    EXPECT_TRUE(vibrator->off().isOk());
+
+    effect.delayMs = 1;
+    EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
+    EXPECT_TRUE(vibrator->off().isOk());
+
+    effect.delayMs = maxDelay;
+    EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
+    EXPECT_TRUE(vibrator->off().isOk());
+
+    effect.delayMs = maxDelay + 1;
+    EXPECT_EQ(Status::EX_ILLEGAL_ARGUMENT, vibrator->compose(composite, nullptr).exceptionCode());
 }
 
 TEST_P(VibratorAidl, ComposeSizeBoundary) {
-    if (capabilities & IVibrator::CAP_COMPOSE_EFFECTS) {
-        int32_t maxSize;
-
-        EXPECT_EQ(Status::EX_NONE, vibrator->getCompositionSizeMax(&maxSize).exceptionCode());
-
-        std::vector<CompositeEffect> composite(maxSize);
-        CompositeEffect effect;
-
-        effect.delayMs = 1;
-        effect.primitive = CompositePrimitive::CLICK;
-        effect.scale = 1.0f;
-
-        std::fill(composite.begin(), composite.end(), effect);
-        EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
-
-        composite.emplace_back(effect);
-        EXPECT_EQ(Status::EX_ILLEGAL_ARGUMENT,
-                  vibrator->compose(composite, nullptr).exceptionCode());
-        vibrator->off();
+    if (!(capabilities & IVibrator::CAP_COMPOSE_EFFECTS)) {
+        GTEST_SKIP() << "CAP_COMPOSE_EFFECTS not supported";
     }
+
+    int32_t maxSize;
+
+    EXPECT_EQ(Status::EX_NONE, vibrator->getCompositionSizeMax(&maxSize).exceptionCode());
+
+    std::vector<CompositeEffect> composite(maxSize);
+    CompositeEffect effect;
+
+    effect.delayMs = 1;
+    effect.primitive = CompositePrimitive::CLICK;
+    effect.scale = 1.0f;
+
+    std::fill(composite.begin(), composite.end(), effect);
+    EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, nullptr).exceptionCode());
+    EXPECT_TRUE(vibrator->off().isOk());
+
+    composite.emplace_back(effect);
+    EXPECT_EQ(Status::EX_ILLEGAL_ARGUMENT, vibrator->compose(composite, nullptr).exceptionCode());
 }
 
 TEST_P(VibratorAidl, ComposeCallback) {
-    if (capabilities & IVibrator::CAP_COMPOSE_EFFECTS) {
-        std::vector<CompositePrimitive> supported;
+    if (!(capabilities & IVibrator::CAP_COMPOSE_EFFECTS)) {
+        GTEST_SKIP() << "CAP_COMPOSE_EFFECTS not supported";
+    }
 
-        ASSERT_TRUE(vibrator->getSupportedPrimitives(&supported).isOk());
+    std::vector<CompositePrimitive> supported;
 
-        for (auto primitive : supported) {
-            if (primitive == CompositePrimitive::NOOP) {
-                continue;
-            }
+    ASSERT_TRUE(vibrator->getSupportedPrimitives(&supported).isOk());
 
-            std::promise<void> completionPromise;
-            std::future<void> completionFuture{completionPromise.get_future()};
-            sp<CompletionCallback> callback =
-                new CompletionCallback([&completionPromise] { completionPromise.set_value(); });
-            CompositeEffect effect;
-            std::vector<CompositeEffect> composite;
-            int32_t durationMs;
-            std::chrono::milliseconds duration;
-            std::chrono::time_point<high_resolution_clock> start, end;
-            std::chrono::milliseconds elapsed;
-
-            effect.delayMs = 0;
-            effect.primitive = primitive;
-            effect.scale = 1.0f;
-            composite.emplace_back(effect);
-
-            EXPECT_EQ(Status::EX_NONE,
-                      vibrator->getPrimitiveDuration(primitive, &durationMs).exceptionCode())
-                << toString(primitive);
-            duration = std::chrono::milliseconds(durationMs);
-
-            start = high_resolution_clock::now();
-            EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, callback).exceptionCode())
-                << toString(primitive);
-
-            // TODO(b/261130361): Investigate why latency from driver and hardware will cause test
-            // to fail when wait duration is ~40ms or less.
-            EXPECT_EQ(completionFuture.wait_for(duration + std::chrono::milliseconds(50)),
-                      std::future_status::ready)
-                    << toString(primitive);
-            end = high_resolution_clock::now();
-
-            elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-            EXPECT_GE(elapsed.count(), duration.count()) << toString(primitive);
+    for (auto primitive : supported) {
+        if (primitive == CompositePrimitive::NOOP) {
+            continue;
         }
+
+        std::promise<void> completionPromise;
+        std::future<void> completionFuture{completionPromise.get_future()};
+        sp<CompletionCallback> callback =
+                new CompletionCallback([&completionPromise] { completionPromise.set_value(); });
+        CompositeEffect effect;
+        std::vector<CompositeEffect> composite;
+        int32_t durationMs;
+        std::chrono::milliseconds duration;
+        std::chrono::time_point<high_resolution_clock> start, end;
+        std::chrono::milliseconds elapsed;
+
+        effect.delayMs = 0;
+        effect.primitive = primitive;
+        effect.scale = 1.0f;
+        composite.emplace_back(effect);
+
+        EXPECT_EQ(Status::EX_NONE,
+                  vibrator->getPrimitiveDuration(primitive, &durationMs).exceptionCode())
+                << toString(primitive);
+        duration = std::chrono::milliseconds(durationMs);
+
+        start = high_resolution_clock::now();
+        EXPECT_EQ(Status::EX_NONE, vibrator->compose(composite, callback).exceptionCode())
+                << toString(primitive);
+
+        EXPECT_EQ(completionFuture.wait_for(duration + VIBRATION_CALLBACK_TIMEOUT),
+                  std::future_status::ready)
+                << toString(primitive);
+        end = high_resolution_clock::now();
+
+        elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        EXPECT_GE(elapsed.count(), duration.count()) << toString(primitive);
+
+        EXPECT_TRUE(vibrator->off().isOk());
     }
 }
 
@@ -764,9 +785,7 @@ TEST_P(VibratorAidl, ComposeValidPwleWithCallback) {
     int32_t segmentDurationMaxMs;
     vibrator->getPwlePrimitiveDurationMax(&segmentDurationMaxMs);
     uint32_t durationMs = segmentDurationMaxMs * 2 + 100;  // Sum of 2 active and 1 braking below
-    //TODO(b/187207798): revert back to conservative timeout values once
-    //latencies have been fixed
-    std::chrono::milliseconds timeout{durationMs * 4};
+    auto timeout = std::chrono::milliseconds(durationMs) + VIBRATION_CALLBACK_TIMEOUT;
 
     ActivePwle active = composeValidActivePwle(vibrator, capabilities);
 

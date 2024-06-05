@@ -54,18 +54,6 @@ class BootloaderStateTest : public KeyMintAidlTestBase {
                                            .Digest(Digest::NONE)
                                            .SetDefaultValidity();
         auto result = GenerateKey(keyDesc, &key_blob, &key_characteristics);
-        // If factory provisioned attestation key is not supported by Strongbox,
-        // then create a key with self-signed attestation and use it as the
-        // attestation key instead.
-        if (SecLevel() == SecurityLevel::STRONGBOX &&
-            result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
-            result = GenerateKeyWithSelfSignedAttestKey(
-                    AuthorizationSetBuilder()
-                            .EcdsaKey(EcCurve::P_256)
-                            .AttestKey()
-                            .SetDefaultValidity(), /* attest key params */
-                    keyDesc, &key_blob, &key_characteristics);
-        }
         ASSERT_EQ(ErrorCode::OK, result);
 
         // Parse attested AVB values.
@@ -149,7 +137,9 @@ TEST_P(BootloaderStateTest, VbmetaDigest) {
                                                  digest512.data());
 
     ASSERT_TRUE((attestedVbmetaDigest_ == digest256) || (attestedVbmetaDigest_ == digest512))
-            << "Attested digest does not match computed digest.";
+            << "Attested vbmeta digest (" << bin2hex(attestedVbmetaDigest_)
+            << ") does not match computed digest (sha256: " << bin2hex(digest256)
+            << ", sha512: " << bin2hex(digest512) << ").";
 }
 
 INSTANTIATE_KEYMINT_AIDL_TEST(BootloaderStateTest);

@@ -15,11 +15,12 @@
  */
 
 package {
+    default_team: "trendy_team_aaos_framework",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
 cc_binary {
-    name: "android.hardware.automotive.vehicle@V1-default-service",
+    name: "android.hardware.automotive.vehicle@V3-default-service",
     vendor: true,
     defaults: [
         "FakeVehicleHardwareDefaults",
@@ -55,12 +56,17 @@ cc_library {
         "src/ConnectedClient.cpp",
         "src/DefaultVehicleHal.cpp",
         "src/SubscriptionManager.cpp",
+        // A target to check whether the file
+        // android.hardware.automotive.vehicle-types-meta.json needs update.
+        // The output is just an empty cpp file and not actually used.
+        ":check_generated_enum_metadata_json",
     ],
     static_libs: [
         "VehicleHalUtils",
     ],
     header_libs: [
         "IVehicleHardware",
+        "IVehicleGeneratedHeaders-V3",
     ],
     shared_libs: [
         "libbinder_ndk",
@@ -68,7 +74,7 @@ cc_library {
 }
 
 cc_fuzz {
-    name: "android.hardware.automotive.vehicle@V1-default-service_fuzzer",
+    name: "android.hardware.automotive.vehicle-default-service_fuzzer",
     vendor: true,
     defaults: [
         "FakeVehicleHardwareDefaults",

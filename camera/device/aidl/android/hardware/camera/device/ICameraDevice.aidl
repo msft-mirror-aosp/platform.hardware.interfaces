@@ -21,6 +21,7 @@ import android.hardware.camera.device.CameraMetadata;
 import android.hardware.camera.device.ICameraDeviceCallback;
 import android.hardware.camera.device.ICameraDeviceSession;
 import android.hardware.camera.device.ICameraInjectionSession;
+import android.hardware.camera.device.RequestTemplate;
 import android.hardware.camera.device.StreamConfiguration;
 import android.os.ParcelFileDescriptor;
 
@@ -346,4 +347,77 @@ interface ICameraDevice {
      *
      */
     int getTorchStrengthLevel();
+
+    /**
+     * constructDefaultRequestSettings:
+     *
+     * This is the same as ICameraDeviceSession.constructDefaultRequestSettings, with
+     * the exception that it can be called before the ICameraDevice.open call.
+     *
+     * @param type The requested template CaptureRequest type to create the default settings for.
+     *
+     * @return capture settings for the requested use case.
+     *
+     */
+    CameraMetadata constructDefaultRequestSettings(in RequestTemplate type);
+
+    /**
+     * isStreamCombinationWithSettingsSupported:
+     *
+     * This is the same as isStreamCombinationSupported with below exceptions:
+     * 1. The input StreamConfiguration parameter may contain session parameters
+     * as well as additional CaptureRequest keys. See the comment
+     * sections below on what additional capture request keys are passed in
+     * StreamConfiguration::sessionParameters for each interface version. When checking if
+     * the particular StreamConfiguration is supported, the camera HAL must take all
+     * the keys in sessionParameters into consideration.
+     *
+     * 2. For version 3 of this interface, the camera compliance tests will verify that
+     * isStreamCombinationWithSettingsSupported behaves properly for all combinations of
+     * features described in the android.info.sessionConfigurationQueryVersion section of
+     * /system/media/camera/docs/docs.html. This function must
+     * return true for all supported combinations, and return false for non-supported
+     * feature combinations. The list of feature combinations required may grow in future
+     * HAL versions.
+     *
+     * @param streams The StreamConfiguration to be tested, with optional CaptureRequest parameters.
+     *
+     * @return true in case the stream combination is supported, false otherwise.
+     *
+     */
+    boolean isStreamCombinationWithSettingsSupported(in StreamConfiguration streams);
+
+    /**
+     * getSessionCharacteristics
+     *
+     * Gets the session characteristics associated with a particular session
+     * configuration by the CameraDevice.
+     *
+     * For Android 15, the characteristics which need to be set are:
+     *   - ANDROID_CONTROL_ZOOM_RATIO_RANGE
+     *   - SCALER_AVAILABLE_MAX_DIGITAL_ZOOM
+     *
+     * No other tags (other than vendor tags) should be set in the characteristics returned from
+     * the HAL.
+     *
+     * A service specific error will be returned on the following conditions
+     *     INTERNAL_ERROR:
+     *         The camera device cannot be opened due to an internal
+     *         error.
+     *     CAMERA_DISCONNECTED:
+     *         An external camera device has been disconnected, and is no longer
+     *         available. This camera device interface is now stale, and a new
+     *         instance must be acquired if the device is reconnected. All
+     *         subsequent calls on this interface must return
+     *         CAMERA_DISCONNECTED.
+     *     ILLEGAL_ARGUMENT:
+     *         If the given session configuration is not supported.
+     *
+     * @param sessionConfig: The session configuration for which the
+     * characteristics are being fetched.
+     *
+     * @return The static metadata for this particular session config, or an
+     * empty metadata structure if a service specific error is returned.
+     */
+    CameraMetadata getSessionCharacteristics(in StreamConfiguration sessionConfig);
 }

@@ -244,7 +244,7 @@ namespace {
                          std::string* deviceVersion, std::string* cameraId) {
         ::android::String8 pattern;
         pattern.appendFormat(kDeviceNameRE, providerType.c_str());
-        std::regex e(pattern.string());
+        std::regex e(pattern.c_str());
         std::string deviceNameStd(deviceName.c_str());
         std::smatch sm;
         if (std::regex_match(deviceNameStd, sm, e)) {
@@ -8140,7 +8140,7 @@ void CameraHidlTest::verifyCameraCharacteristics(Status status, const CameraMeta
             ANDROID_LENS_POSE_REFERENCE, &entry);
     if (0 == retcode && entry.count > 0) {
         uint8_t poseReference = entry.data.u8[0];
-        ASSERT_TRUE(poseReference <= ANDROID_LENS_POSE_REFERENCE_UNDEFINED &&
+        ASSERT_TRUE(poseReference <= ANDROID_LENS_POSE_REFERENCE_AUTOMOTIVE &&
                 poseReference >= ANDROID_LENS_POSE_REFERENCE_PRIMARY_CAMERA);
     }
 
@@ -8801,8 +8801,7 @@ void CameraHidlTest::getParameters(
 void CameraHidlTest::setParameters(
         const sp<::android::hardware::camera::device::V1_0::ICameraDevice> &device,
         const CameraParameters &cameraParams) {
-    Return<Status> returnStatus = device->setParameters(
-            cameraParams.flatten().string());
+    Return<Status> returnStatus = device->setParameters(cameraParams.flatten().c_str());
     ASSERT_TRUE(returnStatus.isOk());
     ASSERT_EQ(Status::OK, returnStatus);
 }
