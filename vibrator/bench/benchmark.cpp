@@ -381,16 +381,6 @@ class VibratorBench_Aidl : public BaseBench<Aidl::IVibrator> {
         return false;
     }
 
-    void waitForComplete(std::future<void>& callbackFuture) {
-        // Wait until the HAL has finished processing previous vibration before starting a new one,
-        // so the HAL state is consistent on each run and metrics are less noisy. Some of the newest
-        // HAL implementations are waiting on previous vibration cleanup and might be significantly
-        // slower, so make sure we measure vibrations on a clean slate.
-        if (callbackFuture.valid()) {
-            callbackFuture.wait_for(VIBRATION_CALLBACK_TIMEOUT);
-        }
-    }
-
     static void SlowBenchConfig(Benchmark* b) { b->Iterations(VIBRATION_ITERATIONS); }
 };
 
@@ -412,7 +402,13 @@ class HalCallback : public Aidl::BnVibratorCallback {
         return android::binder::Status::ok();
     }
 
-    std::future<void> getFuture() { return mPromise.get_future(); }
+    void waitForComplete() {
+        // Wait until the HAL has finished processing previous vibration before starting a new one,
+        // so the HAL state is consistent on each run and metrics are less noisy. Some of the newest
+        // HAL implementations are waiting on previous vibration cleanup and might be significantly
+        // slower, so make sure we measure vibrations on a clean slate.
+        mPromise.get_future().wait_for(VIBRATION_CALLBACK_TIMEOUT);
+    }
 
   private:
     std::promise<void> mPromise;
@@ -423,8 +419,6 @@ BENCHMARK_WRAPPER(SlowVibratorBench_Aidl, on, {
 
     for (auto _ : state) {
         auto cb = hasCapabilities(Aidl::IVibrator::CAP_ON_CALLBACK) ? new HalCallback() : nullptr;
-        // Grab the future before callback promise is destroyed by the HAL.
-        auto cbFuture = cb ? cb->getFuture() : std::future<void>();
 
         // Test
         if (shouldSkipWithError(state, mVibrator->on(ms, cb))) {
@@ -436,7 +430,9 @@ BENCHMARK_WRAPPER(SlowVibratorBench_Aidl, on, {
         if (shouldSkipWithError(state, mVibrator->off())) {
             return;
         }
-        waitForComplete(cbFuture);
+        if (cb) {
+            cb->waitForComplete();
+        }
         state.ResumeTiming();
     }
 });
@@ -446,8 +442,6 @@ BENCHMARK_WRAPPER(SlowVibratorBench_Aidl, off, {
 
     for (auto _ : state) {
         auto cb = hasCapabilities(Aidl::IVibrator::CAP_ON_CALLBACK) ? new HalCallback() : nullptr;
-        // Grab the future before callback promise is destroyed by the HAL.
-        auto cbFuture = cb ? cb->getFuture() : std::future<void>();
 
         // Setup
         state.PauseTiming();
@@ -463,7 +457,9 @@ BENCHMARK_WRAPPER(SlowVibratorBench_Aidl, off, {
 
         // Cleanup
         state.PauseTiming();
-        waitForComplete(cbFuture);
+        if (cb) {
+            cb->waitForComplete();
+        }
         state.ResumeTiming();
     }
 });
@@ -691,8 +687,6 @@ BENCHMARK_WRAPPER(SlowVibratorEffectsBench_Aidl, perform, {
     for (auto _ : state) {
         auto cb = hasCapabilities(Aidl::IVibrator::CAP_PERFORM_CALLBACK) ? new HalCallback()
                                                                          : nullptr;
-        // Grab the future before callback promise is destroyed by the HAL.
-        auto cbFuture = cb ? cb->getFuture() : std::future<void>();
 
         // Test
         if (shouldSkipWithError(state, mVibrator->perform(effect, strength, cb, &lengthMs))) {
@@ -704,7 +698,9 @@ BENCHMARK_WRAPPER(SlowVibratorEffectsBench_Aidl, perform, {
         if (shouldSkipWithError(state, mVibrator->off())) {
             return;
         }
-        waitForComplete(cbFuture);
+        if (cb) {
+            cb->waitForComplete();
+        }
         state.ResumeTiming();
     }
 });
@@ -804,8 +800,6 @@ BENCHMARK_WRAPPER(SlowVibratorPrimitivesBench_Aidl, compose, {
 
     for (auto _ : state) {
         auto cb = new HalCallback();
-        // Grab the future before callback promise is moved and destroyed by the HAL.
-        auto cbFuture = cb->getFuture();
 
         // Test
         if (shouldSkipWithError(state, mVibrator->compose(effects, cb))) {
@@ -817,7 +811,7 @@ BENCHMARK_WRAPPER(SlowVibratorPrimitivesBench_Aidl, compose, {
         if (shouldSkipWithError(state, mVibrator->off())) {
             return;
         }
-        waitForComplete(cbFuture);
+        cb->waitForComplete();
         state.ResumeTiming();
     }
 });
