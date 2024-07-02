@@ -824,7 +824,7 @@ ErrMsgOr<bytevec> validateCertChain(const cppbor::Array& chain) {
         }
         if (i == chain.size() - 1) {
             auto key = getRawPublicKey(pubKey);
-            if (!key) key.moveMessage();
+            if (!key) return key.moveMessage();
             rawPubKey = key.moveValue();
         }
     }
