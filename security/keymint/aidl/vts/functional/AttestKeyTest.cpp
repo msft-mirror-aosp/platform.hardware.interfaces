@@ -95,7 +95,9 @@ string get_imei(int slot) {
 class AttestKeyTest : public KeyMintAidlTestBase {
   public:
     void SetUp() override {
-        skipAttestKeyTestIfNeeded();
+        if (shouldSkipAttestKeyTest()) {
+            GTEST_SKIP() << "Test using ATTEST_KEY is not applicable on waivered device";
+        }
         KeyMintAidlTestBase::SetUp();
     }
 };
@@ -304,7 +306,11 @@ TEST_P(AttestKeyTest, RsaAttestedAttestKeys) {
                                             .SetDefaultValidity(),
                                     {} /* attestation signing key */, &attest_key.keyBlob,
                                     &attest_key_characteristics, &attest_key_cert_chain);
-    if (isRkpOnly() && result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
+    std::optional<bool> rkpOnly = isRkpOnly();
+    if (!rkpOnly.has_value()) {
+        GTEST_SKIP() << "Test not applicable because RKP-only status cannot be determined";
+    }
+    if (rkpOnly.value() && result == ErrorCode::ATTESTATION_KEYS_NOT_PROVISIONED) {
         GTEST_SKIP() << "RKP-only devices do not have a factory key";
     }
     ASSERT_EQ(ErrorCode::OK, result);
@@ -406,14 +412,15 @@ TEST_P(AttestKeyTest, RsaAttestKeyChaining) {
                         .Authorization(TAG_CERTIFICATE_SUBJECT, subject_der)
                         .SetDefaultValidity();
         // In RKP-only systems, the first key cannot be attested due to lack of batch key
-        if (!isRkpOnly() || i > 0) {
+        bool confirmedNotRkpOnly = !isRkpOnly().value_or(true);
+        if (confirmedNotRkpOnly || i > 0) {
             auth_set_builder.AttestationChallenge("foo");
         }
         auto result = GenerateAttestKey(auth_set_builder, attest_key_opt, &key_blob_list[i],
                                         &attested_key_characteristics, &cert_chain_list[i]);
         ASSERT_EQ(ErrorCode::OK, result);
 
-        if (!isRkpOnly() || i > 0) {
+        if (confirmedNotRkpOnly || i > 0) {
             AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
             AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
             ASSERT_GT(cert_chain_list[i].size(), 0);
@@ -436,7 +443,7 @@ TEST_P(AttestKeyTest, RsaAttestKeyChaining) {
         }
 
         EXPECT_TRUE(ChainSignaturesAreValid(cert_chain_list[i]));
-        EXPECT_GT(cert_chain_list[i].size(), i + (isRkpOnly() ? 0 : 1));
+        EXPECT_GT(cert_chain_list[i].size(), i + (confirmedNotRkpOnly ? 1 : 0));
         verify_subject_and_serial(cert_chain_list[i][0], serial_int, subject, false);
     }
 
@@ -485,14 +492,15 @@ TEST_P(AttestKeyTest, EcAttestKeyChaining) {
                         .Authorization(TAG_NO_AUTH_REQUIRED)
                         .SetDefaultValidity();
         // In RKP-only systems, the first key cannot be attested due to lack of batch key
-        if (!isRkpOnly() || i > 0) {
+        bool confirmedNotRkpOnly = !isRkpOnly().value_or(true);
+        if (confirmedNotRkpOnly || i > 0) {
             auth_set_builder.AttestationChallenge("foo");
         }
         auto result = GenerateAttestKey(auth_set_builder, attest_key_opt, &key_blob_list[i],
                                         &attested_key_characteristics, &cert_chain_list[i]);
         ASSERT_EQ(ErrorCode::OK, result);
 
-        if (!isRkpOnly() || i > 0) {
+        if (confirmedNotRkpOnly || i > 0) {
             AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
             AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
             ASSERT_GT(cert_chain_list[i].size(), 0);
@@ -511,7 +519,7 @@ TEST_P(AttestKeyTest, EcAttestKeyChaining) {
         }
 
         EXPECT_TRUE(ChainSignaturesAreValid(cert_chain_list[i]));
-        EXPECT_GT(cert_chain_list[i].size(), i + (isRkpOnly() ? 0 : 1));
+        EXPECT_GT(cert_chain_list[i].size(), i + (confirmedNotRkpOnly ? 1 : 0));
         verify_subject_and_serial(cert_chain_list[i][0], serial_int, subject, false);
     }
 
@@ -585,7 +593,8 @@ TEST_P(AttestKeyTest, AlternateAttestKeyChaining) {
                         .Authorization(TAG_NO_AUTH_REQUIRED)
                         .SetDefaultValidity();
         // In RKP-only systems, the first key cannot be attested due to lack of batch key
-        if (!isRkpOnly() || i > 0) {
+        bool confirmedNotRkpOnly = !isRkpOnly().value_or(true);
+        if (confirmedNotRkpOnly || i > 0) {
             auth_set_builder.AttestationChallenge("foo");
         }
         if ((i & 0x1) == 1) {
@@ -597,7 +606,7 @@ TEST_P(AttestKeyTest, AlternateAttestKeyChaining) {
                                              &attested_key_characteristics, &cert_chain_list[i]);
         ASSERT_EQ(ErrorCode::OK, result);
 
-        if (!isRkpOnly() || i > 0) {
+        if (confirmedNotRkpOnly || i > 0) {
             AuthorizationSet hw_enforced = HwEnforcedAuthorizations(attested_key_characteristics);
             AuthorizationSet sw_enforced = SwEnforcedAuthorizations(attested_key_characteristics);
             ASSERT_GT(cert_chain_list[i].size(), 0);
@@ -620,7 +629,7 @@ TEST_P(AttestKeyTest, AlternateAttestKeyChaining) {
         }
 
         EXPECT_TRUE(ChainSignaturesAreValid(cert_chain_list[i]));
-        EXPECT_GT(cert_chain_list[i].size(), i + (isRkpOnly() ? 0 : 1));
+        EXPECT_GT(cert_chain_list[i].size(), i + (confirmedNotRkpOnly ? 1 : 0));
         verify_subject_and_serial(cert_chain_list[i][0], serial_int, subject, false);
     }
 
