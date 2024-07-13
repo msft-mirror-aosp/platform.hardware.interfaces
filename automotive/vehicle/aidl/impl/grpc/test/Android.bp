@@ -72,9 +72,4 @@ cc_test {
         "-Wno-unused-parameter",
     ],
     test_suites: ["device-tests"],
-    arch: {
-        riscv64: {
-            enabled: false,
-        },
-    },
 }
