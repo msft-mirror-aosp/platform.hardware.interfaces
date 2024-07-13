@@ -38,11 +38,6 @@ cc_library {
         "wakeup_client_protos",
     ],
     host_supported: true,
-    arch: {
-        riscv64: {
-            enabled: false,
-        },
-    },
 }
 
 cc_defaults {
