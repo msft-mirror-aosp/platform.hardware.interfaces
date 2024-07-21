@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,18 +31,10 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.nfc;
+package android.hardware.vibrator;
 @VintfStability
-interface INfc {
-  void open(in android.hardware.nfc.INfcClientCallback clientCallback);
-  void close(in android.hardware.nfc.NfcCloseType type);
-  void coreInitialized();
-  void factoryReset();
-  android.hardware.nfc.NfcConfig getConfig();
-  void powerCycle();
-  void preDiscover();
-  int write(in byte[] data);
-  void setEnableVerboseLogging(in boolean enable);
-  boolean isVerboseLoggingEnabled();
-  android.hardware.nfc.NfcStatus controlGranted();
+parcelable VendorEffect {
+  android.os.PersistableBundle vendorData;
+  android.hardware.vibrator.EffectStrength strength = android.hardware.vibrator.EffectStrength.MEDIUM;
+  float scale;
 }
