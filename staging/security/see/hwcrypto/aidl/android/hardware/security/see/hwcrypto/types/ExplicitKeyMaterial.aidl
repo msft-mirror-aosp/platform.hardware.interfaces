@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package android.hardware.security.see.storage;
+package android.hardware.security.see.hwcrypto.types;
 
-import android.hardware.security.see.storage.FileAvailability;
-import android.hardware.security.see.storage.FileIntegrity;
+import android.hardware.security.see.hwcrypto.types.AesKey;
 
-parcelable FileProperties {
-    FileIntegrity integrity = FileIntegrity.TAMPER_PROOF_AT_REST;
-    FileAvailability availability = FileAvailability.BEFORE_USERDATA;
-
-    /** Whether the file is reset when user data is wiped. */
-    boolean persistent;
+/*
+ * Type encapsulating a clear key.
+ */
+union ExplicitKeyMaterial {
+    AesKey aes;
 }
