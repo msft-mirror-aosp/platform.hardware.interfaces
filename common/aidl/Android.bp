@@ -13,7 +13,6 @@ aidl_interface {
     vendor_available: true,
     product_available: true,
     double_loadable: true,
-    vndk_use_version: "2",
     srcs: [
         "android/hardware/common/*.aidl",
     ],
@@ -21,16 +20,18 @@ aidl_interface {
     backend: {
         java: {
             sdk_version: "module_current",
+            apex_available: [
+                "//apex_available:anyapex",
+                "//apex_available:platform",
+            ],
         },
         cpp: {
             enabled: false,
         },
         ndk: {
             apex_available: [
+                "//apex_available:anyapex",
                 "//apex_available:platform",
-                "com.android.btservices",
-                "com.android.media.swcodec",
-                "com.android.neuralnetworks",
             ],
             min_sdk_version: "29",
         },
