@@ -33,11 +33,3 @@ rust_defaults {
         "android.hardware.automotive.vehicle.property-V4-rust",
     ],
 }
-
-aidl_interface_defaults {
-    name: "android.hardware.automotive.vehicle-latest-defaults",
-    imports: [
-        "android.hardware.automotive.vehicle-V3",
-        "android.hardware.automotive.vehicle.property-V4",
-    ],
-}
