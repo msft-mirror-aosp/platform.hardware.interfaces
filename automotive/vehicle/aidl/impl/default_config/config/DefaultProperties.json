@@ -3195,22 +3195,19 @@
             }
         },
         {
-            "property": "VehicleProperty::PER_DISPLAY_BRIGHTNESS"
-        },
-        {
-            "property": "VehicleProperty::PER_DISPLAY_MAX_BRIGHTNESS",
+            "property": "VehicleProperty::DISPLAY_BRIGHTNESS",
             "defaultValue": {
                 "int32Values": [
-                    0,
-                    100,
-                    1,
-                    100,
-                    2,
-                    100,
-                    3,
                     100
                 ]
-            }
+            },
+            "areas": [
+                {
+                    "areaId": 0,
+                    "minInt32Value": 0,
+                    "maxInt32Value": 100
+                }
+            ]
         },
         {
             "property": "VehicleProperty::VALET_MODE_ENABLED",
