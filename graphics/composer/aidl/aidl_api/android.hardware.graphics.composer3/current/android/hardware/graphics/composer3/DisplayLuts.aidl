@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,15 +31,13 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.drm;
-@Backing(type="int") @VintfStability
-enum HdcpLevel {
-  HDCP_UNKNOWN = 0,
-  HDCP_NONE = 1,
-  HDCP_V1 = 2,
-  HDCP_V2 = 3,
-  HDCP_V2_1 = 4,
-  HDCP_V2_2 = 5,
-  HDCP_NO_OUTPUT = 6,
-  HDCP_V2_3 = 7,
+package android.hardware.graphics.composer3;
+@VintfStability
+parcelable DisplayLuts {
+  long display;
+  android.hardware.graphics.composer3.DisplayLuts.LayerLut[] layerLuts;
+  parcelable LayerLut {
+    long layer;
+    android.hardware.graphics.composer3.Lut lut;
+  }
 }

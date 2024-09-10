@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,10 +31,15 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.biometrics.fingerprint;
-/* @hide */
-@VintfStability
-parcelable EnrollmentProgressStep {
-  int durationMs;
-  android.hardware.biometrics.fingerprint.AcquiredInfoAndVendorCode[] acquiredInfoAndVendorCodes;
+package android.hardware.drm;
+@Backing(type="int") @VintfStability
+enum HdcpLevel {
+  HDCP_UNKNOWN,
+  HDCP_NONE,
+  HDCP_V1,
+  HDCP_V2,
+  HDCP_V2_1,
+  HDCP_V2_2,
+  HDCP_NO_OUTPUT,
+  HDCP_V2_3,
 }

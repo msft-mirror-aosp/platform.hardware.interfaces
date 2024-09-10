@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,11 +31,20 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.biometrics.fingerprint;
-/* @hide */
+package android.hardware.graphics.composer3;
 @VintfStability
-parcelable NextEnrollment {
-  int id;
-  android.hardware.biometrics.fingerprint.EnrollmentProgressStep[] progressSteps;
-  boolean result = true;
+parcelable LutProperties {
+  android.hardware.graphics.composer3.LutProperties.Dimension dimension;
+  long size;
+  android.hardware.graphics.composer3.LutProperties.SamplingKey[] samplingKeys;
+  @VintfStability
+  enum Dimension {
+    ONE_D = 1,
+    THREE_D = 3,
+  }
+  @VintfStability
+  enum SamplingKey {
+    RGB,
+    MAX_RGB,
+  }
 }

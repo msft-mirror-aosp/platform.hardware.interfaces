@@ -14,23 +14,13 @@
  * limitations under the License.
  */
 
-package android.hardware.biometrics.fingerprint;
+#pragma once
 
-import android.hardware.biometrics.fingerprint.AcquiredInfoAndVendorCode;
+#include <aidl/android/hardware/automotive/vehicle/VehicleProperty.h>
 
-/**
- * @hide
- */
-@VintfStability
-parcelable EnrollmentProgressStep {
-    /**
-     * The duration of the enrollment step in milli-seconds
-     */
-    int durationMs;
+namespace aidl::android::hardware::automotive::vehicle {
 
-    /**
-     * The sequence of acquired info and vendor code to be issued by HAL during the step.
-     * The codes are evenly spreaded over the duration
-     */
-    AcquiredInfoAndVendorCode[] acquiredInfoAndVendorCodes;
-}
+// Same as VehicleProperty::PER_DISPLAY_MAX_BRIGHTNESS as defined in v4.
+static constexpr VehicleProperty PER_DISPLAY_MAX_BRIGHTNESS = (VehicleProperty)0x11410F4E;
+
+}  // namespace aidl::android::hardware::automotive::vehicle
