@@ -397,10 +397,10 @@ class EffectHelper {
                                                               outputBuffer.size(), outputBuffer));
         }
 
+        // Disable the process
         ASSERT_NO_FATAL_FAILURE(command(effect, CommandId::STOP));
         EXPECT_NO_FATAL_FAILURE(EffectHelper::readFromFmq(statusMQ, 0, outputMQ, 0, outputBuffer));
 
-        // Disable the process
         ASSERT_NO_FATAL_FAILURE(command(effect, CommandId::RESET));
     }
 
@@ -452,6 +452,17 @@ class EffectHelper {
         mOutputFrameSize = ::aidl::android::hardware::audio::common::getFrameSizeInBytes(
                 common.output.base.format, common.output.base.channelMask);
         mOutputSamples = common.output.frameCount * mOutputFrameSize / sizeof(float);
+    }
+
+    void generateInput(std::vector<float>& input, float inputFrequency, float samplingFrequency,
+                       size_t inputSize = 0) {
+        if (inputSize == 0 || inputSize > input.size()) {
+            inputSize = input.size();
+        }
+
+        for (size_t i = 0; i < inputSize; i++) {
+            input[i] = sin(2 * M_PI * inputFrequency * i / samplingFrequency);
+        }
     }
 
     bool mIsSpatializer;

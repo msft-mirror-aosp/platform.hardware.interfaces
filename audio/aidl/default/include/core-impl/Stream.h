@@ -245,7 +245,7 @@ struct StreamWorkerInterface {
     virtual StreamDescriptor::State setClosed() = 0;
     virtual bool start() = 0;
     virtual pid_t getTid() = 0;
-    virtual void stop() = 0;
+    virtual void join() = 0;
     virtual std::string getError() = 0;
 };
 
@@ -265,7 +265,7 @@ class StreamWorkerImpl : public StreamWorkerInterface,
         return WorkerImpl::start(WorkerImpl::kThreadName, ANDROID_PRIORITY_URGENT_AUDIO);
     }
     pid_t getTid() override { return WorkerImpl::getTid(); }
-    void stop() override { return WorkerImpl::stop(); }
+    void join() override { return WorkerImpl::join(); }
     std::string getError() override { return WorkerImpl::getError(); }
 };
 
@@ -457,6 +457,11 @@ class StreamCommonImpl : virtual public StreamCommonInterface, virtual public Dr
     }
 
     virtual void onClose(StreamDescriptor::State statePriorToClosing) = 0;
+    // Any stream class implementing 'DriverInterface::shutdown' must call 'cleanupWorker' in
+    // the destructor in order to stop and join the worker thread in the case when the client
+    // has not called 'IStreamCommon::close' method.
+    void cleanupWorker();
+    void stopAndJoinWorker();
     void stopWorker();
 
     const StreamContext& mContext;
@@ -464,6 +469,9 @@ class StreamCommonImpl : virtual public StreamCommonInterface, virtual public Dr
     std::unique_ptr<StreamWorkerInterface> mWorker;
     ChildInterface<StreamCommonDelegator> mCommon;
     ConnectedDevices mConnectedDevices;
+
+  private:
+    std::atomic<bool> mWorkerStopIssued = false;
 };
 
 // Note: 'StreamIn/Out' can not be used on their own. Instead, they must be used for defining
