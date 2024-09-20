@@ -551,7 +551,7 @@
     </hal>
     <hal format="aidl">
         <name>android.hardware.thermal</name>
-        <version>2</version>
+        <version>3</version>
         <interface>
             <name>IThermal</name>
             <instance>default</instance>
