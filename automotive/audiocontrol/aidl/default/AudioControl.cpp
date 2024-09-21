@@ -19,6 +19,7 @@
 
 #include "AudioControl.h"
 
+#include <aidl/android/hardware/automotive/audiocontrol/AudioDeviceConfiguration.h>
 #include <aidl/android/hardware/automotive/audiocontrol/AudioFocusChange.h>
 #include <aidl/android/hardware/automotive/audiocontrol/DuckingInfo.h>
 #include <aidl/android/hardware/automotive/audiocontrol/IFocusListener.h>
@@ -256,6 +257,15 @@ static inline std::string toEnumString(const std::vector<aidl_enum_type>& in_val
                            });
 }
 
+template <typename aidl_type>
+static inline std::string toString(const std::vector<std::optional<aidl_type>>& in_values) {
+    return std::accumulate(std::begin(in_values), std::end(in_values), std::string{},
+                           [](const std::string& ls, const std::optional<aidl_type>& rs) {
+                               return ls + (ls.empty() ? "" : ",") +
+                                      (rs.has_value() ? rs.value().toString() : "empty");
+                           });
+}
+
 ndk::ScopedAStatus AudioControl::onAudioFocusChangeWithMetaData(
         const audiohalcommon::PlaybackTrackMetadata& in_playbackMetaData, int32_t in_zoneId,
         AudioFocusChange in_focusChange) {
@@ -305,6 +315,27 @@ ndk::ScopedAStatus AudioControl::clearModuleChangeCallback() {
         LOG(DEBUG) << ":" << __func__ << ": Unregistered successfully";
     } else {
         LOG(DEBUG) << ":" << __func__ << ": No callback registered, no-op";
+    }
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus AudioControl::getAudioDeviceConfiguration(
+        AudioDeviceConfiguration* audioDeviceConfig) {
+    LOG(DEBUG) << ":" << __func__ << "audioDeviceConfig" << audioDeviceConfig->toString();
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus AudioControl::getOutputMirroringDevices(
+        std::vector<AudioPort>* mirroringDevices) {
+    for (const auto& mirroringDevice : *mirroringDevices) {
+        LOG(DEBUG) << ":" << __func__ << "Mirror device: " << mirroringDevice.toString().c_str();
+    }
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus AudioControl::getCarAudioZones(std::vector<AudioZone>* audioZones) {
+    for (const auto& audioZone : *audioZones) {
+        LOG(DEBUG) << ":" << __func__ << "Audio zone: " << audioZone.toString().c_str();
     }
     return ndk::ScopedAStatus::ok();
 }

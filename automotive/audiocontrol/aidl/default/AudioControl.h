@@ -63,6 +63,11 @@ class AudioControl : public BnAudioControl {
     ndk::ScopedAStatus setModuleChangeCallback(
             const std::shared_ptr<IModuleChangeCallback>& in_callback) override;
     ndk::ScopedAStatus clearModuleChangeCallback() override;
+    ndk::ScopedAStatus getAudioDeviceConfiguration(
+            AudioDeviceConfiguration* audioDeviceConfig) override;
+    ndk::ScopedAStatus getOutputMirroringDevices(
+            std::vector<::aidl::android::media::audio::common::AudioPort>* mirrorDevices) override;
+    ndk::ScopedAStatus getCarAudioZones(std::vector<AudioZone>* audioZones) override;
 
     binder_status_t dump(int fd, const char** args, uint32_t numArgs) override;
 

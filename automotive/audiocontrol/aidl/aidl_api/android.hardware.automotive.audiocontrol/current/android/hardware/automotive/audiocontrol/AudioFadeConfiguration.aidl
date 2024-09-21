@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,16 +32,19 @@
 // later when a module using the interface is updated, e.g., Mainline modules.
 
 package android.hardware.automotive.audiocontrol;
-@Backing(type="int") @VintfStability
-enum Reasons {
-  FORCED_MASTER_MUTE = 0x1,
-  REMOTE_MUTE = 0x2,
-  TCU_MUTE = 0x4,
-  ADAS_DUCKING = 0x8,
-  NAV_DUCKING = 0x10,
-  PROJECTION_DUCKING = 0x20,
-  THERMAL_LIMITATION = 0x40,
-  SUSPEND_EXIT_VOL_LIMITATION = 0x80,
-  EXTERNAL_AMP_VOL_FEEDBACK = 0x100,
-  OTHER = 0x80000000,
+@JavaDerive(equals=true, toString=true) @VintfStability
+parcelable AudioFadeConfiguration {
+  String name;
+  android.hardware.automotive.audiocontrol.FadeState fadeState;
+  long fadeInDurationMs = DEFAULT_FADE_IN_DURATION_MS /* 1000 */;
+  long fadeOutDurationMs = DEFAULT_FADE_OUT_DURATION_MS /* 2000 */;
+  long fadeInDelayedForOffendersMs = DEFAULT_DELAY_FADE_IN_OFFENDERS_MS /* 2000 */;
+  android.media.audio.common.AudioUsage[] fadeableUsages;
+  @nullable android.media.audio.common.AudioContentType[] unfadeableContentTypes;
+  List<android.media.audio.common.AudioAttributes> unfadableAudioAttributes;
+  List<android.hardware.automotive.audiocontrol.FadeConfiguration> fadeOutConfigurations;
+  List<android.hardware.automotive.audiocontrol.FadeConfiguration> fadeInConfigurations;
+  const long DEFAULT_FADE_IN_DURATION_MS = 1000;
+  const long DEFAULT_FADE_OUT_DURATION_MS = 2000;
+  const long DEFAULT_DELAY_FADE_IN_OFFENDERS_MS = 2000;
 }

@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 
-rust_binary {
-    name: "android.hardware.automotive.audiocontrol-rust-service",
-    relative_install_path: "hw",
-    vendor: true,
-    srcs: ["src/*.rs"],
-    crate_root: "src/main.rs",
-    defaults: [
-        "latest_android_hardware_automotive_audiocontrol_rust",
-        "latest_android_hardware_audio_common_rust",
-        "latest_android_media_audio_common_types_rust",
-    ],
-    vintf_fragments: ["audiocontrol-rust-service.xml"],
-    init_rc: ["audiocontrol-rust-service.rc"],
-    rustlibs: [
-        "libbinder_rs",
-    ],
+package android.hardware.automotive.audiocontrol;
+
+/**
+ * Encapsulates the audio fade configuration state
+ */
+@VintfStability
+@Backing(type="int")
+@JavaDerive(toString=true)
+enum FadeState {
+    /**
+     * Fade configuration should be disabled
+     */
+    FADE_STATE_DISABLED,
+    /**
+     * Fade configuration should be enabled by default
+     */
+    FADE_STATE_ENABLED_DEFAULT,
 }
