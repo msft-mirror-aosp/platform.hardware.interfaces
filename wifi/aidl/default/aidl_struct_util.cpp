@@ -61,6 +61,8 @@ IWifiChip::FeatureSetMask convertLegacyChipFeatureToAidl(uint64_t feature) {
             return IWifiChip::FeatureSetMask::SET_AFC_CHANNEL_ALLOWANCE;
         case WIFI_FEATURE_SET_VOIP_MODE:
             return IWifiChip::FeatureSetMask::SET_VOIP_MODE;
+        case WIFI_FEATURE_MLO_SAP:
+            return IWifiChip::FeatureSetMask::MLO_SAP;
     };
     CHECK(false) << "Unknown legacy feature: " << feature;
     return {};
@@ -3394,6 +3396,7 @@ bool convertAidlNanBootstrappingIndicationResponseToLegacy(
     *legacy_request = {};
 
     legacy_request->service_instance_id = aidl_request.bootstrappingInstanceId;
+    legacy_request->bootstrapping_instance_id = aidl_request.bootstrappingInstanceId;
     legacy_request->rsp_code = aidl_request.acceptRequest ? NAN_BOOTSTRAPPING_REQUEST_ACCEPT
                                                           : NAN_BOOTSTRAPPING_REQUEST_REJECT;
     legacy_request->publish_subscribe_id = static_cast<uint8_t>(aidl_request.discoverySessionId);

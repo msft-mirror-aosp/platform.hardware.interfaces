@@ -47,6 +47,17 @@ using aidl::android::media::audio::common::MicrophoneInfo;
 
 namespace aidl::android::hardware::audio::core {
 
+namespace {
+
+template <typename MQTypeError>
+auto fmqErrorHandler(const char* mqName) {
+    return [m = std::string(mqName)](MQTypeError fmqError, std::string&& errorMessage) {
+        CHECK_EQ(fmqError, MQTypeError::NONE) << m << ": " << errorMessage;
+    };
+}
+
+}  // namespace
+
 void StreamContext::fillDescriptor(StreamDescriptor* desc) {
     if (mCommandMQ) {
         desc->command = mCommandMQ->dupeDesc();
@@ -332,11 +343,7 @@ StreamInWorkerLogic::Status StreamInWorkerLogic::cycle() {
 bool StreamInWorkerLogic::read(size_t clientSize, StreamDescriptor::Reply* reply) {
     ATRACE_CALL();
     StreamContext::DataMQ* const dataMQ = mContext->getDataMQ();
-    StreamContext::DataMQ::Error fmqError = StreamContext::DataMQ::Error::NONE;
-    std::string fmqErrorMsg;
-    const size_t byteCount = std::min(
-            {clientSize, dataMQ->availableToWrite(&fmqError, &fmqErrorMsg), mDataBufferSize});
-    CHECK(fmqError == StreamContext::DataMQ::Error::NONE) << fmqErrorMsg;
+    const size_t byteCount = std::min({clientSize, dataMQ->availableToWrite(), mDataBufferSize});
     const bool isConnected = mIsConnected;
     const size_t frameSize = mContext->getFrameSize();
     size_t actualFrameCount = 0;
@@ -612,10 +619,7 @@ StreamOutWorkerLogic::Status StreamOutWorkerLogic::cycle() {
 bool StreamOutWorkerLogic::write(size_t clientSize, StreamDescriptor::Reply* reply) {
     ATRACE_CALL();
     StreamContext::DataMQ* const dataMQ = mContext->getDataMQ();
-    StreamContext::DataMQ::Error fmqError = StreamContext::DataMQ::Error::NONE;
-    std::string fmqErrorMsg;
-    const size_t readByteCount = dataMQ->availableToRead(&fmqError, &fmqErrorMsg);
-    CHECK(fmqError == StreamContext::DataMQ::Error::NONE) << fmqErrorMsg;
+    const size_t readByteCount = dataMQ->availableToRead();
     const size_t frameSize = mContext->getFrameSize();
     bool fatal = false;
     int32_t latency = mContext->getNominalLatencyMs();
@@ -663,10 +667,14 @@ bool StreamOutWorkerLogic::write(size_t clientSize, StreamDescriptor::Reply* rep
 }
 
 StreamCommonImpl::~StreamCommonImpl() {
-    if (!isClosed()) {
-        LOG(ERROR) << __func__ << ": stream was not closed prior to destruction, resource leak";
-        stopWorker();
-        // The worker and the context should clean up by themselves via destructors.
+    // It is responsibility of the class that implements 'DriverInterface' to call 'cleanupWorker'
+    // in the destructor. Note that 'cleanupWorker' can not be properly called from this destructor
+    // because any subclasses have already been destroyed and thus the 'DriverInterface'
+    // implementation is not valid. Thus, here it can only be asserted whether the subclass has done
+    // its job.
+    if (!mWorkerStopIssued && !isClosed()) {
+        LOG(FATAL) << __func__ << ": the stream implementation must call 'cleanupWorker' "
+                   << "in order to clean up the worker thread.";
     }
 }
 
@@ -714,6 +722,14 @@ ndk::ScopedAStatus StreamCommonImpl::initInstance(
         } else {
             LOG(WARNING) << __func__ << ": invalid worker tid: " << workerTid;
         }
+    }
+    getContext().getCommandMQ()->setErrorHandler(
+            fmqErrorHandler<StreamContext::CommandMQ::Error>("CommandMQ"));
+    getContext().getReplyMQ()->setErrorHandler(
+            fmqErrorHandler<StreamContext::ReplyMQ::Error>("ReplyMQ"));
+    if (getContext().getDataMQ() != nullptr) {
+        getContext().getDataMQ()->setErrorHandler(
+                fmqErrorHandler<StreamContext::DataMQ::Error>("DataMQ"));
     }
     return ndk::ScopedAStatus::ok();
 }
@@ -770,10 +786,7 @@ ndk::ScopedAStatus StreamCommonImpl::removeEffect(
 ndk::ScopedAStatus StreamCommonImpl::close() {
     LOG(DEBUG) << __func__;
     if (!isClosed()) {
-        stopWorker();
-        LOG(DEBUG) << __func__ << ": joining the worker thread...";
-        mWorker->join();
-        LOG(DEBUG) << __func__ << ": worker thread joined";
+        stopAndJoinWorker();
         onClose(mWorker->setClosed());
         return ndk::ScopedAStatus::ok();
     } else {
@@ -791,6 +804,20 @@ ndk::ScopedAStatus StreamCommonImpl::prepareToClose() {
     return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
 }
 
+void StreamCommonImpl::cleanupWorker() {
+    if (!isClosed()) {
+        LOG(ERROR) << __func__ << ": stream was not closed prior to destruction, resource leak";
+        stopAndJoinWorker();
+    }
+}
+
+void StreamCommonImpl::stopAndJoinWorker() {
+    stopWorker();
+    LOG(DEBUG) << __func__ << ": joining the worker thread...";
+    mWorker->join();
+    LOG(DEBUG) << __func__ << ": worker thread joined";
+}
+
 void StreamCommonImpl::stopWorker() {
     if (auto commandMQ = mContext.getCommandMQ(); commandMQ != nullptr) {
         LOG(DEBUG) << __func__ << ": asking the worker to exit...";
@@ -805,6 +832,7 @@ void StreamCommonImpl::stopWorker() {
         }
         LOG(DEBUG) << __func__ << ": done";
     }
+    mWorkerStopIssued = true;
 }
 
 ndk::ScopedAStatus StreamCommonImpl::updateMetadataCommon(const Metadata& metadata) {
@@ -825,6 +853,11 @@ ndk::ScopedAStatus StreamCommonImpl::setConnectedDevices(
     mWorker->setIsConnected(!devices.empty());
     mConnectedDevices = devices;
     return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus StreamCommonImpl::setGain(float gain) {
+    LOG(DEBUG) << __func__ << ": gain " << gain;
+    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
 }
 
 ndk::ScopedAStatus StreamCommonImpl::bluetoothParametersUpdated() {

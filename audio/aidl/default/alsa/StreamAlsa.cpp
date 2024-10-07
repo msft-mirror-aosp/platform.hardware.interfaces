@@ -37,6 +37,10 @@ StreamAlsa::StreamAlsa(StreamContext* context, const Metadata& metadata, int rea
       mConfig(alsa::getPcmConfig(getContext(), mIsInput)),
       mReadWriteRetries(readWriteRetries) {}
 
+StreamAlsa::~StreamAlsa() {
+    cleanupWorker();
+}
+
 ::android::status_t StreamAlsa::init() {
     return mConfig.has_value() ? ::android::OK : ::android::NO_INIT;
 }
@@ -71,6 +75,10 @@ StreamAlsa::StreamAlsa(StreamContext* context, const Metadata& metadata, int rea
     }
     decltype(mAlsaDeviceProxies) alsaDeviceProxies;
     for (const auto& device : getDeviceProfiles()) {
+        if ((device.direction == PCM_OUT && mIsInput) ||
+            (device.direction == PCM_IN && !mIsInput)) {
+            continue;
+        }
         alsa::DeviceProxy proxy;
         if (device.isExternal) {
             // Always ask alsa configure as required since the configuration should be supported
@@ -87,6 +95,9 @@ StreamAlsa::StreamAlsa(StreamContext* context, const Metadata& metadata, int rea
             return ::android::NO_INIT;
         }
         alsaDeviceProxies.push_back(std::move(proxy));
+    }
+    if (alsaDeviceProxies.empty()) {
+        return ::android::NO_INIT;
     }
     mAlsaDeviceProxies = std::move(alsaDeviceProxies);
     return ::android::OK;
@@ -106,6 +117,7 @@ StreamAlsa::StreamAlsa(StreamContext* context, const Metadata& metadata, int rea
                                 mReadWriteRetries);
         maxLatency = proxy_get_latency(mAlsaDeviceProxies[0].get());
     } else {
+        alsa::applyGain(buffer, mGain, bytesToTransfer, mConfig.value().format, mConfig->channels);
         for (auto& proxy : mAlsaDeviceProxies) {
             proxy_write_with_retries(proxy.get(), buffer, bytesToTransfer, mReadWriteRetries);
             maxLatency = std::max(maxLatency, proxy_get_latency(proxy.get()));
@@ -153,6 +165,11 @@ StreamAlsa::StreamAlsa(StreamContext* context, const Metadata& metadata, int rea
 
 void StreamAlsa::shutdown() {
     mAlsaDeviceProxies.clear();
+}
+
+ndk::ScopedAStatus StreamAlsa::setGain(float gain) {
+    mGain = gain;
+    return ndk::ScopedAStatus::ok();
 }
 
 }  // namespace aidl::android::hardware::audio::core

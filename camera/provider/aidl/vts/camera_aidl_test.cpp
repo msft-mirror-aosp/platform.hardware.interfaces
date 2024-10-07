@@ -1920,28 +1920,22 @@ void CameraAidlTest::verifyStreamCombination(const std::shared_ptr<ICameraDevice
         ASSERT_TRUE(ret.isOk());
         ASSERT_EQ(expectedStatus, streamCombinationSupported);
 
-        if (flags::feature_combination_query()) {
-            int32_t interfaceVersion;
-            ret = device->getInterfaceVersion(&interfaceVersion);
+        int32_t interfaceVersion;
+        ret = device->getInterfaceVersion(&interfaceVersion);
+        ASSERT_TRUE(ret.isOk());
+        bool supportFeatureCombinationQuery =
+                (interfaceVersion >= CAMERA_DEVICE_API_MINOR_VERSION_3);
+        if (supportFeatureCombinationQuery) {
+            ret = device->isStreamCombinationWithSettingsSupported(config,
+                                                                   &streamCombinationSupported);
             ASSERT_TRUE(ret.isOk());
-            bool supportFeatureCombinationQuery =
-                    (interfaceVersion >= CAMERA_DEVICE_API_MINOR_VERSION_3);
-            if (supportFeatureCombinationQuery) {
-                ret = device->isStreamCombinationWithSettingsSupported(config,
-                                                                       &streamCombinationSupported);
-                ASSERT_TRUE(ret.isOk());
-                ASSERT_EQ(expectedStatus, streamCombinationSupported);
-            }
+            ASSERT_EQ(expectedStatus, streamCombinationSupported);
         }
     }
 }
 
 void CameraAidlTest::verifySessionCharacteristics(const CameraMetadata& session_chars,
                                                   const CameraMetadata& camera_chars) {
-    if (!flags::feature_combination_query()) {
-        return;
-    }
-
     const camera_metadata_t* session_metadata =
             reinterpret_cast<const camera_metadata_t*>(session_chars.metadata.data());
 
@@ -2596,8 +2590,7 @@ ndk::ScopedAStatus CameraAidlTest::configureStreams(std::shared_ptr<ICameraDevic
         return ret;
     }
 
-    if (flags::session_hal_buf_manager() &&
-        (bufferManagerType == BufferManagerType::SESSION && interfaceVersion >= 3)) {
+    if (bufferManagerType == BufferManagerType::SESSION && interfaceVersion >= 3) {
         ret = session->configureStreamsV2(config, &aidl_return);
     } else {
         ret = session->configureStreams(config, halStreams);
@@ -2605,12 +2598,11 @@ ndk::ScopedAStatus CameraAidlTest::configureStreams(std::shared_ptr<ICameraDevic
     if (!ret.isOk()) {
         return ret;
     }
-    if (flags::session_hal_buf_manager() && bufferManagerType == BufferManagerType::SESSION) {
+    if (bufferManagerType == BufferManagerType::SESSION) {
         *halStreams = std::move(aidl_return.halStreams);
     }
     for (const auto& halStream : *halStreams) {
-        if ((flags::session_hal_buf_manager() && bufferManagerType == BufferManagerType::SESSION &&
-             halStream.enableHalBufferManager) ||
+        if ((bufferManagerType == BufferManagerType::SESSION && halStream.enableHalBufferManager) ||
             bufferManagerType == BufferManagerType::HAL) {
             halBufManagedStreamIds->insert(halStream.id);
         }

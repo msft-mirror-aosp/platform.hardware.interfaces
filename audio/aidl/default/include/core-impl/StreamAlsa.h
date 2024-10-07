@@ -32,6 +32,8 @@ namespace aidl::android::hardware::audio::core {
 class StreamAlsa : public StreamCommonImpl {
   public:
     StreamAlsa(StreamContext* context, const Metadata& metadata, int readWriteRetries);
+    ~StreamAlsa();
+
     // Methods of 'DriverInterface'.
     ::android::status_t init() override;
     ::android::status_t drain(StreamDescriptor::DrainMode) override;
@@ -43,6 +45,7 @@ class StreamAlsa : public StreamCommonImpl {
                                  int32_t* latencyMs) override;
     ::android::status_t refinePosition(StreamDescriptor::Position* position) override;
     void shutdown() override;
+    ndk::ScopedAStatus setGain(float gain) override;
 
   protected:
     // Called from 'start' to initialize 'mAlsaDeviceProxies', the vector must be non-empty.
@@ -56,6 +59,9 @@ class StreamAlsa : public StreamCommonImpl {
     const int mReadWriteRetries;
     // All fields below are only used on the worker thread.
     std::vector<alsa::DeviceProxy> mAlsaDeviceProxies;
+
+  private:
+    std::atomic<float> mGain = 1.0;
 };
 
 }  // namespace aidl::android::hardware::audio::core
