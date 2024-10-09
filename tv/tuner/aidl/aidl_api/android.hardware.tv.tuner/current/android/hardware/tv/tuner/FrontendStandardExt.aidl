@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The Android Open Source Project
+ * Copyright 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,54 +33,8 @@
 
 package android.hardware.tv.tuner;
 /* @hide */
-@Backing(type="int") @VintfStability
-enum FrontendStatusType {
-  DEMOD_LOCK,
-  SNR,
-  BER,
-  PER,
-  PRE_BER,
-  SIGNAL_QUALITY,
-  SIGNAL_STRENGTH,
-  SYMBOL_RATE,
-  FEC,
-  MODULATION,
-  SPECTRAL,
-  LNB_VOLTAGE,
-  PLP_ID,
-  EWBS,
-  AGC,
-  LNA,
-  LAYER_ERROR,
-  MER,
-  FREQ_OFFSET,
-  HIERARCHY,
-  RF_LOCK,
-  ATSC3_PLP_INFO,
-  MODULATIONS,
-  BERS,
-  CODERATES,
-  BANDWIDTH,
-  GUARD_INTERVAL,
-  TRANSMISSION_MODE,
-  UEC,
-  T2_SYSTEM_ID,
-  INTERLEAVINGS,
-  ISDBT_SEGMENTS,
-  TS_DATA_RATES,
-  ROLL_OFF,
-  IS_MISO,
-  IS_LINEAR,
-  IS_SHORT_FRAMES,
-  ISDBT_MODE,
-  ISDBT_PARTIAL_RECEPTION_FLAG,
-  STREAM_ID_LIST,
-  DVBT_CELL_IDS,
-  ATSC3_ALL_PLP_INFO,
-  IPTV_CONTENT_URL,
-  IPTV_PACKETS_LOST,
-  IPTV_PACKETS_RECEIVED,
-  IPTV_WORST_JITTER_MS,
-  IPTV_AVERAGE_JITTER_MS,
-  STANDARD_EXT,
+@VintfStability
+union FrontendStandardExt {
+  android.hardware.tv.tuner.FrontendDvbsStandard dvbsStandardExt = android.hardware.tv.tuner.FrontendDvbsStandard.UNDEFINED;
+  android.hardware.tv.tuner.FrontendDvbtStandard dvbtStandardExt = android.hardware.tv.tuner.FrontendDvbtStandard.UNDEFINED;
 }
