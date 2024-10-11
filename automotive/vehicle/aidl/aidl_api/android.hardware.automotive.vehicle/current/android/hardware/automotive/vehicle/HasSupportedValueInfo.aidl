@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,16 +33,8 @@
 
 package android.hardware.automotive.vehicle;
 @JavaDerive(equals=true, toString=true) @RustDerive(Clone=true) @VintfStability
-parcelable VehicleAreaConfig {
-  int areaId;
-  int minInt32Value;
-  int maxInt32Value;
-  long minInt64Value;
-  long maxInt64Value;
-  float minFloatValue;
-  float maxFloatValue;
-  @nullable long[] supportedEnumValues;
-  android.hardware.automotive.vehicle.VehiclePropertyAccess access = android.hardware.automotive.vehicle.VehiclePropertyAccess.NONE;
-  boolean supportVariableUpdateRate;
-  @nullable android.hardware.automotive.vehicle.HasSupportedValueInfo hasSupportedValueInfo;
+parcelable HasSupportedValueInfo {
+  boolean hasMinSupportedValue;
+  boolean hasMaxSupportedValue;
+  boolean hasSupportedValuesList;
 }
