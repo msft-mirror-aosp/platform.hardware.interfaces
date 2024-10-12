@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,19 @@
 
 package android.hardware.wifi.supplicant;
 
+/**
+ * P2P Pairing Bootstrapping Method.
+ */
 @VintfStability
-@Backing(type="int")
-enum WpsProvisionMethod {
-    NONE = -1,
-    /**
-     * Push button method.
-     */
-    PBC,
-    /**
-     * Display pin method configuration - pin is generated and displayed on
-     * device.
-     */
-    DISPLAY,
-    /**
-     * Keypad pin method configuration - pin is entered on device.
-     */
-    KEYPAD,
+parcelable P2pPairingBootstrappingMethodMask {
+    /** Opportunistic bootstrapping */
+    const int BOOTSTRAPPING_OPPORTUNISTIC = 1 << 0;
+    /** Display pin-code only */
+    const int BOOTSTRAPPING_DISPLAY_PINCODE = 1 << 1;
+    /** Display passphrase */
+    const int BOOTSTRAPPING_DISPLAY_PASSPHRASE = 1 << 2;
+    /** Keypad pin-code only */
+    const int BOOTSTRAPPING_KEYPAD_PINCODE = 1 << 3;
+    /** Keypad passphrase */
+    const int BOOTSTRAPPING_KEYPAD_PASSPHRASE = 1 << 4;
 }
