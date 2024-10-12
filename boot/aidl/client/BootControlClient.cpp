@@ -87,23 +87,23 @@ class BootControlClientAidl final : public BootControlClient {
 
     void onBootControlServiceDied() { LOG(ERROR) << "boot control service AIDL died"; }
 
-    virtual int32_t GetNumSlots() const {
+    int32_t GetNumSlots() const override {
         int32_t ret = -1;
         LOG_NDK_STATUS(module_->getNumberSlots(&ret));
         return ret;
     }
 
-    int32_t GetCurrentSlot() const {
+    int32_t GetCurrentSlot() const override {
         int32_t ret = -1;
         LOG_NDK_STATUS(module_->getCurrentSlot(&ret));
         return ret;
     }
-    MergeStatus getSnapshotMergeStatus() const {
+    MergeStatus getSnapshotMergeStatus() const override {
         MergeStatus status = MergeStatus::UNKNOWN;
         LOG_NDK_STATUS(module_->getSnapshotMergeStatus(&status));
         return status;
     }
-    std::string GetSuffix(int32_t slot) const {
+    std::string GetSuffix(int32_t slot) const override {
         std::string ret;
         const auto status = module_->getSuffix(slot, &ret);
         if (!status.isOk()) {
@@ -114,7 +114,7 @@ class BootControlClientAidl final : public BootControlClient {
         return ret;
     }
 
-    std::optional<bool> IsSlotBootable(int32_t slot) const {
+    std::optional<bool> IsSlotBootable(int32_t slot) const override {
         bool ret = false;
         const auto status = module_->isSlotBootable(slot, &ret);
         if (!status.isOk()) {
@@ -125,7 +125,7 @@ class BootControlClientAidl final : public BootControlClient {
         return ret;
     }
 
-    CommandResult MarkSlotUnbootable(int32_t slot) {
+    CommandResult MarkSlotUnbootable(int32_t slot) override {
         const auto status = module_->setSlotAsUnbootable(slot);
         if (!status.isOk()) {
             LOG(ERROR) << __FUNCTION__ << "(" << slot << ")" << " failed "
@@ -134,7 +134,7 @@ class BootControlClientAidl final : public BootControlClient {
         return {.success = status.isOk(), .errMsg = status.getDescription()};
     }
 
-    CommandResult SetActiveBootSlot(int slot) {
+    CommandResult SetActiveBootSlot(int slot) override {
         const auto status = module_->setActiveBootSlot(slot);
         if (!status.isOk()) {
             LOG(ERROR) << __FUNCTION__ << "(" << slot << ")" << " failed "
@@ -149,7 +149,7 @@ class BootControlClientAidl final : public BootControlClient {
     }
 
     // Check if |slot| is marked boot successfully.
-    std::optional<bool> IsSlotMarkedSuccessful(int slot) const {
+    std::optional<bool> IsSlotMarkedSuccessful(int slot) const override {
         bool ret = false;
         const auto status = module_->isSlotMarkedSuccessful(slot, &ret);
         if (!status.isOk()) {
@@ -160,7 +160,7 @@ class BootControlClientAidl final : public BootControlClient {
         return ret;
     }
 
-    CommandResult MarkBootSuccessful() {
+    CommandResult MarkBootSuccessful() override {
         const auto status = module_->markBootSuccessful();
         if (!status.isOk()) {
             LOG(ERROR) << __FUNCTION__ << " failed " << status.getDescription();
@@ -168,7 +168,8 @@ class BootControlClientAidl final : public BootControlClient {
         return {.success = status.isOk(), .errMsg = status.getDescription()};
     }
 
-    CommandResult SetSnapshotMergeStatus(aidl::android::hardware::boot::MergeStatus merge_status) {
+    CommandResult SetSnapshotMergeStatus(
+            aidl::android::hardware::boot::MergeStatus merge_status) override {
         const auto status = module_->setSnapshotMergeStatus(merge_status);
         if (!status.isOk()) {
             LOG(ERROR) << __FUNCTION__ << "(" << merge_status << ")" << " failed "
@@ -205,7 +206,7 @@ class BootControlClientHIDL final : public BootControlClient {
             return BootControlVersion::BOOTCTL_V1_0;
         }
     }
-    int32_t GetNumSlots() const {
+    int32_t GetNumSlots() const override {
         const auto ret = module_v1_->getNumberSlots();
         if (!ret.isOk()) {
             LOG(ERROR) << __FUNCTION__ << " failed " << ret.description();
@@ -213,7 +214,7 @@ class BootControlClientHIDL final : public BootControlClient {
         return ret.withDefault(-1);
     }
 
-    int32_t GetCurrentSlot() const {
+    int32_t GetCurrentSlot() const override {
         const auto ret = module_v1_->getCurrentSlot();
         if (!ret.isOk()) {
             LOG(ERROR) << __FUNCTION__ << " failed " << ret.description();
@@ -221,7 +222,7 @@ class BootControlClientHIDL final : public BootControlClient {
         return ret.withDefault(-1);
     }
 
-    std::string GetSuffix(int32_t slot) const {
+    std::string GetSuffix(int32_t slot) const override {
         std::string suffix;
         const auto ret = module_v1_->getSuffix(
                 slot,
@@ -232,7 +233,7 @@ class BootControlClientHIDL final : public BootControlClient {
         return suffix;
     }
 
-    std::optional<bool> IsSlotBootable(int32_t slot) const {
+    std::optional<bool> IsSlotBootable(int32_t slot) const override {
         const auto ret = module_v1_->isSlotBootable(slot);
         if (!ret.isOk()) {
             LOG(ERROR) << __FUNCTION__ << "(" << slot << ")" << " failed " << ret.description();
@@ -245,7 +246,7 @@ class BootControlClientHIDL final : public BootControlClient {
         return bool_result == V1_0::BoolResult::TRUE;
     }
 
-    CommandResult MarkSlotUnbootable(int32_t slot) {
+    CommandResult MarkSlotUnbootable(int32_t slot) override {
         CommandResult result;
         const auto ret =
                 module_v1_->setSlotAsUnbootable(slot, [&](const V1_0::CommandResult& error) {
@@ -258,7 +259,7 @@ class BootControlClientHIDL final : public BootControlClient {
         return result;
     }
 
-    CommandResult SetActiveBootSlot(int32_t slot) {
+    CommandResult SetActiveBootSlot(int32_t slot) override {
         CommandResult result;
         const auto ret = module_v1_->setActiveBootSlot(slot, [&](const V1_0::CommandResult& error) {
             result.success = error.success;
@@ -270,7 +271,7 @@ class BootControlClientHIDL final : public BootControlClient {
         return result;
     }
 
-    CommandResult MarkBootSuccessful() {
+    CommandResult MarkBootSuccessful() override {
         CommandResult result;
         const auto ret = module_v1_->markBootSuccessful([&](const V1_0::CommandResult& error) {
             result.success = error.success;
@@ -282,7 +283,7 @@ class BootControlClientHIDL final : public BootControlClient {
         return result;
     }
 
-    std::optional<bool> IsSlotMarkedSuccessful(int32_t slot) const {
+    std::optional<bool> IsSlotMarkedSuccessful(int32_t slot) const override {
         const auto ret = module_v1_->isSlotMarkedSuccessful(slot);
         if (!ret.isOk()) {
             LOG(ERROR) << __FUNCTION__ << "(" << slot << ")" << " failed " << ret.description();
@@ -295,7 +296,7 @@ class BootControlClientHIDL final : public BootControlClient {
         return bool_result == V1_0::BoolResult::TRUE;
     }
 
-    MergeStatus getSnapshotMergeStatus() const {
+    MergeStatus getSnapshotMergeStatus() const override {
         if (module_v1_1_ == nullptr) {
             LOG(ERROR) << __FUNCTION__ << " is unsupported, requires at least boot v1.1";
             return MergeStatus::UNKNOWN;
@@ -308,7 +309,7 @@ class BootControlClientHIDL final : public BootControlClient {
                 ret.withDefault(static_cast<V1_1::MergeStatus>(MergeStatus::UNKNOWN)));
     }
 
-    CommandResult SetSnapshotMergeStatus(MergeStatus merge_status) {
+    CommandResult SetSnapshotMergeStatus(MergeStatus merge_status) override {
         if (module_v1_1_ == nullptr) {
             return {.success = false,
                     .errMsg = "setSnapshotMergeStatus is unsupported, requires at least boot v1.1"};
@@ -322,7 +323,7 @@ class BootControlClientHIDL final : public BootControlClient {
         return {.success = ret.isOk(), .errMsg = ret.description()};
     }
 
-    int32_t GetActiveBootSlot() const {
+    int32_t GetActiveBootSlot() const override {
         if (module_v1_2_ == nullptr) {
             LOG(ERROR) << __FUNCTION__ << " is unsupported, requires at least boot v1.2";
             return -1;
