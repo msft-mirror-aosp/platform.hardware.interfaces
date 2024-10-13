@@ -60,12 +60,12 @@ typedef enum {
 
 /* RTT Type */
 typedef enum {
-    RTT_TYPE_1_SIDED          = 0x1,
+    RTT_TYPE_1_SIDED = 0x1,
     /* Deprecated. Use RTT_TYPE_2_SIDED_11MC instead. */
-    RTT_TYPE_2_SIDED          = 0x2,
-    RTT_TYPE_2_SIDED_11MC     = RTT_TYPE_2_SIDED,
+    RTT_TYPE_2_SIDED = 0x2,
+    RTT_TYPE_2_SIDED_11MC = RTT_TYPE_2_SIDED,
     RTT_TYPE_2_SIDED_11AZ_NTB = 0x3,
-
+    RTT_TYPE_2_SIDED_11AZ_NTB_SECURE = 0x4,
 } wifi_rtt_type;
 
 /* RTT configuration */

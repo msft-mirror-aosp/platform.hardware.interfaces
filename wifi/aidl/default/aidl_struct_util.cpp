@@ -2478,6 +2478,8 @@ legacy_hal::wifi_rtt_type convertAidlRttTypeToLegacy(RttType type) {
             return legacy_hal::RTT_TYPE_2_SIDED_11MC;
         case RttType::TWO_SIDED_11AZ_NTB:
             return legacy_hal::RTT_TYPE_2_SIDED_11AZ_NTB;
+        case RttType::TWO_SIDED_11AZ_NTB_SECURE:
+            return legacy_hal::RTT_TYPE_2_SIDED_11AZ_NTB_SECURE;
     };
     CHECK(false);
 }
@@ -2491,6 +2493,8 @@ RttType convertLegacyRttTypeToAidl(legacy_hal::wifi_rtt_type type) {
             return RttType::TWO_SIDED_11MC;
         case legacy_hal::RTT_TYPE_2_SIDED_11AZ_NTB:
             return RttType::TWO_SIDED_11AZ_NTB;
+        case legacy_hal::RTT_TYPE_2_SIDED_11AZ_NTB_SECURE:
+            return RttType::TWO_SIDED_11AZ_NTB_SECURE;
     };
     CHECK(false) << "Unknown legacy type: " << type;
 }
