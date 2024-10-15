@@ -28,6 +28,7 @@
 #include <android/hardware/graphics/composer3/ComposerClientReader.h>
 #include <android/hardware/graphics/composer3/ComposerClientWriter.h>
 #include <binder/ProcessState.h>
+#include <cutils/ashmem.h>
 #include <gtest/gtest.h>
 #include <ui/Fence.h>
 #include <ui/GraphicBuffer.h>
@@ -3324,6 +3325,54 @@ TEST_P(GraphicsComposerAidlCommandV3Test, setLayerPictureProfileId_failsWithTooM
     }
 }
 
+class GraphicsComposerAidlCommandV4Test : public GraphicsComposerAidlCommandTest {
+  protected:
+    void SetUp() override {
+        GraphicsComposerAidlTest::SetUp();
+        if (getInterfaceVersion() <= 3) {
+            GTEST_SKIP() << "Device interface version is expected to be >= 4";
+        }
+    }
+};
+
+TEST_P(GraphicsComposerAidlCommandV4Test, SetUnsupportedLayerLuts) {
+    auto& writer = getWriter(getPrimaryDisplayId());
+    const auto& [layerStatus, layer] =
+            mComposerClient->createLayer(getPrimaryDisplayId(), kBufferSlotCount, &writer);
+    EXPECT_TRUE(layerStatus.isOk());
+    const auto& [status, properties] = mComposerClient->getOverlaySupport();
+    if (!status.isOk() && status.getExceptionCode() == EX_SERVICE_SPECIFIC &&
+        status.getServiceSpecificError() == IComposerClient::EX_UNSUPPORTED) {
+        GTEST_SUCCEED() << "getOverlaySupport is not supported";
+        return;
+    }
+    ASSERT_TRUE(status.isOk());
+
+    // TODO (b/362319189): add Lut VTS enforcement
+    if (!properties.lutProperties) {
+        int32_t size = 7;
+        size_t bufferSize = static_cast<size_t>(size) * sizeof(float);
+        int32_t fd = ashmem_create_region("lut_shared_mem", bufferSize);
+        void* ptr = mmap(nullptr, bufferSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        std::vector<float> buffers = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
+        memcpy(ptr, buffers.data(), bufferSize);
+        munmap(ptr, bufferSize);
+        Luts luts;
+        luts.offsets = {0};
+        luts.lutProperties = {
+                {LutProperties::Dimension::ONE_D, size, {LutProperties::SamplingKey::RGB}}};
+        luts.pfd = ndk::ScopedFileDescriptor(fd);
+
+        writer.setLayerLuts(getPrimaryDisplayId(), layer, luts);
+        writer.validateDisplay(getPrimaryDisplayId(), ComposerClientWriter::kNoTimestamp,
+                               VtsComposerClient::kNoFrameIntervalNs);
+        execute();
+        // change to client composition
+        ASSERT_FALSE(mReader.takeChangedCompositionTypes(getPrimaryDisplayId()).empty());
+        ASSERT_TRUE(mReader.takeErrors().empty());
+    }
+}
+
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GraphicsComposerAidlCommandTest);
 INSTANTIATE_TEST_SUITE_P(
         PerInstance, GraphicsComposerAidlCommandTest,
@@ -3352,6 +3401,11 @@ INSTANTIATE_TEST_SUITE_P(
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GraphicsComposerAidlCommandV3Test);
 INSTANTIATE_TEST_SUITE_P(
         PerInstance, GraphicsComposerAidlCommandV3Test,
+        testing::ValuesIn(::android::getAidlHalInstanceNames(IComposer::descriptor)),
+        ::android::PrintInstanceNameToString);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GraphicsComposerAidlCommandV4Test);
+INSTANTIATE_TEST_SUITE_P(
+        PerInstance, GraphicsComposerAidlCommandV4Test,
         testing::ValuesIn(::android::getAidlHalInstanceNames(IComposer::descriptor)),
         ::android::PrintInstanceNameToString);
 }  // namespace aidl::android::hardware::graphics::composer3::vts
