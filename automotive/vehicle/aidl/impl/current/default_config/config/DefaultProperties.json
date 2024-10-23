@@ -4801,6 +4801,14 @@
             }
         },
         {
+            "property": "VehicleProperty::VEHICLE_DRIVING_AUTOMATION_TARGET_LEVEL",
+            "defaultValue": {
+                "int32Values": [
+                    "VehicleAutonomousState::LEVEL_0"
+                ]
+            }
+        },
+        {
             "property": "VehicleProperty::AUTOMATIC_EMERGENCY_BRAKING_ENABLED",
             "defaultValue": {
                 "int32Values": [

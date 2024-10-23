@@ -5399,9 +5399,7 @@ enum VehicleProperty {
      *
      * Defines the level of autonomy currently engaged in the vehicle from the J3016_202104 revision
      * of the SAE standard levels 0-5, with 0 representing no autonomy and 5 representing full
-     * driving automation. These levels should be used in accordance with the standards defined in
-     * https://www.sae.org/standards/content/j3016_202104/ and
-     * https://www.sae.org/blog/sae-j3016-update
+     * driving automation.
      *
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of VehicleAutonomousState are supported.
@@ -5413,7 +5411,35 @@ enum VehicleProperty {
      */
     VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL =
             0x0F4C + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
-
+    /**
+     * Target state of vehicle autonomy.
+     *
+     * Defines the level of autonomy being targeted by the vehicle from the J3016_202104 revision of
+     * the SAE standard levels 0-5, with 0 representing no autonomy and 5 representing full driving
+     * automation.
+     *
+     * For example, suppose the vehicle is currently in a Level 3 state of automation and wants to
+     * give the driver full manual control (i.e. Level 0) as soon as it's safe to do so. In this
+     * scenario, this property must be set to VehicleAutonomousState.LEVEL_0. Similarly, if the
+     * vehicle is currently in Level 1 state of automation and wants to go up to Level 2, this
+     * property must be set to VehicleAutonomousState.LEVEL_2. If the vehicle has already reached
+     * and is currently in the target level of autonomy, this property must be equal to the value of
+     * VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL.
+     *
+     * For the global area ID (0), the SupportedValuesListResult#supportedValuesList array must be
+     * defined unless all states of VehicleAutonomousState are supported. These values must match
+     * the values in supportedValuesList of VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL.
+     *
+     * For the property that communicates the current state of autonomy, see
+     * VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum VehicleAutonomousState
+     * @version 4
+     */
+    VEHICLE_DRIVING_AUTOMATION_TARGET_LEVEL =
+            0x0F4F + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
     /**
      * Reports current state of CarEvsService types.
      *

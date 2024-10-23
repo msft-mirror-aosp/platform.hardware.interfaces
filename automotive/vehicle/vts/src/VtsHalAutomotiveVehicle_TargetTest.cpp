@@ -1418,6 +1418,12 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyVehicleHornEngagedConfig) {
                    VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
 }
 
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyVehicleDrivingAutomationTargetLevelConfig) {
+    verifyProperty(VehicleProperty::VEHICLE_DRIVING_AUTOMATION_TARGET_LEVEL,
+                   VehiclePropertyAccess::READ, VehiclePropertyChangeMode::ON_CHANGE,
+                   VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
 bool VtsHalAutomotiveVehicleTargetTest::checkIsSupported(int32_t propertyId) {
     auto result = mVhalClient->getPropConfigs({propertyId});
     return result.ok();
