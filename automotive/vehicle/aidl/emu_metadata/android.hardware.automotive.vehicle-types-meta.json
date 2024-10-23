@@ -226,6 +226,11 @@
                 "description": "Critically low tire pressure\nThis property indicates the critically low pressure threshold for each tire. It indicates when it is time for tires to be replaced or fixed. The value must be less than or equal to minFloatValue in TIRE_PRESSURE. Minimum and maximum property values (that is, minFloatValue, maxFloatValue) are not applicable to this property."
             },
             {
+                "name": "ACCELERATOR_PEDAL_COMPRESSION_PERCENTAGE",
+                "value": 291504911,
+                "description": "Accelerator pedal compression percentage.\nThis property must communicate the percentage that the physical accelerator pedal in the vehicle is compressed. This property must return a float value from 0 to 100.\n0 indicates the pedal is not compressed. 100 indicates the pedal is maximally compressed."
+            },
+            {
                 "name": "ENGINE_IDLE_AUTO_STOP_ENABLED",
                 "value": 287310624,
                 "description": "Represents feature for engine idle automatic stop.\nIf true, the vehicle may automatically shut off the engine when it is not needed and then automatically restart it when needed.\nThis property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to implement it as VehiclePropertyAccess.READ only."

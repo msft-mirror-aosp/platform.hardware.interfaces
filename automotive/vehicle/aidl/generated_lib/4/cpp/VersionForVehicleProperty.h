@@ -73,6 +73,7 @@ std::unordered_map<VehicleProperty, int32_t> VersionForVehicleProperty = {
         {VehicleProperty::EV_BATTERY_AVERAGE_TEMPERATURE, 3},
         {VehicleProperty::TIRE_PRESSURE, 2},
         {VehicleProperty::CRITICALLY_LOW_TIRE_PRESSURE, 2},
+        {VehicleProperty::ACCELERATOR_PEDAL_COMPRESSION_PERCENTAGE, 4},
         {VehicleProperty::ENGINE_IDLE_AUTO_STOP_ENABLED, 2},
         {VehicleProperty::IMPACT_DETECTED, 3},
         {VehicleProperty::VEHICLE_HORN_ENGAGED, 4},

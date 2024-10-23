@@ -1744,6 +1744,16 @@
             ]
         },
         {
+            "property": "VehicleProperty::ACCELERATOR_PEDAL_COMPRESSION_PERCENTAGE",
+            "defaultValue": {
+                "floatValues": [
+                    0.0
+                ]
+            },
+            "maxSampleRate": 10.0,
+            "minSampleRate": 1.0
+        },
+        {
             "property": "VehicleProperty::TIRE_PRESSURE_DISPLAY_UNITS",
             "defaultValue": {
                 "int32Values": [

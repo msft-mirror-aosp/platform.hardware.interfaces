@@ -67,6 +67,7 @@ public final class ChangeModeForVehicleProperty {
         Map.entry(VehicleProperty.EV_BATTERY_AVERAGE_TEMPERATURE, VehiclePropertyChangeMode.CONTINUOUS),
         Map.entry(VehicleProperty.TIRE_PRESSURE, VehiclePropertyChangeMode.CONTINUOUS),
         Map.entry(VehicleProperty.CRITICALLY_LOW_TIRE_PRESSURE, VehiclePropertyChangeMode.STATIC),
+        Map.entry(VehicleProperty.ACCELERATOR_PEDAL_COMPRESSION_PERCENTAGE, VehiclePropertyChangeMode.CONTINUOUS),
         Map.entry(VehicleProperty.ENGINE_IDLE_AUTO_STOP_ENABLED, VehiclePropertyChangeMode.ON_CHANGE),
         Map.entry(VehicleProperty.IMPACT_DETECTED, VehiclePropertyChangeMode.ON_CHANGE),
         Map.entry(VehicleProperty.VEHICLE_HORN_ENGAGED, VehiclePropertyChangeMode.ON_CHANGE),
