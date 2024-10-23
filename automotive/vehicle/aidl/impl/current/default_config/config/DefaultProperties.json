@@ -2536,7 +2536,15 @@
             ]
         },
         {
-            "property": "VehicleProperty::TURN_SIGNAL_STATE",
+            "property": "VehicleProperty::TURN_SIGNAL_LIGHT_STATE",
+            "defaultValue": {
+                "int32Values": [
+                    "VehicleTurnSignal::NONE"
+                ]
+            }
+        },
+        {
+            "property": "VehicleProperty::TURN_SIGNAL_SWITCH",
             "defaultValue": {
                 "int32Values": [
                     "VehicleTurnSignal::NONE"

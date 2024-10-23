@@ -279,7 +279,7 @@
                     "VehicleTurnSignal"
                 ],
                 "data_enum": "VehicleTurnSignal",
-                "description": "State of the vehicles turn signals"
+                "description": "(Deprecated) State of the vehicles turn signals\nThis property has been deprecated as it ambiguously defines the state of the vehicle turn signals without making clear if it means the state of the turn signal lights or the state of the turn signal switch. The introduction of TURN_SIGNAL_LIGHT_STATE and TURN_SIGNAL_SWITCH rectifies this problem."
             },
             {
                 "name": "Represents ignition state",
@@ -323,6 +323,24 @@
                 ],
                 "data_enum": "ElectronicStabilityControlState",
                 "description": "Electronic Stability Control (ESC) state.\nReturns the current state of ESC. This property must always return a valid state defined in ElectronicStabilityControlState or ErrorState. It must not surface errors through StatusCode and must use the supported error states instead.\nFor the global area ID (0), {@code getSupportedValuesList} must return a {@code SupportedValuesListResult} that contains supported values unless all states of both ElectronicStabilityControlState (including OTHER, which is not recommended) and ErrorState are supported.\nFor backward compatibility, if {@code SupportedValuesListResult} is defined, {@code VehicleAreaConfig#supportedEnumValues} must be set to the same values."
+            },
+            {
+                "name": "Turn signal light state.",
+                "value": 289408016,
+                "data_enums": [
+                    "VehicleTurnSignal"
+                ],
+                "data_enum": "VehicleTurnSignal",
+                "description": "Turn signal light state.\nThis property must communicate the actual state of the turn signal lights.\nExamples: 1) Left turn signal light is currently pulsing, right turn signal light is currently off. This property must return VehicleTurnSignal.LEFT while the light is on during the pulse, and VehicleTurnSignal.NONE when it is off during the pulse. 2) Right turn signal light is currently pulsing, left turn signal light is currently off. This property must return VehicleTurnSignal.RIGHT while the light is on during the pulse, and VehicleTurnSignal.NONE when it is off during the pulse. 3) Both turn signal lights are currently pulsing (e.g. when hazard lights switch is on). This property must return VehicleTurnSignal.LEFT | VehicleTurnSignal.RIGHT while the lights are on during the pulse, and VehicleTurnSignal.NONE when they are off during the pulse.\nNote that this property uses VehicleTurnSignal as a bit flag, unlike TURN_SIGNAL_SWITCH, which uses it like a regular enum. This means this property can support ORed together values in VehicleTurnSignal.\nThis is different from the function of TURN_SIGNAL_SWITCH, which must communicate the state of the turn signal lever\/switch.\nThis property is a replacement to the TURN_SIGNAL_STATE property, which is now deprecated."
+            },
+            {
+                "name": "Turn signal switch.",
+                "value": 289408017,
+                "data_enums": [
+                    "VehicleTurnSignal"
+                ],
+                "data_enum": "VehicleTurnSignal",
+                "description": "Turn signal switch.\nThis property must communicate the state of the turn signal lever\/switch. This is different from the function of TURN_SIGNAL_LIGHT_STATE, which must communicate the actual state of the turn signal lights.\nNote that this property uses VehicleTurnSignal as a regular enum, unlike TURN_SIGNAL_LIGHT_STATE, which uses it like a bit flag. This means this property cannot support ORed together values in VehicleTurnSignal.\nThis property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to implement it as VehiclePropertyAccess.READ only."
             },
             {
                 "name": "Fan speed setting",

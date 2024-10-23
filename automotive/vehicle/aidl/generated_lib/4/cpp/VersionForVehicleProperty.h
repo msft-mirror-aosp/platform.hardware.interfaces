@@ -87,6 +87,8 @@ std::unordered_map<VehicleProperty, int32_t> VersionForVehicleProperty = {
         {VehicleProperty::EV_STOPPING_MODE, 2},
         {VehicleProperty::ELECTRONIC_STABILITY_CONTROL_ENABLED, 3},
         {VehicleProperty::ELECTRONIC_STABILITY_CONTROL_STATE, 3},
+        {VehicleProperty::TURN_SIGNAL_LIGHT_STATE, 4},
+        {VehicleProperty::TURN_SIGNAL_SWITCH, 4},
         {VehicleProperty::HVAC_FAN_SPEED, 2},
         {VehicleProperty::HVAC_FAN_DIRECTION, 2},
         {VehicleProperty::HVAC_TEMPERATURE_CURRENT, 2},

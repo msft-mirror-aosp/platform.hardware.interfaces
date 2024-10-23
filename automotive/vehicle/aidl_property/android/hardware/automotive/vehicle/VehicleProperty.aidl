@@ -812,7 +812,12 @@ enum VehicleProperty {
     NIGHT_MODE = 0x0407 + 0x10000000 + 0x01000000
             + 0x00200000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:BOOLEAN
     /**
-     * State of the vehicles turn signals
+     * (Deprecated) State of the vehicles turn signals
+     *
+     * This property has been deprecated as it ambiguously defines the state of the vehicle turn
+     * signals without making clear if it means the state of the turn signal lights or the state of
+     * the turn signal switch. The introduction of TURN_SIGNAL_LIGHT_STATE and TURN_SIGNAL_SWITCH
+     * rectifies this problem.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -925,6 +930,60 @@ enum VehicleProperty {
      */
     ELECTRONIC_STABILITY_CONTROL_STATE =
             0x040F + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+    /**
+     * Turn signal light state.
+     *
+     * This property must communicate the actual state of the turn signal lights.
+     *
+     * Examples:
+     *   1) Left turn signal light is currently pulsing, right turn signal light is currently off.
+     *   This property must return VehicleTurnSignal.LEFT while the light is on during the pulse,
+     *   and VehicleTurnSignal.NONE when it is off during the pulse.
+     *   2) Right turn signal light is currently pulsing, left turn signal light is currently off.
+     *   This property must return VehicleTurnSignal.RIGHT while the light is on during the pulse,
+     *   and VehicleTurnSignal.NONE when it is off during the pulse.
+     *   3) Both turn signal lights are currently pulsing (e.g. when hazard lights switch is on).
+     *   This property must return VehicleTurnSignal.LEFT | VehicleTurnSignal.RIGHT while the lights
+     *   are on during the pulse, and VehicleTurnSignal.NONE when they are off during the pulse.
+     *
+     * Note that this property uses VehicleTurnSignal as a bit flag, unlike TURN_SIGNAL_SWITCH,
+     * which uses it like a regular enum. This means this property can support ORed together values
+     * in VehicleTurnSignal.
+     *
+     * This is different from the function of TURN_SIGNAL_SWITCH, which must communicate the state
+     * of the turn signal lever/switch.
+     *
+     * This property is a replacement to the TURN_SIGNAL_STATE property, which is now deprecated.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum VehicleTurnSignal
+     * @version 4
+     */
+    TURN_SIGNAL_LIGHT_STATE =
+            0x0410 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+    /**
+     * Turn signal switch.
+     *
+     * This property must communicate the state of the turn signal lever/switch. This is different
+     * from the function of TURN_SIGNAL_LIGHT_STATE, which must communicate the actual state of the
+     * turn signal lights.
+     *
+     * Note that this property uses VehicleTurnSignal as a regular enum, unlike
+     * TURN_SIGNAL_LIGHT_STATE, which uses it like a bit flag. This means this property cannot
+     * support ORed together values in VehicleTurnSignal.
+     *
+     * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
+     * implement it as VehiclePropertyAccess.READ only.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum VehicleTurnSignal
+     * @version 4
+     */
+    TURN_SIGNAL_SWITCH =
+            0x0411 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
     /**
      * HVAC Properties
      *
