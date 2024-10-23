@@ -78,6 +78,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyChangeMode> ChangeModeForVehi
         {VehicleProperty::BRAKE_PEDAL_COMPRESSION_PERCENTAGE, VehiclePropertyChangeMode::CONTINUOUS},
         {VehicleProperty::BRAKE_PAD_WEAR_PERCENTAGE, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::BRAKE_FLUID_LEVEL_LOW, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::VEHICLE_PASSIVE_SUSPENSION_HEIGHT, VehiclePropertyChangeMode::CONTINUOUS},
         {VehicleProperty::ENGINE_IDLE_AUTO_STOP_ENABLED, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::IMPACT_DETECTED, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::VEHICLE_HORN_ENGAGED, VehiclePropertyChangeMode::ON_CHANGE},

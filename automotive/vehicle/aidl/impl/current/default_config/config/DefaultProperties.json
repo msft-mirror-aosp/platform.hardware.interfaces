@@ -1809,6 +1809,53 @@
             }
         },
         {
+            "property": "VehicleProperty::VEHICLE_PASSIVE_SUSPENSION_HEIGHT",
+            "areas": [
+                {
+                    "defaultValue": {
+                        "int32Values": [
+                            0
+                        ]
+                    },
+                    "areaId": "Constants::WHEEL_FRONT_LEFT",
+                    "minInt32Value": -100,
+                    "maxInt32Value": 100
+                },
+                {
+                    "defaultValue": {
+                        "int32Values": [
+                            0
+                        ]
+                    },
+                    "areaId": "Constants::WHEEL_FRONT_RIGHT",
+                    "minInt32Value": -100,
+                    "maxInt32Value": 100
+                },
+                {
+                    "defaultValue": {
+                        "int32Values": [
+                            0
+                        ]
+                    },
+                    "areaId": "Constants::WHEEL_REAR_RIGHT",
+                    "minInt32Value": -100,
+                    "maxInt32Value": 100
+                },
+                {
+                    "defaultValue": {
+                        "int32Values": [
+                            0
+                        ]
+                    },
+                    "areaId": "Constants::WHEEL_REAR_LEFT",
+                    "minInt32Value": -100,
+                    "maxInt32Value": 100
+                }
+            ],
+            "maxSampleRate": 10.0,
+            "minSampleRate": 1.0
+        },
+        {
             "property": "VehicleProperty::TIRE_PRESSURE_DISPLAY_UNITS",
             "defaultValue": {
                 "int32Values": [

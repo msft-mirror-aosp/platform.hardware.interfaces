@@ -78,6 +78,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyAccess> AccessForVehiclePrope
         {VehicleProperty::BRAKE_PEDAL_COMPRESSION_PERCENTAGE, VehiclePropertyAccess::READ},
         {VehicleProperty::BRAKE_PAD_WEAR_PERCENTAGE, VehiclePropertyAccess::READ},
         {VehicleProperty::BRAKE_FLUID_LEVEL_LOW, VehiclePropertyAccess::READ},
+        {VehicleProperty::VEHICLE_PASSIVE_SUSPENSION_HEIGHT, VehiclePropertyAccess::READ},
         {VehicleProperty::ENGINE_IDLE_AUTO_STOP_ENABLED, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::IMPACT_DETECTED, VehiclePropertyAccess::READ},
         {VehicleProperty::VEHICLE_HORN_ENGAGED, VehiclePropertyAccess::READ_WRITE},

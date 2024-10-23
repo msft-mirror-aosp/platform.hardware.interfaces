@@ -709,6 +709,41 @@ enum VehicleProperty {
     BRAKE_FLUID_LEVEL_LOW =
             0x0312 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
     /**
+     * Vehicle Passive Suspension Height in mm.
+     *
+     * This property must communicate the real-time suspension displacement of the vehicle relative
+     * to its neutral position, given in mm. In other words, the displacement of the suspension at
+     * any given point in time relative to the suspension's position when the vehicle is on a flat
+     * surface with no passengers or cargo. When the suspension is compressed in comparison to the
+     * neutral position, the value should be negative. When the suspension is decompressed in
+     * comparison to the neutral position, the value should be positive.
+     *
+     * Examples for further clarity:
+     *   1) Suppose the user is driving on a smooth flat surface, and all wheels are currently
+     *   compressed by 2 cm in comparison to the default suspension height. In this scenario, this
+     *   property must be set to -20 for all wheels.
+     *   2) Suppose the user drives over a pothole. While the front left wheel is over the pothole,
+     *   it's decompressed by 3 cm in comparison to the rest of the wheels, or 1 cm in comparison to
+     *   the default suspension height. All the others are still compressed by 2 cm. In this
+     *   scenario, this property must be set to -20 for all wheels except for the front left, which
+     *   must be set to 10.
+     *
+     * HasSupportedValueInfo.hasMinSupportedValue and HasSupportedValueInfo.hasMaxSupportedValue
+     * must be true for all areas.
+     *
+     * MinMaxSupportedValueResult.minSupportedValue represents the lower bound of the suspension
+     * height for the wheel at the specified area ID.
+     *
+     * MinMaxSupportedValueResult.maxSupportedValue represents the upper bound of the suspension
+     * height for the wheel at the specified area ID.
+     *
+     * @change_mode VehiclePropertyChangeMode.CONTINUOUS
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    VEHICLE_PASSIVE_SUSPENSION_HEIGHT =
+            0x0313 + VehiclePropertyGroup.SYSTEM + VehicleArea.WHEEL + VehiclePropertyType.INT32,
+    /**
      * Represents feature for engine idle automatic stop.
      *
      * If true, the vehicle may automatically shut off the engine when it is not needed and then

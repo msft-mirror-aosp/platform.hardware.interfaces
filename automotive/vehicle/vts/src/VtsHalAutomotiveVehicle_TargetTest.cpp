@@ -1448,6 +1448,12 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyBrakeFluidLevelLowConfig) {
                    VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
 }
 
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyVehiclePassiveSuspensionHeightConfig) {
+    verifyProperty(VehicleProperty::VEHICLE_PASSIVE_SUSPENSION_HEIGHT, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::CONTINUOUS, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::WHEEL, VehiclePropertyType::INT32);
+}
+
 bool VtsHalAutomotiveVehicleTargetTest::checkIsSupported(int32_t propertyId) {
     auto result = mVhalClient->getPropConfigs({propertyId});
     return result.ok();
