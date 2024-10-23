@@ -69,6 +69,7 @@ public final class AccessForVehicleProperty {
         Map.entry(VehicleProperty.CRITICALLY_LOW_TIRE_PRESSURE, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.ACCELERATOR_PEDAL_COMPRESSION_PERCENTAGE, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.BRAKE_PEDAL_COMPRESSION_PERCENTAGE, VehiclePropertyAccess.READ),
+        Map.entry(VehicleProperty.BRAKE_PAD_WEAR_PERCENTAGE, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.ENGINE_IDLE_AUTO_STOP_ENABLED, VehiclePropertyAccess.READ_WRITE),
         Map.entry(VehicleProperty.IMPACT_DETECTED, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.VEHICLE_HORN_ENGAGED, VehiclePropertyAccess.READ_WRITE),

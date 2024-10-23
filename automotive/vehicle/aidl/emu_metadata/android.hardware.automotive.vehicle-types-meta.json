@@ -236,6 +236,11 @@
                 "description": "Brake pedal compression percentage.\nThis property must communicate the percentage that the physical brake pedal in the vehicle is compressed. This property must return a float value from 0 to 100.\n0 indicates the pedal is not compressed. 100 indicates the pedal is maximally compressed."
             },
             {
+                "name": "Brake pad wear percentage.",
+                "value": 392168209,
+                "description": "Brake pad wear percentage.\nThis property must communicate the amount of brake pad wear accumulated by the vehicle as a percentage. This property return a float value from 0 to 100.\n0 indicates the brake pad has no wear. 100 indicates the brake pad is maximally worn."
+            },
+            {
                 "name": "ENGINE_IDLE_AUTO_STOP_ENABLED",
                 "value": 287310624,
                 "description": "Represents feature for engine idle automatic stop.\nIf true, the vehicle may automatically shut off the engine when it is not needed and then automatically restart it when needed.\nThis property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to implement it as VehiclePropertyAccess.READ only."

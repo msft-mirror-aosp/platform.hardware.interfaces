@@ -1764,6 +1764,43 @@
             "minSampleRate": 1.0
         },
         {
+            "property": "VehicleProperty::BRAKE_PAD_WEAR_PERCENTAGE",
+            "areas": [
+                {
+                    "areaId": "Constants::WHEEL_FRONT_LEFT",
+                    "defaultValue": {
+                        "floatValues": [
+                            0.0
+                        ]
+                    }
+                },
+                {
+                    "areaId": "Constants::WHEEL_FRONT_RIGHT",
+                    "defaultValue": {
+                        "floatValues": [
+                            0.0
+                        ]
+                    }
+                },
+                {
+                    "areaId": "Constants::WHEEL_REAR_LEFT",
+                    "defaultValue": {
+                        "floatValues": [
+                            0.0
+                        ]
+                    }
+                },
+                {
+                    "areaId": "Constants::WHEEL_REAR_RIGHT",
+                    "defaultValue": {
+                        "floatValues": [
+                            0.0
+                        ]
+                    }
+                }
+            ]
+        },
+        {
             "property": "VehicleProperty::TIRE_PRESSURE_DISPLAY_UNITS",
             "defaultValue": {
                 "int32Values": [

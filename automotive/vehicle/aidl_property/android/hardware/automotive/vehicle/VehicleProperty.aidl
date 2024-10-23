@@ -680,6 +680,21 @@ enum VehicleProperty {
     BRAKE_PEDAL_COMPRESSION_PERCENTAGE =
             0x0310 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
     /**
+     * Brake pad wear percentage.
+     *
+     * This property must communicate the amount of brake pad wear accumulated by the vehicle as a
+     * percentage. This property return a float value from 0 to 100.
+     *
+     * 0 indicates the brake pad has no wear.
+     * 100 indicates the brake pad is maximally worn.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    BRAKE_PAD_WEAR_PERCENTAGE =
+            0x0311 + VehiclePropertyGroup.SYSTEM + VehicleArea.WHEEL + VehiclePropertyType.FLOAT,
+    /**
      * Represents feature for engine idle automatic stop.
      *
      * If true, the vehicle may automatically shut off the engine when it is not needed and then
