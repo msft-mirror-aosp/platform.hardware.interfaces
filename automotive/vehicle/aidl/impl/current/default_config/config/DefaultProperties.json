@@ -100,6 +100,12 @@
             }
         },
         {
+            "property": "VehicleProperty::INFO_MODEL_TRIM",
+            "defaultValue": {
+                "stringValue": "Sport"
+            }
+        },
+        {
             "property": "VehicleProperty::PERF_VEHICLE_SPEED",
             "defaultValue": {
                 "floatValues": [

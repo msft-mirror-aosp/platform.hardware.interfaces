@@ -48,6 +48,7 @@ std::unordered_map<VehicleProperty, int32_t> VersionForVehicleProperty = {
         {VehicleProperty::INFO_DRIVER_SEAT, 2},
         {VehicleProperty::INFO_EXTERIOR_DIMENSIONS, 2},
         {VehicleProperty::INFO_MULTI_EV_PORT_LOCATIONS, 2},
+        {VehicleProperty::INFO_MODEL_TRIM, 4},
         {VehicleProperty::PERF_ODOMETER, 2},
         {VehicleProperty::PERF_VEHICLE_SPEED, 2},
         {VehicleProperty::PERF_VEHICLE_SPEED_DISPLAY, 2},

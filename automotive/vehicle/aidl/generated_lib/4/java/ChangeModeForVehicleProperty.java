@@ -42,6 +42,7 @@ public final class ChangeModeForVehicleProperty {
         Map.entry(VehicleProperty.INFO_DRIVER_SEAT, VehiclePropertyChangeMode.STATIC),
         Map.entry(VehicleProperty.INFO_EXTERIOR_DIMENSIONS, VehiclePropertyChangeMode.STATIC),
         Map.entry(VehicleProperty.INFO_MULTI_EV_PORT_LOCATIONS, VehiclePropertyChangeMode.STATIC),
+        Map.entry(VehicleProperty.INFO_MODEL_TRIM, VehiclePropertyChangeMode.STATIC),
         Map.entry(VehicleProperty.PERF_ODOMETER, VehiclePropertyChangeMode.CONTINUOUS),
         Map.entry(VehicleProperty.PERF_VEHICLE_SPEED, VehiclePropertyChangeMode.CONTINUOUS),
         Map.entry(VehicleProperty.PERF_VEHICLE_SPEED_DISPLAY, VehiclePropertyChangeMode.CONTINUOUS),

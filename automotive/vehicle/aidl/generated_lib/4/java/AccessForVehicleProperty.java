@@ -42,6 +42,7 @@ public final class AccessForVehicleProperty {
         Map.entry(VehicleProperty.INFO_DRIVER_SEAT, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.INFO_EXTERIOR_DIMENSIONS, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.INFO_MULTI_EV_PORT_LOCATIONS, VehiclePropertyAccess.READ),
+        Map.entry(VehicleProperty.INFO_MODEL_TRIM, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.PERF_ODOMETER, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.PERF_VEHICLE_SPEED, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.PERF_VEHICLE_SPEED_DISPLAY, VehiclePropertyAccess.READ),
