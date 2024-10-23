@@ -1412,6 +1412,12 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyInstantaneousEvEfficiencyConfig)
                    VehicleArea::GLOBAL, VehiclePropertyType::FLOAT);
 }
 
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyVehicleHornEngagedConfig) {
+    verifyProperty(VehicleProperty::VEHICLE_HORN_ENGAGED, VehiclePropertyAccess::READ_WRITE,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
+}
+
 bool VtsHalAutomotiveVehicleTargetTest::checkIsSupported(int32_t propertyId) {
     auto result = mVhalClient->getPropConfigs({propertyId});
     return result.ok();

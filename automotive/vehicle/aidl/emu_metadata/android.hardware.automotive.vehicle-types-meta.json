@@ -240,6 +240,11 @@
                 "description": "Impact detected.\nBit flag property to relay information on whether an impact has occurred on a particular side of the vehicle as described through the ImpactSensorLocation enum. As a bit flag property, this property can be set to multiple ORed together values of the enum when necessary.\nFor the global area ID (0), {@code getSupportedValuesList} must return a {@code SupportedValuesListResult} that contains supported values unless all bit flags of ImpactSensorLocation are supported.\nFor backward compatibility, if {@code SupportedValuesListResult} is defined, {@code VehicleAreaConfig#supportedEnumValues} must be set to the same values."
             },
             {
+                "name": "Vehicle horn engaged.",
+                "value": 287310656,
+                "description": "Vehicle horn engaged.\nThis property must communicate if the vehicle's horn is currently engaged or not. If true, the horn is engaged. If false, the horn is disengaged."
+            },
+            {
                 "name": "Currently selected gear",
                 "value": 289408000,
                 "data_enums": [

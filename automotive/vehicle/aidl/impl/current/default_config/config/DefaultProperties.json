@@ -2637,6 +2637,14 @@
             ]
         },
         {
+            "property": "VehicleProperty::VEHICLE_HORN_ENGAGED",
+            "defaultValue": {
+                "int32Values": [
+                    0
+                ]
+            }
+        },
+        {
             "property": "VehicleProperty::DOOR_LOCK",
             "areas": [
                 {

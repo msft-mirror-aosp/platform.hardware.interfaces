@@ -76,6 +76,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyAccess> AccessForVehiclePrope
         {VehicleProperty::CRITICALLY_LOW_TIRE_PRESSURE, VehiclePropertyAccess::READ},
         {VehicleProperty::ENGINE_IDLE_AUTO_STOP_ENABLED, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::IMPACT_DETECTED, VehiclePropertyAccess::READ},
+        {VehicleProperty::VEHICLE_HORN_ENGAGED, VehiclePropertyAccess::READ_WRITE},
         {VehicleProperty::GEAR_SELECTION, VehiclePropertyAccess::READ},
         {VehicleProperty::CURRENT_GEAR, VehiclePropertyAccess::READ},
         {VehicleProperty::PARKING_BRAKE_ON, VehiclePropertyAccess::READ},

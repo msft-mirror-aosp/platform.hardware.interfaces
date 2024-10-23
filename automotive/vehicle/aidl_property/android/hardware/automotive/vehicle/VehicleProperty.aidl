@@ -687,6 +687,19 @@ enum VehicleProperty {
     IMPACT_DETECTED =
             0x0330 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
     /**
+     * Vehicle horn engaged.
+     *
+     * This property must communicate if the vehicle's horn is currently engaged or not. If true,
+     * the horn is engaged. If false, the horn is disengaged.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    VEHICLE_HORN_ENGAGED =
+            0x0340 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+    /**
      * Currently selected gear
      *
      * This is the gear selected by the user.
