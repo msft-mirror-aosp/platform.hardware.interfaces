@@ -2210,6 +2210,14 @@
                 "value": 11
             },
             {
+                "name": "SAE_J3400_AC",
+                "value": 8
+            },
+            {
+                "name": "SAE_J3400_DC",
+                "value": 9
+            },
+            {
                 "name": "OTHER",
                 "value": 101
             }
