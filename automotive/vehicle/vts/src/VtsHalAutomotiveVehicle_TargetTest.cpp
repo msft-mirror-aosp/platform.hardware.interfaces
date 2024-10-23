@@ -1430,6 +1430,12 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyAcceleratorPedalCompressionPerce
                    VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::FLOAT);
 }
 
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyBrakePedalCompressionPercentageConfig) {
+    verifyProperty(VehicleProperty::BRAKE_PEDAL_COMPRESSION_PERCENTAGE, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::CONTINUOUS, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::FLOAT);
+}
+
 bool VtsHalAutomotiveVehicleTargetTest::checkIsSupported(int32_t propertyId) {
     auto result = mVhalClient->getPropConfigs({propertyId});
     return result.ok();

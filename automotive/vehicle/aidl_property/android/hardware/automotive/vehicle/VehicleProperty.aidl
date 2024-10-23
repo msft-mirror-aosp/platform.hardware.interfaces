@@ -665,6 +665,21 @@ enum VehicleProperty {
     ACCELERATOR_PEDAL_COMPRESSION_PERCENTAGE =
             0x030F + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
     /**
+     * Brake pedal compression percentage.
+     *
+     * This property must communicate the percentage that the physical brake pedal in the vehicle is
+     * compressed. This property must return a float value from 0 to 100.
+     *
+     * 0 indicates the pedal is not compressed.
+     * 100 indicates the pedal is maximally compressed.
+     *
+     * @change_mode VehiclePropertyChangeMode.CONTINUOUS
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    BRAKE_PEDAL_COMPRESSION_PERCENTAGE =
+            0x0310 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
+    /**
      * Represents feature for engine idle automatic stop.
      *
      * If true, the vehicle may automatically shut off the engine when it is not needed and then

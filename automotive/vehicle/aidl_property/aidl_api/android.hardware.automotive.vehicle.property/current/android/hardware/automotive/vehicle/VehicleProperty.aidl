@@ -74,6 +74,7 @@ enum VehicleProperty {
   TIRE_PRESSURE = (((0x0309 + 0x10000000) + 0x07000000) + 0x00600000) /* 392168201 */,
   CRITICALLY_LOW_TIRE_PRESSURE = (((0x030A + 0x10000000) + 0x07000000) + 0x00600000) /* 392168202 */,
   ACCELERATOR_PEDAL_COMPRESSION_PERCENTAGE = (((0x030F + android.hardware.automotive.vehicle.VehiclePropertyGroup.SYSTEM) + android.hardware.automotive.vehicle.VehicleArea.GLOBAL) + android.hardware.automotive.vehicle.VehiclePropertyType.FLOAT) /* 291504911 */,
+  BRAKE_PEDAL_COMPRESSION_PERCENTAGE = (((0x0310 + android.hardware.automotive.vehicle.VehiclePropertyGroup.SYSTEM) + android.hardware.automotive.vehicle.VehicleArea.GLOBAL) + android.hardware.automotive.vehicle.VehiclePropertyType.FLOAT) /* 291504912 */,
   ENGINE_IDLE_AUTO_STOP_ENABLED = (((0x0320 + android.hardware.automotive.vehicle.VehiclePropertyGroup.SYSTEM) + android.hardware.automotive.vehicle.VehicleArea.GLOBAL) + android.hardware.automotive.vehicle.VehiclePropertyType.BOOLEAN) /* 287310624 */,
   IMPACT_DETECTED = (((0x0330 + android.hardware.automotive.vehicle.VehiclePropertyGroup.SYSTEM) + android.hardware.automotive.vehicle.VehicleArea.GLOBAL) + android.hardware.automotive.vehicle.VehiclePropertyType.INT32) /* 289407792 */,
   VEHICLE_HORN_ENGAGED = (((0x0340 + android.hardware.automotive.vehicle.VehiclePropertyGroup.SYSTEM) + android.hardware.automotive.vehicle.VehicleArea.GLOBAL) + android.hardware.automotive.vehicle.VehiclePropertyType.BOOLEAN) /* 287310656 */,

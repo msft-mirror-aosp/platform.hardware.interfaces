@@ -75,6 +75,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyChangeMode> ChangeModeForVehi
         {VehicleProperty::TIRE_PRESSURE, VehiclePropertyChangeMode::CONTINUOUS},
         {VehicleProperty::CRITICALLY_LOW_TIRE_PRESSURE, VehiclePropertyChangeMode::STATIC},
         {VehicleProperty::ACCELERATOR_PEDAL_COMPRESSION_PERCENTAGE, VehiclePropertyChangeMode::CONTINUOUS},
+        {VehicleProperty::BRAKE_PEDAL_COMPRESSION_PERCENTAGE, VehiclePropertyChangeMode::CONTINUOUS},
         {VehicleProperty::ENGINE_IDLE_AUTO_STOP_ENABLED, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::IMPACT_DETECTED, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::VEHICLE_HORN_ENGAGED, VehiclePropertyChangeMode::ON_CHANGE},
