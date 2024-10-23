@@ -695,6 +695,20 @@ enum VehicleProperty {
     BRAKE_PAD_WEAR_PERCENTAGE =
             0x0311 + VehiclePropertyGroup.SYSTEM + VehicleArea.WHEEL + VehiclePropertyType.FLOAT,
     /**
+     * Brake fluid low.
+     *
+     * This property must communicate that the brake fluid level in the vehicle is low according to
+     * the OEM. This property must match the vehicle's brake fluid level status as displayed on the
+     * instrument cluster. If the brake fluid level is low, this property must be set to true. If
+     * not, it must be set to false.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    BRAKE_FLUID_LEVEL_LOW =
+            0x0312 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+    /**
      * Represents feature for engine idle automatic stop.
      *
      * If true, the vehicle may automatically shut off the engine when it is not needed and then

@@ -1801,6 +1801,14 @@
             ]
         },
         {
+            "property": "VehicleProperty::BRAKE_FLUID_LEVEL_LOW",
+            "defaultValue": {
+                "int32Values": [
+                    0
+                ]
+            }
+        },
+        {
             "property": "VehicleProperty::TIRE_PRESSURE_DISPLAY_UNITS",
             "defaultValue": {
                 "int32Values": [

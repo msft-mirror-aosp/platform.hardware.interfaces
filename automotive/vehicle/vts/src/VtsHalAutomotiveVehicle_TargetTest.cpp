@@ -1442,6 +1442,12 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyBrakePadWearPercentageConfig) {
                    VehicleArea::WHEEL, VehiclePropertyType::FLOAT);
 }
 
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyBrakeFluidLevelLowConfig) {
+    verifyProperty(VehicleProperty::BRAKE_FLUID_LEVEL_LOW, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::BOOLEAN);
+}
+
 bool VtsHalAutomotiveVehicleTargetTest::checkIsSupported(int32_t propertyId) {
     auto result = mVhalClient->getPropConfigs({propertyId});
     return result.ok();
