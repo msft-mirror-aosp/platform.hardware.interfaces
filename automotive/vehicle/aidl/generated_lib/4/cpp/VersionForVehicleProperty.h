@@ -56,6 +56,7 @@ std::unordered_map<VehicleProperty, int32_t> VersionForVehicleProperty = {
         {VehicleProperty::PERF_STEERING_ANGLE, 2},
         {VehicleProperty::PERF_REAR_STEERING_ANGLE, 2},
         {VehicleProperty::INSTANTANEOUS_FUEL_ECONOMY, 4},
+        {VehicleProperty::INSTANTANEOUS_EV_EFFICIENCY, 4},
         {VehicleProperty::ENGINE_COOLANT_TEMP, 2},
         {VehicleProperty::ENGINE_OIL_LEVEL, 2},
         {VehicleProperty::ENGINE_OIL_TEMP, 2},

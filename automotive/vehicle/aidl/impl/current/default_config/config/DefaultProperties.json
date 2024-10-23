@@ -1490,6 +1490,16 @@
             "minSampleRate": 1.0
         },
         {
+            "property": "VehicleProperty::INSTANTANEOUS_EV_EFFICIENCY",
+            "defaultValue": {
+                "floatValues": [
+                    0.0
+                ]
+            },
+            "maxSampleRate": 10.0,
+            "minSampleRate": 1.0
+        },
+        {
             "property": "VehicleProperty::ENGINE_RPM",
             "defaultValue": {
                 "floatValues": [
