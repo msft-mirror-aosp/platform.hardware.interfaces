@@ -342,6 +342,22 @@ enum VehicleProperty {
     PERF_REAR_STEERING_ANGLE = 0x0210 + 0x10000000 + 0x01000000
             + 0x00600000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:FLOAT
     /**
+     * Instantaneous Fuel Economy in L/100km.
+     *
+     * This property must communicate the instantaneous fuel economy of the vehicle in units of
+     * L/100km. The property's value is independent of DISTANCE_DISPLAY_UNITS,
+     * FUEL_VOLUME_DISPLAY_UNITS, and FUEL_CONSUMPTION_UNITS_DISTANCE_OVER_VOLUME property i.e. this
+     * property must always communicate the value in L/100km.
+     *
+     * For the EV version of this property, see INSTANTANEOUS_EV_EFFICIENCY.
+     *
+     * @change_mode VehiclePropertyChangeMode.CONTINUOUS
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    INSTANTANEOUS_FUEL_ECONOMY =
+            0x0211 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
+    /**
      * Temperature of engine coolant
      *
      * @change_mode VehiclePropertyChangeMode.CONTINUOUS

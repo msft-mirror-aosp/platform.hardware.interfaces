@@ -49,6 +49,7 @@ public final class ChangeModeForVehicleProperty {
         Map.entry(VehicleProperty.PERF_VEHICLE_SPEED_DISPLAY, VehiclePropertyChangeMode.CONTINUOUS),
         Map.entry(VehicleProperty.PERF_STEERING_ANGLE, VehiclePropertyChangeMode.CONTINUOUS),
         Map.entry(VehicleProperty.PERF_REAR_STEERING_ANGLE, VehiclePropertyChangeMode.CONTINUOUS),
+        Map.entry(VehicleProperty.INSTANTANEOUS_FUEL_ECONOMY, VehiclePropertyChangeMode.CONTINUOUS),
         Map.entry(VehicleProperty.ENGINE_COOLANT_TEMP, VehiclePropertyChangeMode.CONTINUOUS),
         Map.entry(VehicleProperty.ENGINE_OIL_LEVEL, VehiclePropertyChangeMode.ON_CHANGE),
         Map.entry(VehicleProperty.ENGINE_OIL_TEMP, VehiclePropertyChangeMode.CONTINUOUS),

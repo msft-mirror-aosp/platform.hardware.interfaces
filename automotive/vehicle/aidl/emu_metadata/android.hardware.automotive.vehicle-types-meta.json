@@ -132,6 +132,11 @@
                 "description": "Rear bicycle model steering angle for vehicle\nAngle is in degrees.  Left is negative.\nThis property is independent of the angle of the steering wheel. This property must communicate the angle of the rear wheels with respect to the vehicle, not the angle of the steering wheel."
             },
             {
+                "name": "INSTANTANEOUS_FUEL_ECONOMY",
+                "value": 291504657,
+                "description": "Instantaneous Fuel Economy in L\/100km.\nThis property must communicate the instantaneous fuel economy of the vehicle in units of L\/100km. The property's value is independent of DISTANCE_DISPLAY_UNITS, FUEL_VOLUME_DISPLAY_UNITS, and FUEL_CONSUMPTION_UNITS_DISTANCE_OVER_VOLUME property i.e. this property must always communicate the value in L\/100km.\nFor the EV version of this property, see INSTANTANEOUS_EV_EFFICIENCY."
+            },
+            {
                 "name": "Temperature of engine coolant",
                 "value": 291504897,
                 "description": "Temperature of engine coolant"

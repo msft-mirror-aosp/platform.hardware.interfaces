@@ -56,6 +56,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyChangeMode> ChangeModeForVehi
         {VehicleProperty::PERF_VEHICLE_SPEED_DISPLAY, VehiclePropertyChangeMode::CONTINUOUS},
         {VehicleProperty::PERF_STEERING_ANGLE, VehiclePropertyChangeMode::CONTINUOUS},
         {VehicleProperty::PERF_REAR_STEERING_ANGLE, VehiclePropertyChangeMode::CONTINUOUS},
+        {VehicleProperty::INSTANTANEOUS_FUEL_ECONOMY, VehiclePropertyChangeMode::CONTINUOUS},
         {VehicleProperty::ENGINE_COOLANT_TEMP, VehiclePropertyChangeMode::CONTINUOUS},
         {VehicleProperty::ENGINE_OIL_LEVEL, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::ENGINE_OIL_TEMP, VehiclePropertyChangeMode::CONTINUOUS},
