@@ -2727,6 +2727,16 @@ RttStatus convertLegacyRttStatusToAidl(legacy_hal::wifi_rtt_status status) {
             return RttStatus::NAN_RANGING_PROTOCOL_FAILURE;
         case legacy_hal::RTT_STATUS_NAN_RANGING_CONCURRENCY_NOT_SUPPORTED:
             return RttStatus::NAN_RANGING_CONCURRENCY_NOT_SUPPORTED;
+        case legacy_hal::RTT_STATUS_SECURE_RANGING_FAILURE_INVALID_AKM:
+            return RttStatus::SECURE_RANGING_FAILURE_INVALID_AKM;
+        case legacy_hal::RTT_STATUS_SECURE_RANGING_FAILURE_INVALID_CIPHER:
+            return RttStatus::SECURE_RANGING_FAILURE_INVALID_CIPHER;
+        case legacy_hal::RTT_STATUS_SECURE_RANGING_FAILURE_INVALID_CONFIG:
+            return RttStatus::SECURE_RANGING_FAILURE_INVALID_CONFIG;
+        case legacy_hal::RTT_STATUS_SECURE_RANGING_FAILURE_REJECTED:
+            return RttStatus::SECURE_RANGING_FAILURE_REJECTED;
+        case legacy_hal::RTT_STATUS_SECURE_RANGING_FAILURE_UNKNOWN:
+            return RttStatus::SECURE_RANGING_FAILURE_UNKNOWN;
     };
     CHECK(false) << "Unknown legacy status: " << status;
 }
