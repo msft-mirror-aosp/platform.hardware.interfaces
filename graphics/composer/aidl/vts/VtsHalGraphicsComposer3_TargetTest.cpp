@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 #include <ui/Fence.h>
 #include <ui/GraphicBuffer.h>
+#include <ui/PictureProfileHandle.h>
 #include <ui/PixelFormat.h>
 #include <algorithm>
 #include <iterator>
@@ -116,6 +117,15 @@ class GraphicsComposerAidlTest : public ::testing::TestWithParam<std::string> {
         return std::any_of(
                 capabilities.begin(), capabilities.end(),
                 [&](const Capability& activeCapability) { return activeCapability == capability; });
+    }
+
+    bool hasDisplayCapability(int64_t displayId, DisplayCapability capability) {
+        const auto& [status, capabilities] = mComposerClient->getDisplayCapabilities(displayId);
+        EXPECT_TRUE(status.isOk());
+        return std::any_of(capabilities.begin(), capabilities.end(),
+                           [&](const DisplayCapability& activeCapability) {
+                               return activeCapability == capability;
+                           });
     }
 
     int getInterfaceVersion() {
@@ -1388,6 +1398,14 @@ TEST_P(GraphicsComposerAidlV3Test, GetDisplayConfigsIsSubsetOfGetDisplayConfigur
     }
 }
 
+TEST_P(GraphicsComposerAidlV3Test, GetMaxLayerPictureProfiles) {
+    for (const auto& display : mDisplays) {
+        const auto& [status, maxPorfiles] =
+                mComposerClient->getMaxLayerPictureProfiles(display.getDisplayId());
+        EXPECT_TRUE(status.isOk());
+    }
+}
+
 // Tests for Command.
 class GraphicsComposerAidlCommandTest : public GraphicsComposerAidlTest {
   protected:
@@ -2048,6 +2066,7 @@ TEST_P(GraphicsComposerAidlCommandTest, SetLayerBuffer) {
     EXPECT_TRUE(layerStatus.isOk());
     writer.setLayerBuffer(getPrimaryDisplayId(), layer, /*slot*/ 0, handle, /*acquireFence*/ -1);
     execute();
+    ASSERT_TRUE(mReader.takeErrors().empty());
 }
 
 TEST_P(GraphicsComposerAidlCommandTest, SetLayerBufferMultipleTimes) {
@@ -3217,6 +3236,92 @@ TEST_P(GraphicsComposerAidlCommandV3Test, frameIntervalChangeAtPresentFrame) {
                     (static_cast<float>(highestDivisor - lowestDivisor)) * 0.75f);
         mComposerClient->destroyLayer(displayId, layer, &writer);
     });
+}
+
+TEST_P(GraphicsComposerAidlCommandV3Test, getMaxLayerPictureProfiles_success) {
+    for (auto& display : mDisplays) {
+        int64_t displayId = display.getDisplayId();
+        if (!hasDisplayCapability(displayId, DisplayCapability::PICTURE_PROCESSING)) {
+            continue;
+        }
+        const auto& [status, maxProfiles] =
+                mComposerClient->getMaxLayerPictureProfiles(getPrimaryDisplayId());
+        EXPECT_TRUE(status.isOk());
+    }
+}
+
+TEST_P(GraphicsComposerAidlCommandV3Test, setDisplayPictureProfileId_success) {
+    for (auto& display : mDisplays) {
+        int64_t displayId = display.getDisplayId();
+        if (!hasDisplayCapability(displayId, DisplayCapability::PICTURE_PROCESSING)) {
+            continue;
+        }
+
+        auto& writer = getWriter(displayId);
+        const auto layer = createOnScreenLayer(display);
+        const auto buffer = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+        ASSERT_NE(nullptr, buffer->handle);
+        // TODO(b/337330263): Lookup profile IDs from PictureProfileService
+        writer.setDisplayPictureProfileId(displayId, PictureProfileId(1));
+        writer.setLayerBuffer(displayId, layer, /*slot*/ 0, buffer->handle,
+                              /*acquireFence*/ -1);
+        execute();
+        ASSERT_TRUE(mReader.takeErrors().empty());
+    }
+}
+
+TEST_P(GraphicsComposerAidlCommandV3Test, setLayerPictureProfileId_success) {
+    for (auto& display : mDisplays) {
+        int64_t displayId = display.getDisplayId();
+        if (!hasDisplayCapability(displayId, DisplayCapability::PICTURE_PROCESSING)) {
+            continue;
+        }
+        const auto& [status, maxProfiles] = mComposerClient->getMaxLayerPictureProfiles(displayId);
+        EXPECT_TRUE(status.isOk());
+        if (maxProfiles == 0) {
+            continue;
+        }
+
+        auto& writer = getWriter(displayId);
+        const auto layer = createOnScreenLayer(display);
+        const auto buffer = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+        ASSERT_NE(nullptr, buffer->handle);
+        writer.setLayerBuffer(displayId, layer, /*slot*/ 0, buffer->handle,
+                              /*acquireFence*/ -1);
+        // TODO(b/337330263): Lookup profile IDs from PictureProfileService
+        writer.setLayerPictureProfileId(displayId, layer, PictureProfileId(1));
+        execute();
+        ASSERT_TRUE(mReader.takeErrors().empty());
+    }
+}
+
+TEST_P(GraphicsComposerAidlCommandV3Test, setLayerPictureProfileId_failsWithTooManyProfiles) {
+    for (auto& display : mDisplays) {
+        int64_t displayId = display.getDisplayId();
+        if (!hasDisplayCapability(displayId, DisplayCapability::PICTURE_PROCESSING)) {
+            continue;
+        }
+        const auto& [status, maxProfiles] = mComposerClient->getMaxLayerPictureProfiles(displayId);
+        EXPECT_TRUE(status.isOk());
+        if (maxProfiles == 0) {
+            continue;
+        }
+
+        auto& writer = getWriter(displayId);
+        for (int profileId = 1; profileId <= maxProfiles + 1; ++profileId) {
+            const auto layer = createOnScreenLayer(display);
+            const auto buffer = allocate(::android::PIXEL_FORMAT_RGBA_8888);
+            ASSERT_NE(nullptr, buffer->handle);
+            writer.setLayerBuffer(displayId, layer, /*slot*/ 0, buffer->handle,
+                                  /*acquireFence*/ -1);
+            // TODO(b/337330263): Lookup profile IDs from PictureProfileService
+            writer.setLayerPictureProfileId(displayId, layer, PictureProfileId(profileId));
+        }
+        execute();
+        const auto errors = mReader.takeErrors();
+        ASSERT_TRUE(errors.size() == 1 &&
+                    errors[0].errorCode == IComposerClient::EX_PICTURE_PROFILE_MAX_EXCEEDED);
+    }
 }
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GraphicsComposerAidlCommandTest);
