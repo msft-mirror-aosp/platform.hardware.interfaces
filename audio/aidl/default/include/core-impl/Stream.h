@@ -38,6 +38,7 @@
 #include <aidl/android/media/audio/common/AudioIoFlags.h>
 #include <aidl/android/media/audio/common/AudioOffloadInfo.h>
 #include <aidl/android/media/audio/common/MicrophoneInfo.h>
+#include <android-base/thread_annotations.h>
 #include <error/expected_utils.h>
 #include <fmq/AidlMessageQueue.h>
 #include <system/thread_defs.h>
@@ -132,6 +133,9 @@ class StreamContext {
     ReplyMQ* getReplyMQ() const { return mReplyMQ.get(); }
     int getTransientStateDelayMs() const { return mDebugParameters.transientStateDelayMs; }
     int getSampleRate() const { return mSampleRate; }
+    bool isInput() const {
+        return mFlags.getTag() == ::aidl::android::media::audio::common::AudioIoFlags::input;
+    }
     bool isValid() const;
     // 'reset' is called on a Binder thread when closing the stream. Does not use
     // locking because it only cleans MQ pointers which were also set on the Binder thread.
@@ -342,6 +346,7 @@ struct StreamCommonInterface {
     virtual ndk::ScopedAStatus setConnectedDevices(
             const std::vector<::aidl::android::media::audio::common::AudioDevice>& devices) = 0;
     virtual ndk::ScopedAStatus bluetoothParametersUpdated() = 0;
+    virtual ndk::ScopedAStatus setGain(float gain) = 0;
 };
 
 // This is equivalent to automatically generated 'IStreamCommonDelegator' but uses
@@ -443,6 +448,7 @@ class StreamCommonImpl : virtual public StreamCommonInterface, virtual public Dr
             const std::vector<::aidl::android::media::audio::common::AudioDevice>& devices)
             override;
     ndk::ScopedAStatus bluetoothParametersUpdated() override;
+    ndk::ScopedAStatus setGain(float gain) override;
 
   protected:
     static StreamWorkerInterface::CreateInstance getDefaultInWorkerCreator() {
@@ -609,6 +615,12 @@ class StreamWrapper {
         return ndk::ScopedAStatus::ok();
     }
 
+    ndk::ScopedAStatus setGain(float gain) {
+        auto s = mStream.lock();
+        if (s) return s->setGain(gain);
+        return ndk::ScopedAStatus::ok();
+    }
+
   private:
     std::weak_ptr<StreamCommonInterface> mStream;
     ndk::SpAIBinder mStreamBinder;
@@ -643,6 +655,12 @@ class Streams {
         }
         return isOk ? ndk::ScopedAStatus::ok()
                     : ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
+    }
+    ndk::ScopedAStatus setGain(int32_t portId, float gain) {
+        if (auto it = mStreams.find(portId); it != mStreams.end()) {
+            return it->second.setGain(gain);
+        }
+        return ndk::ScopedAStatus::ok();
     }
 
   private:

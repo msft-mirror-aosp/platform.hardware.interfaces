@@ -40,10 +40,42 @@ cc_library {
     export_include_dirs: [
         "include",
     ],
+    header_libs: [
+        "libhardware_headers",
+    ],
     defaults: [
         "keymint_use_latest_hal_aidl_ndk_shared",
     ],
     shared_libs: [
+        "libbase",
+        "libcrypto",
+        "libutils",
+        "libhardware",
+    ],
+}
+
+cc_library {
+    name: "libkeymint_support_V3",
+    vendor_available: true,
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+    ],
+    srcs: [
+        "attestation_record.cpp",
+        "authorization_set.cpp",
+        "keymint_utils.cpp",
+        "key_param_output.cpp",
+    ],
+    export_include_dirs: [
+        "include",
+    ],
+    header_libs: [
+        "libhardware_headers",
+    ],
+    shared_libs: [
+        "android.hardware.security.keymint-V3-ndk",
         "libbase",
         "libcrypto",
         "libutils",
