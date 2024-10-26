@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,15 +33,11 @@
 
 package android.hardware.power;
 @VintfStability
-interface IPower {
-  oneway void setMode(in android.hardware.power.Mode type, in boolean enabled);
-  boolean isModeSupported(in android.hardware.power.Mode type);
-  oneway void setBoost(in android.hardware.power.Boost type, in int durationMs);
-  boolean isBoostSupported(in android.hardware.power.Boost type);
-  android.hardware.power.IPowerHintSession createHintSession(in int tgid, in int uid, in int[] threadIds, in long durationNanos);
-  long getHintSessionPreferredRate();
-  android.hardware.power.IPowerHintSession createHintSessionWithConfig(in int tgid, in int uid, in int[] threadIds, in long durationNanos, in android.hardware.power.SessionTag tag, out android.hardware.power.SessionConfig config);
-  android.hardware.power.ChannelConfig getSessionChannel(in int tgid, in int uid);
-  oneway void closeSessionChannel(in int tgid, in int uid);
-  android.hardware.power.SupportInfo getSupportInfo();
+parcelable SupportInfo {
+  boolean usesSessions;
+  long boosts;
+  long modes;
+  long sessionHints;
+  long sessionModes;
+  long sessionTags;
 }
