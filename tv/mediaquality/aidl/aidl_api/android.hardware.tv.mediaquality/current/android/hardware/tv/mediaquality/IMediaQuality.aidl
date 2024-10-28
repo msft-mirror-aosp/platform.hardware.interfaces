@@ -31,13 +31,9 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.power;
+package android.hardware.tv.mediaquality;
 @VintfStability
-parcelable SupportInfo {
-  boolean usesSessions;
-  long boosts;
-  long modes;
-  long sessionHints;
-  long sessionModes;
-  long sessionTags;
+interface IMediaQuality {
+  void setAmbientLightDetectionEnabled(in boolean enabled);
+  boolean getAmbientLightDetectionEnabled();
 }
