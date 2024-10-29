@@ -31,9 +31,12 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.tv.mediaquality;
+package android.hardware.wifi;
 @VintfStability
-interface IMediaQuality {
-  void setAmbientLightDetectionEnabled(in boolean enabled);
-  boolean getAmbientLightDetectionEnabled();
+parcelable CipherSuite {
+  const long NONE = 0;
+  const long CCMP_128 = (1 << 0) /* 1 */;
+  const long CCMP_256 = (1 << 1) /* 2 */;
+  const long GCMP_128 = (1 << 2) /* 4 */;
+  const long GCMP_256 = (1 << 3) /* 8 */;
 }

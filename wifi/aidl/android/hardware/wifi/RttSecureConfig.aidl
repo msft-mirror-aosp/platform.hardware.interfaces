@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,29 +16,23 @@
 
 package android.hardware.wifi;
 
+import android.hardware.wifi.PasnConfig;
+
 /**
- * RTT Types.
+ * RTT secure configuration.
  */
 @VintfStability
-@Backing(type="int")
-enum RttType {
-    ONE_SIDED = 1,
+parcelable RttSecureConfig {
     /**
-     * Two-sided RTT 11mc type.
-     *
-     * Note: TWO_SIDED was used for IEEE 802.11mc. Use TWO_SIDED_11MC for IEEE 802.11mc instead.
+     * Pre-Association Security Negotiation (PASN) configuration.
      */
-    TWO_SIDED = 2,
+    PasnConfig pasnConfig;
     /**
-     * Two-sided RTT 11mc type is same as two-sided.
+     * Enable secure HE-LTF (High Efficiency Long Training Field).
      */
-    TWO_SIDED_11MC = TWO_SIDED,
+    boolean enableSecureHeLtf;
     /**
-     * Two-sided RTT 11az non trigger based (non-TB) type.
+     * Enable Ranging frame protection.
      */
-    TWO_SIDED_11AZ_NTB = 3,
-    /**
-     * Two-sided RTT 11az non trigger based (non-TB) secure type.
-     */
-    TWO_SIDED_11AZ_NTB_SECURE = 4,
+    boolean enableRangingFrameProtection;
 }
