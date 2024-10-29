@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,28 +17,13 @@
 package android.hardware.wifi;
 
 /**
- * RTT Types.
+ * Cipher Suite types.
  */
 @VintfStability
-@Backing(type="int")
-enum RttType {
-    ONE_SIDED = 1,
-    /**
-     * Two-sided RTT 11mc type.
-     *
-     * Note: TWO_SIDED was used for IEEE 802.11mc. Use TWO_SIDED_11MC for IEEE 802.11mc instead.
-     */
-    TWO_SIDED = 2,
-    /**
-     * Two-sided RTT 11mc type is same as two-sided.
-     */
-    TWO_SIDED_11MC = TWO_SIDED,
-    /**
-     * Two-sided RTT 11az non trigger based (non-TB) type.
-     */
-    TWO_SIDED_11AZ_NTB = 3,
-    /**
-     * Two-sided RTT 11az non trigger based (non-TB) secure type.
-     */
-    TWO_SIDED_11AZ_NTB_SECURE = 4,
+parcelable CipherSuite {
+    const long NONE = 0;
+    const long CCMP_128 = 1 << 0;
+    const long CCMP_256 = 1 << 1;
+    const long GCMP_128 = 1 << 2;
+    const long GCMP_256 = 1 << 3;
 }
