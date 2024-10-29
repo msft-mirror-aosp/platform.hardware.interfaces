@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,29 +14,29 @@
  * limitations under the License.
  */
 
-package android.hardware.wifi.supplicant;
+package android.hardware.wifi;
 
 /**
- * Details of the PMKSA cache entry that was added in supplicant.
+ * Pre-Association Security Negotiation (PASN) configuration.
  */
 @VintfStability
-parcelable PmkSaCacheData {
+parcelable PasnConfig {
     /**
-     * BSSID of the access point to which the station is associated.
+     * Base Authentication and Key Management (AKM) protocol used for PASN as defined in |Akm|.
      */
-    byte[6] bssid;
+    long baseAkm;
     /**
-     * PMK expiration time in seconds.
+     * Pairwise cipher suite used for the PTKSA (Pairwise Transient Key Security Association)
+     * as defined in |CipherSuite|
      */
-    long expirationTimeInSec;
+    long cipherSuite;
     /**
-     * Serialized PMK cache entry.
-     * The content is opaque for the framework and depends on the native implementation.
+     * Passphrase for the base AKM. This can be null based on the AKM type.
      */
-    byte[] serializedEntry;
+    @nullable byte[] passphrase;
     /**
-     * Pairwise Master Key Identifier (PMKID), which is a unique key identifier used by AP to
-     * track PMK used (Pairwise Master Key) for a station.
+     * PMKID corresponding to the cached PMK from the base AKM. PMKID can be null if no cached PMK
+     * is present.
      */
     @nullable byte[] pmkid;
 }
