@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,10 +32,11 @@
 // later when a module using the interface is updated, e.g., Mainline modules.
 
 package android.hardware.wifi.supplicant;
-@Backing(type="int") @VintfStability
-enum WpsProvisionMethod {
-  NONE = (-1) /* -1 */,
-  PBC,
-  DISPLAY,
-  KEYPAD,
+@VintfStability
+parcelable P2pUsdBasedServiceDiscoveryResultParams {
+  byte[6] peerMacAddress;
+  int sessionId;
+  int peerSessionId;
+  int serviceProtocolType;
+  byte[] serviceSpecificInfo;
 }

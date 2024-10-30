@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,14 @@
 
 package android.hardware.wifi.supplicant;
 
+/**
+ * Status codes for P2P operations.
+ */
 @VintfStability
 @Backing(type="int")
-enum WpsProvisionMethod {
-    NONE = -1,
-    /**
-     * Push button method.
-     */
-    PBC,
-    /**
-     * Display pin method configuration - pin is generated and displayed on
-     * device.
-     */
-    DISPLAY,
-    /**
-     * Keypad pin method configuration - pin is entered on device.
-     */
-    KEYPAD,
+enum UsdTerminateReasonCode {
+    UNKNOWN = 0,
+    TIMEOUT = 1,
+    USER_REQUEST = 2,
+    FAILURE = 3,
 }
