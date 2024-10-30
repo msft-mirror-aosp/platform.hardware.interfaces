@@ -14,4 +14,16 @@
  * limitations under the License.
  */
 
-pub mod media_quality_hal_impl;
+package android.hardware.wifi;
+
+/**
+ * Cipher Suite types.
+ */
+@VintfStability
+parcelable CipherSuite {
+    const long NONE = 0;
+    const long CCMP_128 = 1 << 0;
+    const long CCMP_256 = 1 << 1;
+    const long GCMP_128 = 1 << 2;
+    const long GCMP_256 = 1 << 3;
+}
