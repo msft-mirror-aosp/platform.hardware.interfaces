@@ -16,32 +16,21 @@
 
 package android.hardware.wifi.supplicant;
 
-import android.hardware.wifi.common.OuiKeyedData;
-
 /**
- * Parameters used for |ISupplicantP2pIface.createGroupOwner|
+ * Wifi bands
  */
 @VintfStability
-parcelable P2pCreateGroupOwnerInfo {
+parcelable BandMask {
     /**
-     * Used to request a persistent group to be formed.
+     * 2.4 GHz band.
      */
-    boolean persistent;
-
+    const int BAND_2_GHZ = 1 << 0;
     /**
-     * Optional parameter. Used to specify the restart of a persistent
-     * group. Set to UINT32_MAX for a non-persistent group.
+     * 5 GHz band.
      */
-    int persistentNetworkId;
-
+    const int BAND_5_GHZ = 1 << 1;
     /**
-     * Optional vendor-specific parameters. Null value indicates
-     * that no vendor data is provided.
+     * 6 GHz band.
      */
-    @nullable OuiKeyedData[] vendorData;
-    /**
-     * Used to start a Group Owner that support P2P2 IE. The connection to this Group Owner can
-     * be established only using P2P Pairing protocol.
-     */
-    boolean isP2pV2;
+    const int BAND_6_GHZ = 1 << 2;
 }
