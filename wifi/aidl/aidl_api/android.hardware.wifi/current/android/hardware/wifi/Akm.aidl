@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,29 +32,15 @@
 // later when a module using the interface is updated, e.g., Mainline modules.
 
 package android.hardware.wifi;
-@Backing(type="int") @VintfStability
-enum RttStatus {
-  SUCCESS = 0,
-  FAILURE = 1,
-  FAIL_NO_RSP = 2,
-  FAIL_REJECTED = 3,
-  FAIL_NOT_SCHEDULED_YET = 4,
-  FAIL_TM_TIMEOUT = 5,
-  FAIL_AP_ON_DIFF_CHANNEL = 6,
-  FAIL_NO_CAPABILITY = 7,
-  ABORTED = 8,
-  FAIL_INVALID_TS = 9,
-  FAIL_PROTOCOL = 10,
-  FAIL_SCHEDULE = 11,
-  FAIL_BUSY_TRY_LATER = 12,
-  INVALID_REQ = 13,
-  NO_WIFI = 14,
-  FAIL_FTM_PARAM_OVERRIDE = 15,
-  NAN_RANGING_PROTOCOL_FAILURE = 16,
-  NAN_RANGING_CONCURRENCY_NOT_SUPPORTED = 17,
-  SECURE_RANGING_FAILURE_INVALID_AKM = 18,
-  SECURE_RANGING_FAILURE_INVALID_CIPHER = 19,
-  SECURE_RANGING_FAILURE_INVALID_CONFIG = 20,
-  SECURE_RANGING_FAILURE_REJECTED = 21,
-  SECURE_RANGING_FAILURE_UNKNOWN = 22,
+@VintfStability
+parcelable Akm {
+  const long NONE = 0;
+  const long PASN = (1 << 0) /* 1 */;
+  const long SAE = (1 << 1) /* 2 */;
+  const long FT_EAP_SHA256 = (1 << 2) /* 4 */;
+  const long FT_PSK_SHA256 = (1 << 3) /* 8 */;
+  const long FT_EAP_SHA384 = (1 << 4) /* 16 */;
+  const long FT_PSK_SHA384 = (1 << 5) /* 32 */;
+  const long FILS_EAP_SHA256 = (1 << 6) /* 64 */;
+  const long FILS_EAP_SHA384 = (1 << 7) /* 128 */;
 }
