@@ -33,9 +33,6 @@
 
 package android.hardware.tv.mediaquality;
 @VintfStability
-interface IMediaQuality {
-  void setCallback(in android.hardware.tv.mediaquality.IMediaQualityCallback callback);
-  void setAmbientBacklightDetector(in android.hardware.tv.mediaquality.AmbientBacklightSettings settings);
-  void setAmbientBacklightDetectionEnabled(in boolean enabled);
-  boolean getAmbientBacklightDetectionEnabled();
+interface IMediaQualityCallback {
+  oneway void notifyAmbientBacklightEvent(in android.hardware.tv.mediaquality.AmbientBacklightEvent event);
 }
