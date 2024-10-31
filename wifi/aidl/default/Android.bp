@@ -106,15 +106,20 @@ cc_library_static {
         "libwifi-hal",
         "libwifi-system-iface",
         "libxml2",
-        "android.hardware.wifi-V2-ndk",
+        "android.hardware.wifi-V3-ndk",
     ],
 
     export_include_dirs: ["."],
 }
 
+vintf_fragment {
+    name: "android.hardware.wifi-service.xml",
+    src: "android.hardware.wifi-service.xml",
+    vendor: true,
+}
+
 cc_binary {
     name: "android.hardware.wifi-service",
-    vintf_fragments: ["android.hardware.wifi-service.xml"],
     relative_install_path: "hw",
     proprietary: true,
     cppflags: [
@@ -133,15 +138,15 @@ cc_binary {
         "libwifi-hal",
         "libwifi-system-iface",
         "libxml2",
-        "android.hardware.wifi-V2-ndk",
+        "android.hardware.wifi-V3-ndk",
     ],
     static_libs: ["android.hardware.wifi-service-lib"],
     init_rc: ["android.hardware.wifi-service.rc"],
+    vintf_fragment_modules: ["android.hardware.wifi-service.xml"],
 }
 
 cc_binary {
     name: "android.hardware.wifi-service-lazy",
-    vintf_fragments: ["android.hardware.wifi-service.xml"],
     overrides: ["android.hardware.wifi-service"],
     cflags: ["-DLAZY_SERVICE"],
     relative_install_path: "hw",
@@ -162,10 +167,11 @@ cc_binary {
         "libwifi-hal",
         "libwifi-system-iface",
         "libxml2",
-        "android.hardware.wifi-V2-ndk",
+        "android.hardware.wifi-V3-ndk",
     ],
     static_libs: ["android.hardware.wifi-service-lib"],
     init_rc: ["android.hardware.wifi-service-lazy.rc"],
+    vintf_fragment_modules: ["android.hardware.wifi-service.xml"],
 }
 
 cc_test {
@@ -193,8 +199,8 @@ cc_test {
     static_libs: [
         "libgmock",
         "libgtest",
-        "android.hardware.wifi-V2-ndk",
-        "android.hardware.wifi.common-V1-ndk",
+        "android.hardware.wifi-V3-ndk",
+        "android.hardware.wifi.common-V2-ndk",
         "android.hardware.wifi-service-lib",
     ],
     shared_libs: [
