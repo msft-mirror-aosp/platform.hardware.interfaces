@@ -1,11 +1,11 @@
-/**
- * Copyright (c) 2023, The Android Open Source Project
+/*
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,13 +31,9 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.graphics.common;
-@Backing(type="int") @VintfStability
-enum DisplayHotplugEvent {
-  CONNECTED = 0,
-  DISCONNECTED = 1,
-  ERROR_UNKNOWN = (-1) /* -1 */,
-  ERROR_INCOMPATIBLE_CABLE = (-2) /* -2 */,
-  ERROR_TOO_MANY_DISPLAYS = (-3) /* -3 */,
-  ERROR_LINK_UNSTABLE = (-4) /* -4 */,
+package android.hardware.tv.mediaquality;
+@VintfStability
+interface IMediaQuality {
+  void setAmbientLightDetectionEnabled(in boolean enabled);
+  boolean getAmbientLightDetectionEnabled();
 }
