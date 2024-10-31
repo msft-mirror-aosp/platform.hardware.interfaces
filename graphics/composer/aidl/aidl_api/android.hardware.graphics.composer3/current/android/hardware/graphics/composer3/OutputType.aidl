@@ -1,5 +1,5 @@
-/**
- * Copyright 2023, The Android Open Source Project
+/*
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,18 +32,10 @@
 // later when a module using the interface is updated, e.g., Mainline modules.
 
 package android.hardware.graphics.composer3;
-@VintfStability
-parcelable DisplayConfiguration {
-  int configId;
-  int width;
-  int height;
-  @nullable android.hardware.graphics.composer3.DisplayConfiguration.Dpi dpi;
-  int configGroup;
-  int vsyncPeriod;
-  @nullable android.hardware.graphics.composer3.VrrConfig vrrConfig;
-  android.hardware.graphics.composer3.OutputType hdrOutputType;
-  parcelable Dpi {
-    float x;
-    float y;
-  }
+@Backing(type="int") @VintfStability
+enum OutputType {
+  INVALID = 0,
+  SYSTEM = 1,
+  SDR = 2,
+  HDR10 = 3,
 }
