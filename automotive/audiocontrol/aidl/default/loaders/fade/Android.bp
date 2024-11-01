@@ -1,4 +1,4 @@
-// Copyright (C) 2020 The Android Open Source Project
+// Copyright (C) 2024 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,33 +21,25 @@ package {
     default_applicable_licenses: ["hardware_interfaces_license"],
 }
 
-cc_binary {
-    name: "android.hardware.automotive.audiocontrol-service.example",
-    relative_install_path: "hw",
-    init_rc: ["audiocontrol-default.rc"],
-    vintf_fragments: ["audiocontrol-default.xml"],
-    vendor: true,
-    defaults: [
-        "latest_android_hardware_audio_common_ndk_shared",
-        "latest_android_hardware_automotive_audiocontrol_ndk_shared",
-        "powerpolicyclient_defaults",
-        "car.audio.configuration.xsd.default",
-        "car.fade.configuration.xsd.default",
-    ],
-    shared_libs: [
-        "android.hardware.audio.common@7.0-enums",
-        "libbinder_ndk",
-        "libcutils",
-        "liblog",
-        "libbase",
+xsd_config {
+    name: "car_fade_audio_configuration_xsd",
+    srcs: ["car_fade_audio_configuration.xsd"],
+    package_name: "android.hardware.automotive.audiocontrol.fade",
+    nullability: true,
+}
+
+cc_defaults {
+    name: "car.fade.configuration.xsd.default",
+    static_libs: [
         "libxml2",
-        "libutils",
-        "android.hardware.audiocontrol.internal",
-        "libaudio_aidl_conversion_common_ndk",
     ],
-    srcs: [
-        "AudioControl.cpp",
-        "main.cpp",
-        "PowerPolicyClient.cpp",
+    generated_sources: [
+        "car_fade_audio_configuration_xsd",
+    ],
+    generated_headers: [
+        "car_fade_audio_configuration_xsd",
+    ],
+    header_libs: [
+        "libxsdc-utils",
     ],
 }

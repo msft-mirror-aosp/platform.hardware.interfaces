@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 
-rust_binary {
-    name: "android.hardware.automotive.audiocontrol-rust-service",
-    relative_install_path: "hw",
-    vendor: true,
-    srcs: ["src/*.rs"],
-    crate_root: "src/main.rs",
-    defaults: [
-        "latest_android_hardware_automotive_audiocontrol_rust",
-        "latest_android_hardware_audio_common_rust",
-        "latest_android_media_audio_common_types_rust",
-    ],
-    vintf_fragments: ["audiocontrol-rust-service.xml"],
-    init_rc: ["audiocontrol-rust-service.rc"],
-    rustlibs: [
-        "libbinder_rs",
-    ],
+package android.hardware.automotive.audiocontrol;
+
+import android.hardware.automotive.audiocontrol.AudioZoneContextInfo;
+
+/**
+ * Encapsulates the list of car audio context info definitions
+ */
+@JavaDerive(equals=true, toString=true)
+@VintfStability
+parcelable AudioZoneContext {
+    /**
+     * List of car audio context info.
+     *
+     * <p>The list must include all audio attributes usages currently supported so that all audio
+     * attribute usages can be routed for each car audio configuration.
+     */
+    List<AudioZoneContextInfo> audioContextInfos;
 }
