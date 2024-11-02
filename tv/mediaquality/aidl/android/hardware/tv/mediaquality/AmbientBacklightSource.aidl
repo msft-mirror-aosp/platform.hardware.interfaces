@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-package android.hardware.contexthub;
-
-import android.hardware.contexthub.ErrorCode;
+package android.hardware.tv.mediaquality;
 
 @VintfStability
-parcelable MessageDeliveryStatus {
+enum AmbientBacklightSource {
     /**
-     * The messageSequenceNumber of the ContextHubMessage or Message to which this status is
-     * required.
+     * The detection is disabled.
      */
-    int messageSequenceNumber;
-
+    NONE = 0,
     /**
-     * The error code associated with this status.
+     * The detection is enabled for audio.
      */
-    ErrorCode errorCode;
+    AUDIO = 1,
+    /**
+     * The detection is enabled for video.
+     */
+    VIDEO = 2,
 }
