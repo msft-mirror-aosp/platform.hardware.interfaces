@@ -33,9 +33,13 @@
 
 package android.hardware.tv.mediaquality;
 @VintfStability
-interface IMediaQuality {
-  void setCallback(in android.hardware.tv.mediaquality.IMediaQualityCallback callback);
-  void setAmbientBacklightDetector(in android.hardware.tv.mediaquality.AmbientBacklightSettings settings);
-  void setAmbientBacklightDetectionEnabled(in boolean enabled);
-  boolean getAmbientBacklightDetectionEnabled();
+parcelable AmbientBacklightSettings {
+  String packageName;
+  android.hardware.tv.mediaquality.AmbientBacklightSource source;
+  int maxFramerate;
+  android.hardware.graphics.common.PixelFormat colorFormat;
+  int hZonesNumber;
+  int vZonesNumber;
+  boolean hasLetterbox;
+  int threshold;
 }
