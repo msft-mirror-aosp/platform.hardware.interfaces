@@ -31,11 +31,14 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.tv.mediaquality;
+package android.hardware.contexthub;
 @VintfStability
-interface IMediaQuality {
-  void setCallback(in android.hardware.tv.mediaquality.IMediaQualityCallback callback);
-  void setAmbientBacklightDetector(in android.hardware.tv.mediaquality.AmbientBacklightSettings settings);
-  void setAmbientBacklightDetectionEnabled(in boolean enabled);
-  boolean getAmbientBacklightDetectionEnabled();
+interface IEndpointCallback {
+  void onEndpointStarted(in android.hardware.contexthub.EndpointInfo[] endpointInfos);
+  void onEndpointStopped(in android.hardware.contexthub.EndpointId[] endpointIds, android.hardware.contexthub.Reason reason);
+  void onMessageReceived(int sessionId, in android.hardware.contexthub.Message msg);
+  void onMessageDeliveryStatusReceived(int sessionId, in android.hardware.contexthub.MessageDeliveryStatus msgStatus);
+  void onEndpointSessionOpenRequest(int sessionId, in android.hardware.contexthub.EndpointId destination, in android.hardware.contexthub.EndpointId initiator, in @nullable String serviceDescriptor);
+  void onCloseEndpointSession(int sessionId, in android.hardware.contexthub.Reason reason);
+  void onEndpointSessionOpenComplete(int sessionId);
 }

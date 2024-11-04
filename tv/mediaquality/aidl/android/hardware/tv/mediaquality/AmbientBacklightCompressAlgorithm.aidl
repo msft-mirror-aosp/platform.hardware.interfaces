@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 
-package android.hardware.contexthub;
-
-import android.hardware.contexthub.ErrorCode;
+package android.hardware.tv.mediaquality;
 
 @VintfStability
-parcelable MessageDeliveryStatus {
+enum AmbientBacklightCompressAlgorithm {
     /**
-     * The messageSequenceNumber of the ContextHubMessage or Message to which this status is
-     * required.
+     * The compress algorithm is disabled.
      */
-    int messageSequenceNumber;
-
+    NONE = 0,
     /**
-     * The error code associated with this status.
+     * The compress algorithm is enabled for RLE (Run-Length Encoding).
      */
-    ErrorCode errorCode;
+    RLE = 1,
 }

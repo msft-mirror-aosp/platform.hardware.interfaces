@@ -31,11 +31,18 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.tv.mediaquality;
+package android.hardware.contexthub;
 @VintfStability
-interface IMediaQuality {
-  void setCallback(in android.hardware.tv.mediaquality.IMediaQualityCallback callback);
-  void setAmbientBacklightDetector(in android.hardware.tv.mediaquality.AmbientBacklightSettings settings);
-  void setAmbientBacklightDetectionEnabled(in boolean enabled);
-  boolean getAmbientBacklightDetectionEnabled();
+parcelable Service {
+  android.hardware.contexthub.Service.RpcFormat format;
+  String serviceDescriptor;
+  int majorVersion;
+  int minorVersion;
+  ParcelableHolder extendedInfo;
+  @Backing(type="int") @VintfStability
+  enum RpcFormat {
+    CUSTOM = 0,
+    AIDL = 1,
+    PW_RPC_PROTOBUF = 2,
+  }
 }
