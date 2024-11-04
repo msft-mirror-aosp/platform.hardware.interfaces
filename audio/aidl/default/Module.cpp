@@ -47,6 +47,7 @@ using aidl::android::media::audio::common::AudioDevice;
 using aidl::android::media::audio::common::AudioDeviceType;
 using aidl::android::media::audio::common::AudioFormatDescription;
 using aidl::android::media::audio::common::AudioFormatType;
+using aidl::android::media::audio::common::AudioGainConfig;
 using aidl::android::media::audio::common::AudioInputFlags;
 using aidl::android::media::audio::common::AudioIoFlags;
 using aidl::android::media::audio::common::AudioMMapPolicy;
@@ -235,17 +236,24 @@ ndk::ScopedAStatus Module::createStreamContext(
     return ndk::ScopedAStatus::ok();
 }
 
-std::vector<AudioDevice> Module::findConnectedDevices(int32_t portConfigId) {
+std::vector<AudioDevice> Module::getDevicesFromDevicePortConfigIds(
+        const std::set<int32_t>& devicePortConfigIds) {
     std::vector<AudioDevice> result;
-    auto& ports = getConfig().ports;
-    auto portIds = portIdsFromPortConfigIds(findConnectedPortConfigIds(portConfigId));
-    for (auto it = portIds.begin(); it != portIds.end(); ++it) {
-        auto portIt = findById<AudioPort>(ports, *it);
-        if (portIt != ports.end() && portIt->ext.getTag() == AudioPortExt::Tag::device) {
-            result.push_back(portIt->ext.template get<AudioPortExt::Tag::device>().device);
+    auto& configs = getConfig().portConfigs;
+    for (const auto& id : devicePortConfigIds) {
+        auto it = findById<AudioPortConfig>(configs, id);
+        if (it != configs.end() && it->ext.getTag() == AudioPortExt::Tag::device) {
+            result.push_back(it->ext.template get<AudioPortExt::Tag::device>().device);
+        } else {
+            LOG(FATAL) << __func__ << ": " << mType
+                       << ": failed to find device for id" << id;
         }
     }
     return result;
+}
+
+std::vector<AudioDevice> Module::findConnectedDevices(int32_t portConfigId) {
+    return getDevicesFromDevicePortConfigIds(findConnectedPortConfigIds(portConfigId));
 }
 
 std::set<int32_t> Module::findConnectedPortConfigIds(int32_t portConfigId) {
@@ -482,7 +490,7 @@ ndk::ScopedAStatus Module::updateStreamsConnectedState(const AudioPatch& oldPatc
         const int32_t mixPortConfigId = connectionPair.first;
         if (auto it = oldConnections.find(mixPortConfigId);
             it == oldConnections.end() || it->second != connectionPair.second) {
-            const auto connectedDevices = findConnectedDevices(mixPortConfigId);
+            const auto connectedDevices = getDevicesFromDevicePortConfigIds(connectionPair.second);
             if (connectedDevices.empty()) {
                 // This is important as workers use the vector size to derive the connection status.
                 LOG(FATAL) << "updateStreamsConnectedState: No connected devices found for port "
@@ -1200,7 +1208,9 @@ ndk::ScopedAStatus Module::setAudioPortConfigImpl(
     }
 
     if (in_requested.gain.has_value()) {
-        // Let's pretend that gain can always be applied.
+        if (!setAudioPortConfigGain(*portIt, in_requested.gain.value())) {
+            return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+        }
         out_suggested->gain = in_requested.gain.value();
     }
 
@@ -1240,6 +1250,52 @@ ndk::ScopedAStatus Module::setAudioPortConfigImpl(
         *applied = false;
     }
     return ndk::ScopedAStatus::ok();
+}
+
+bool Module::setAudioPortConfigGain(const AudioPort& port, const AudioGainConfig& gainRequested) {
+    auto& ports = getConfig().ports;
+    if (gainRequested.index < 0 || gainRequested.index >= (int)port.gains.size()) {
+        LOG(ERROR) << __func__ << ": gains for port " << port.id << " is undefined";
+        return false;
+    }
+    int stepValue = port.gains[gainRequested.index].stepValue;
+    if (stepValue == 0) {
+        LOG(ERROR) << __func__ << ": port gain step value is 0";
+        return false;
+    }
+    int minValue = port.gains[gainRequested.index].minValue;
+    int maxValue = port.gains[gainRequested.index].maxValue;
+    if (gainRequested.values[0] > maxValue || gainRequested.values[0] < minValue) {
+        LOG(ERROR) << __func__ << ": gain value " << gainRequested.values[0]
+                   << " out of range of min and max gain config";
+        return false;
+    }
+    int gainIndex = (gainRequested.values[0] - minValue) / stepValue;
+    int totalSteps = (maxValue - minValue) / stepValue;
+    if (totalSteps == 0) {
+        LOG(ERROR) << __func__ << ": difference between port gain min value " << minValue
+                   << " and max value " << maxValue << " is less than step value " << stepValue;
+        return false;
+    }
+    // Root-power quantities are used in curve:
+    // 10^((minMb / 100 + (maxMb / 100 - minMb / 100) * gainIndex / totalSteps) / (10 * 2))
+    // where 100 is the conversion from mB to dB, 10 comes from the log 10 conversion from power
+    // ratios, and 2 means are the square of amplitude.
+    float gain =
+            pow(10, (minValue + (maxValue - minValue) * (gainIndex / (float)totalSteps)) / 2000);
+    if (gain < 0) {
+        LOG(ERROR) << __func__ << ": gain " << gain << " is less than 0";
+        return false;
+    }
+    for (const auto& route : getConfig().routes) {
+        if (route.sinkPortId != port.id) {
+            continue;
+        }
+        for (const auto sourcePortId : route.sourcePortIds) {
+            mStreams.setGain(sourcePortId, gain);
+        }
+    }
+    return true;
 }
 
 ndk::ScopedAStatus Module::resetAudioPatch(int32_t in_patchId) {

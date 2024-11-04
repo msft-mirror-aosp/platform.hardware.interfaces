@@ -241,6 +241,8 @@ class Module : public BnModule {
     std::vector<AudioRoute*> getAudioRoutesForAudioPortImpl(int32_t portId);
     Configuration& getConfig();
     const ConnectedDevicePorts& getConnectedDevicePorts() const { return mConnectedDevicePorts; }
+    std::vector<::aidl::android::media::audio::common::AudioDevice>
+    getDevicesFromDevicePortConfigIds(const std::set<int32_t>& devicePortConfigIds);
     bool getMasterMute() const { return mMasterMute; }
     bool getMasterVolume() const { return mMasterVolume; }
     bool getMicMute() const { return mMicMute; }
@@ -263,6 +265,9 @@ class Module : public BnModule {
             ::aidl::android::media::audio::common::AudioPortConfig* out_suggested, bool* applied);
     ndk::ScopedAStatus updateStreamsConnectedState(const AudioPatch& oldPatch,
                                                    const AudioPatch& newPatch);
+    bool setAudioPortConfigGain(
+            const ::aidl::android::media::audio::common::AudioPort& port,
+            const ::aidl::android::media::audio::common::AudioGainConfig& gainRequested);
 };
 
 std::ostream& operator<<(std::ostream& os, Module::Type t);
