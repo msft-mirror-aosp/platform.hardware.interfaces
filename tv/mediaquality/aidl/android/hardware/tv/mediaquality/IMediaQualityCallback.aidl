@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,17 @@
  * limitations under the License.
  */
 
-package android.hardware.contexthub;
+package android.hardware.tv.mediaquality;
 
-import android.hardware.contexthub.ErrorCode;
+import android.hardware.tv.mediaquality.AmbientBacklightEvent;
 
 @VintfStability
-parcelable MessageDeliveryStatus {
+oneway interface IMediaQualityCallback {
     /**
-     * The messageSequenceNumber of the ContextHubMessage or Message to which this status is
-     * required.
+     * Notifies the client that an ambient backlight event has occurred. For possible
+     * event types, check AmbientBacklightEventType.
+     *
+     * @param event Event passed to the client.
      */
-    int messageSequenceNumber;
-
-    /**
-     * The error code associated with this status.
-     */
-    ErrorCode errorCode;
+    void notifyAmbientBacklightEvent(in AmbientBacklightEvent event);
 }

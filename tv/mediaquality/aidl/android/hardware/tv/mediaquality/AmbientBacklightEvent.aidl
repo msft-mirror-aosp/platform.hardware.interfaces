@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-package android.hardware.contexthub;
+package android.hardware.tv.mediaquality;
 
-import android.hardware.contexthub.ErrorCode;
+import android.hardware.tv.mediaquality.AmbientBacklightMetadata;
 
 @VintfStability
-parcelable MessageDeliveryStatus {
+union AmbientBacklightEvent {
     /**
-     * The messageSequenceNumber of the ContextHubMessage or Message to which this status is
-     * required.
+     * This field is relevant when the event signifies that ambient backlight is enabled.
      */
-    int messageSequenceNumber;
+    boolean enabled;
 
     /**
-     * The error code associated with this status.
+     * This field is relevant when the event includes ambient backlight metadata.
      */
-    ErrorCode errorCode;
+    AmbientBacklightMetadata metadata;
 }
