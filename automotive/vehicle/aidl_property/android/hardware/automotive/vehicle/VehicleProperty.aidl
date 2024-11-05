@@ -653,16 +653,27 @@ enum VehicleProperty {
      * the current gear will be one of GEAR_1, GEAR_2 etc, which reflects
      * the actual gear the transmission is currently running in.
      *
-     * Values in the config data must represent the list of supported gears
-     * for this vehicle.  For example, config data for an automatic transmission
-     * must contain {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_PARK, GEAR_1, GEAR_2,...}
-     * and for manual transmission the list must be
+     * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
+     * (0) must be {@code true}.
+     *
+     * {@code getSupportedValuesList} for [GEAR_SELECTION, areaId=0] must return a
+     * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList}.
+     *
+     * The supported values list must represent the list of supported gears
+     * for this vehicle.  For example, for an automatic transmission, this list can be
+     * {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_PARK, GEAR_1, GEAR_2,...}
+     * and for manual transmission the list can be
      * {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_1, GEAR_2,...}. This list need not be the
      * same as that of the supported gears reported in GEAR_SELECTION.
+     *
+     * For backward compatibility, config array for this property must be a list of values
+     * same as the supported values at boot-time.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleGear
+     * @require_supported_values_list
+     * @legacy_supported_values_in_config
      * @version 2
      */
     CURRENT_GEAR = 0x0401 + 0x10000000 + 0x01000000
