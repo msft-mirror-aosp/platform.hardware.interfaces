@@ -959,6 +959,10 @@ enum VehicleProperty {
      * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
      * implement it as VehiclePropertyAccess.READ only.
      *
+     * The supported hvac fan direction is exposed through {@code HVAC_FAN_DIRECTION_AVAILABLE}
+     * property. Caller should not call {@code getSupportedValuesList}, or use
+     * {@code VehicleAreaConfig#supportedEnumValues}.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
