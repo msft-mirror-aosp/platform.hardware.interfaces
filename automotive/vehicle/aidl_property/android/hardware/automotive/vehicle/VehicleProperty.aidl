@@ -601,8 +601,12 @@ enum VehicleProperty {
      * of the vehicle as described through the ImpactSensorLocation enum. As a bit flag property,
      * this property can be set to multiple ORed together values of the enum when necessary.
      *
-     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
-     * unless all bit flags of ImpactSensorLocation are supported.
+     * For the global area ID (0), {@code getSupportedValuesList}
+     * must return a {@code SupportedValuesListResult} that contains supported values unless all bit
+     * flags of ImpactSensorLocation are supported.
+     *
+     * For backward compatibility, if {@code SupportedValuesListResult} is defined,
+     * {@code VehicleAreaConfig#supportedEnumValues} must be set to the same values.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
