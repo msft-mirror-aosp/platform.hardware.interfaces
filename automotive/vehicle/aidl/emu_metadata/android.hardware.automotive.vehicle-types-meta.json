@@ -293,7 +293,7 @@
                     "EvStoppingMode"
                 ],
                 "data_enum": "EvStoppingMode",
-                "description": "Represents property for the current stopping mode of the vehicle.\nFor the global area ID (0), the VehicleAreaConfig#supportedEnumValues must be defined unless all enum values of EvStoppingMode are supported.\nThe EvStoppingMode enum may be extended to include more states in the future.\nThis property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to implement it as VehiclePropertyAccess.READ only."
+                "description": "Represents property for the current stopping mode of the vehicle.\nFor the global area ID (0), {@code getSupportedValuesList} must return a {@code SupportedValuesListResult} that contains supported values unless all enum values of EvStoppingMode are supported.\nFor backward compatibility, if {@code SupportedValuesListResult} is defined, {@code VehicleAreaConfig#supportedEnumValues} must be set to the same values.\nThe EvStoppingMode enum may be extended to include more states in the future.\nThis property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to implement it as VehiclePropertyAccess.READ only."
             },
             {
                 "name": "ELECTRONIC_STABILITY_CONTROL_ENABLED",

@@ -821,8 +821,12 @@ enum VehicleProperty {
     /**
      * Represents property for the current stopping mode of the vehicle.
      *
-     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues must be defined unless
-     * all enum values of EvStoppingMode are supported.
+     * For the global area ID (0), {@code getSupportedValuesList}
+     * must return a {@code SupportedValuesListResult} that contains supported values unless all
+     * enum values of EvStoppingMode are supported.
+     *
+     * For backward compatibility, if {@code SupportedValuesListResult} is defined,
+     * {@code VehicleAreaConfig#supportedEnumValues} must be set to the same values.
      *
      * The EvStoppingMode enum may be extended to include more states in the future.
      *
