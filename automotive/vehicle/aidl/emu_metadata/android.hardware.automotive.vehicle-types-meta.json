@@ -308,7 +308,7 @@
                     "ErrorState"
                 ],
                 "data_enum": "ElectronicStabilityControlState",
-                "description": "Electronic Stability Control (ESC) state.\nReturns the current state of ESC. This property must always return a valid state defined in ElectronicStabilityControlState or ErrorState. It must not surface errors through StatusCode and must use the supported error states instead.\nFor the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined unless all states of both ElectronicStabilityControlState (including OTHER, which is not recommended) and ErrorState are supported."
+                "description": "Electronic Stability Control (ESC) state.\nReturns the current state of ESC. This property must always return a valid state defined in ElectronicStabilityControlState or ErrorState. It must not surface errors through StatusCode and must use the supported error states instead.\nFor the global area ID (0), {@code getSupportedValuesList} must return a {@code SupportedValuesListResult} that contains supported values unless all states of both ElectronicStabilityControlState (including OTHER, which is not recommended) and ErrorState are supported.\nFor backward compatibility, if {@code SupportedValuesListResult} is defined, {@code VehicleAreaConfig#supportedEnumValues} must be set to the same values."
             },
             {
                 "name": "Fan speed setting",

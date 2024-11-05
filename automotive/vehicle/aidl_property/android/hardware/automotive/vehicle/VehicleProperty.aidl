@@ -870,9 +870,13 @@ enum VehicleProperty {
      * ElectronicStabilityControlState or ErrorState. It must not surface errors through StatusCode
      * and must use the supported error states instead.
      *
-     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
-     * unless all states of both ElectronicStabilityControlState (including OTHER, which is not
+     * For the global area ID (0), {@code getSupportedValuesList}
+     * must return a {@code SupportedValuesListResult} that contains supported values unless all
+     * states of both ElectronicStabilityControlState (including OTHER, which is not
      * recommended) and ErrorState are supported.
+     *
+     * For backward compatibility, if {@code SupportedValuesListResult} is defined,
+     * {@code VehicleAreaConfig#supportedEnumValues} must be set to the same values.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
