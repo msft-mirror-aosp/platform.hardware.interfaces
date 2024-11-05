@@ -1603,8 +1603,15 @@ enum VehicleProperty {
      *
      * Indicates type of units the car is using to display speed to user. Eg. m/s, km/h, or mph.
      *
-     * VehiclePropConfig.configArray is used to indicate the supported speed display units.
-     * Pressure units are defined in VehicleUnit.
+     * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
+     * (0) must be {@code true}.
+     *
+     * {@code getSupportedValuesLists} for [VEHICLE_SPEED_DISPLAY_UNITS, areaId=0] must return a
+     * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList},
+     * e.g. [METER_PER_SEC, MILES_PER_HOUR, KILOMETERS_PER_HOUR].
+     *
+     * For backward compatibility, config array for this property must contain the same values as
+     * supported values at boot time.
      * For example: configArray[0] = METER_PER_SEC
      *              configArray[1] = MILES_PER_HOUR
      *              configArray[2] = KILOMETERS_PER_HOUR
@@ -1618,6 +1625,9 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @data_enum VehicleUnit
+     * @require_supported_values_list
+     * @legacy_supported_values_in_config
      * @version 2
      */
     VEHICLE_SPEED_DISPLAY_UNITS = 0x0605 + 0x10000000 + 0x01000000

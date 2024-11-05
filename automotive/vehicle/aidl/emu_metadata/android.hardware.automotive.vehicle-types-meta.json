@@ -476,7 +476,11 @@
             {
                 "name": "Speed units for display",
                 "value": 289408517,
-                "description": "Speed units for display\nIndicates type of units the car is using to display speed to user. Eg. m\/s, km\/h, or mph.\nVehiclePropConfig.configArray is used to indicate the supported speed display units. Pressure units are defined in VehicleUnit. For example: configArray[0] = METER_PER_SEC configArray[1] = MILES_PER_HOUR configArray[2] = KILOMETERS_PER_HOUR\nIf updating VEHICLE_SPEED_DISPLAY_UNITS affects the values of other *_DISPLAY_UNITS properties, then their values must be updated and communicated to the AAOS framework as well.\nThis property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to implement it as VehiclePropertyAccess.READ only."
+                "data_enums": [
+                    "VehicleUnit"
+                ],
+                "data_enum": "VehicleUnit",
+                "description": "Speed units for display\nIndicates type of units the car is using to display speed to user. Eg. m\/s, km\/h, or mph.\n{@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID (0) must be {@code true}.\n{@code getSupportedValuesLists} for [VEHICLE_SPEED_DISPLAY_UNITS, areaId=0] must return a {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList}, e.g. [METER_PER_SEC, MILES_PER_HOUR, KILOMETERS_PER_HOUR].\nFor backward compatibility, config array for this property must contain the same values as supported values at boot time. For example: configArray[0] = METER_PER_SEC configArray[1] = MILES_PER_HOUR configArray[2] = KILOMETERS_PER_HOUR\nIf updating VEHICLE_SPEED_DISPLAY_UNITS affects the values of other *_DISPLAY_UNITS properties, then their values must be updated and communicated to the AAOS framework as well.\nThis property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to implement it as VehiclePropertyAccess.READ only."
             },
             {
                 "name": "EXTERNAL_CAR_TIME",
