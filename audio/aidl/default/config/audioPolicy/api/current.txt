@@ -144,6 +144,7 @@ package android.audio.policy.configuration {
     enum_constant public static final android.audio.policy.configuration.AudioDevice AUDIO_DEVICE_OUT_HEARING_AID;
     enum_constant public static final android.audio.policy.configuration.AudioDevice AUDIO_DEVICE_OUT_IP;
     enum_constant public static final android.audio.policy.configuration.AudioDevice AUDIO_DEVICE_OUT_LINE;
+    enum_constant public static final android.audio.policy.configuration.AudioDevice AUDIO_DEVICE_OUT_MULTICHANNEL_GROUP;
     enum_constant public static final android.audio.policy.configuration.AudioDevice AUDIO_DEVICE_OUT_PROXY;
     enum_constant public static final android.audio.policy.configuration.AudioDevice AUDIO_DEVICE_OUT_REMOTE_SUBMIX;
     enum_constant public static final android.audio.policy.configuration.AudioDevice AUDIO_DEVICE_OUT_SPDIF;
@@ -191,6 +192,7 @@ package android.audio.policy.configuration {
     enum_constant public static final android.audio.policy.configuration.AudioFormat AUDIO_FORMAT_AAC_XHE;
     enum_constant public static final android.audio.policy.configuration.AudioFormat AUDIO_FORMAT_AC3;
     enum_constant public static final android.audio.policy.configuration.AudioFormat AUDIO_FORMAT_AC4;
+    enum_constant public static final android.audio.policy.configuration.AudioFormat AUDIO_FORMAT_AC4_L4;
     enum_constant public static final android.audio.policy.configuration.AudioFormat AUDIO_FORMAT_ALAC;
     enum_constant public static final android.audio.policy.configuration.AudioFormat AUDIO_FORMAT_AMR_NB;
     enum_constant public static final android.audio.policy.configuration.AudioFormat AUDIO_FORMAT_AMR_WB;
