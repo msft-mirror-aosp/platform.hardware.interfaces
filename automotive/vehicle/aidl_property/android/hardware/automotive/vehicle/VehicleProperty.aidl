@@ -525,16 +525,27 @@ enum VehicleProperty {
     /**
      * Tire pressure
      *
-     * Each tires is identified by its areaConfig.areaId config and their
-     * minFloatValue/maxFloatValue are used to store OEM recommended pressure
-     * range. The minFloatValue and maxFloatValue in VehicleAreaConfig must be defined.
-     * The minFloatValue in the areaConfig data represents the lower bound of
-     * the recommended tire pressure.
-     * The maxFloatValue in the areaConfig data represents the upper bound of
-     * the recommended tire pressure.
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for all areas.
+     *
+     * {@code MinMaxSupportedValueResult.minSupportedValue} represents the lower bound of the
+     * recommended tire pressure for the tire at the specified area ID.
+     *
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} represents the upper bound of the
+     * recommended tire pressure for the tire at the specified area ID.
+     *
+     * For example, if the recommended tire pressure of left_front tire is from 200.0 KILOPASCAL to
+     * 240.0 KILOPASCAL, {@code getMinMaxSupportedValue} for
+     * [propId=TIRE_PRESSURE, areaId=VehicleAreaWheel::LEFT_FRONT] must return a
+     * {@code MinMaxSupportedValueResult} with OK status, 200.0 as minSupportedValue, 240.0 as
+     * maxSupportedValue.
+     *
+     * For backward compatibility, minFloatValue and maxFloatValue in {@code VehicleAreaConfig}
+     * must be set to the same as minSupportedValue and maxSupportedValue at boot time.
+     *
+     * Each tire is identified by its areaConfig.areaId config.
+     *
      * For example:
-     * The following areaConfig indicates the recommended tire pressure
-     * of left_front tire is from 200.0 KILOPASCAL to 240.0 KILOPASCAL.
      * .areaConfigs = {
      *      VehicleAreaConfig {
      *          .areaId = VehicleAreaWheel::LEFT_FRONT,
@@ -545,6 +556,7 @@ enum VehicleProperty {
      *
      * @change_mode VehiclePropertyChangeMode.CONTINUOUS
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @unit VehicleUnit.KILOPASCAL
      * @version 2
      */
