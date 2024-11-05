@@ -47,6 +47,17 @@ using aidl::android::media::audio::common::MicrophoneInfo;
 
 namespace aidl::android::hardware::audio::core {
 
+namespace {
+
+template <typename MQTypeError>
+auto fmqErrorHandler(const char* mqName) {
+    return [m = std::string(mqName)](MQTypeError fmqError, std::string&& errorMessage) {
+        CHECK_EQ(fmqError, MQTypeError::NONE) << m << ": " << errorMessage;
+    };
+}
+
+}  // namespace
+
 void StreamContext::fillDescriptor(StreamDescriptor* desc) {
     if (mCommandMQ) {
         desc->command = mCommandMQ->dupeDesc();
@@ -332,11 +343,7 @@ StreamInWorkerLogic::Status StreamInWorkerLogic::cycle() {
 bool StreamInWorkerLogic::read(size_t clientSize, StreamDescriptor::Reply* reply) {
     ATRACE_CALL();
     StreamContext::DataMQ* const dataMQ = mContext->getDataMQ();
-    StreamContext::DataMQ::Error fmqError = StreamContext::DataMQ::Error::NONE;
-    std::string fmqErrorMsg;
-    const size_t byteCount = std::min(
-            {clientSize, dataMQ->availableToWrite(&fmqError, &fmqErrorMsg), mDataBufferSize});
-    CHECK(fmqError == StreamContext::DataMQ::Error::NONE) << fmqErrorMsg;
+    const size_t byteCount = std::min({clientSize, dataMQ->availableToWrite(), mDataBufferSize});
     const bool isConnected = mIsConnected;
     const size_t frameSize = mContext->getFrameSize();
     size_t actualFrameCount = 0;
@@ -612,10 +619,7 @@ StreamOutWorkerLogic::Status StreamOutWorkerLogic::cycle() {
 bool StreamOutWorkerLogic::write(size_t clientSize, StreamDescriptor::Reply* reply) {
     ATRACE_CALL();
     StreamContext::DataMQ* const dataMQ = mContext->getDataMQ();
-    StreamContext::DataMQ::Error fmqError = StreamContext::DataMQ::Error::NONE;
-    std::string fmqErrorMsg;
-    const size_t readByteCount = dataMQ->availableToRead(&fmqError, &fmqErrorMsg);
-    CHECK(fmqError == StreamContext::DataMQ::Error::NONE) << fmqErrorMsg;
+    const size_t readByteCount = dataMQ->availableToRead();
     const size_t frameSize = mContext->getFrameSize();
     bool fatal = false;
     int32_t latency = mContext->getNominalLatencyMs();
@@ -718,6 +722,14 @@ ndk::ScopedAStatus StreamCommonImpl::initInstance(
         } else {
             LOG(WARNING) << __func__ << ": invalid worker tid: " << workerTid;
         }
+    }
+    getContext().getCommandMQ()->setErrorHandler(
+            fmqErrorHandler<StreamContext::CommandMQ::Error>("CommandMQ"));
+    getContext().getReplyMQ()->setErrorHandler(
+            fmqErrorHandler<StreamContext::ReplyMQ::Error>("ReplyMQ"));
+    if (getContext().getDataMQ() != nullptr) {
+        getContext().getDataMQ()->setErrorHandler(
+                fmqErrorHandler<StreamContext::DataMQ::Error>("DataMQ"));
     }
     return ndk::ScopedAStatus::ok();
 }
@@ -843,6 +855,11 @@ ndk::ScopedAStatus StreamCommonImpl::setConnectedDevices(
     return ndk::ScopedAStatus::ok();
 }
 
+ndk::ScopedAStatus StreamCommonImpl::setGain(float gain) {
+    LOG(DEBUG) << __func__ << ": gain " << gain;
+    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
+}
+
 ndk::ScopedAStatus StreamCommonImpl::bluetoothParametersUpdated() {
     LOG(DEBUG) << __func__;
     return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
@@ -920,9 +937,12 @@ ndk::ScopedAStatus StreamIn::setHwGain(const std::vector<float>& in_channelGains
 }
 
 StreamInHwGainHelper::StreamInHwGainHelper(const StreamContext* context)
-    : mChannelCount(getChannelCount(context->getChannelLayout())), mHwGains(mChannelCount, 0.0f) {}
+    : mChannelCount(getChannelCount(context->getChannelLayout())) {}
 
 ndk::ScopedAStatus StreamInHwGainHelper::getHwGainImpl(std::vector<float>* _aidl_return) {
+    if (mHwGains.empty()) {
+        mHwGains.resize(mChannelCount, 0.0f);
+    }
     *_aidl_return = mHwGains;
     LOG(DEBUG) << __func__ << ": returning " << ::android::internal::ToString(*_aidl_return);
     return ndk::ScopedAStatus::ok();
@@ -1051,10 +1071,12 @@ ndk::ScopedAStatus StreamOut::selectPresentation(int32_t in_presentationId, int3
 }
 
 StreamOutHwVolumeHelper::StreamOutHwVolumeHelper(const StreamContext* context)
-    : mChannelCount(getChannelCount(context->getChannelLayout())),
-      mHwVolumes(mChannelCount, 0.0f) {}
+    : mChannelCount(getChannelCount(context->getChannelLayout())) {}
 
 ndk::ScopedAStatus StreamOutHwVolumeHelper::getHwVolumeImpl(std::vector<float>* _aidl_return) {
+    if (mHwVolumes.empty()) {
+        mHwVolumes.resize(mChannelCount, 0.0f);
+    }
     *_aidl_return = mHwVolumes;
     LOG(DEBUG) << __func__ << ": returning " << ::android::internal::ToString(*_aidl_return);
     return ndk::ScopedAStatus::ok();
