@@ -711,11 +711,19 @@ enum VehicleProperty {
     /**
      * Regenerative braking level of a electronic vehicle
      *
-     * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined. All values between
-     * minInt32Value and maxInt32Value must be supported. The minInt32Value must be 0.
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for global area ID(0)
      *
-     * The maxInt32Value indicates the setting for the maximum amount of energy regenerated from
-     * braking. The minInt32Value indicates the setting for no regenerative braking.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} must be 0.
+     *
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the setting for the maximum
+     * amount of energy regenerated from braking. The minSupportedValue indicates the setting for no
+     * regenerative braking.
+     *
+     * All values between min and max supported value must be supported.
+     *
+     * For backward compatibility, minInt32Value and maxInt32Value in {@code VehicleAreaConfig}
+     * must be set to the same as minSupportedValue and maxSupportedValue at boot time.
      *
      * This property is a more granular form of EV_REGENERATIVE_BRAKING_STATE. It allows the user to
      * set a more specific level of regenerative braking if the states in EvRegenerativeBrakingState
@@ -727,6 +735,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     EV_BRAKE_REGENERATION_LEVEL =
