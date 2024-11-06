@@ -462,7 +462,7 @@ bool EvsVideoEmulatedCamera::startVideoStreamImpl_locked(
 
     if (auto status = AMediaCodec_start(mVideoCodec.get()); status != AMEDIA_OK) {
         LOG(INFO) << __func__ << ": Received error in starting decoder. "
-                     << "Trying again after resetting this emulated device.";
+                  << "Trying again after resetting this emulated device.";
 
         if (!initializeMediaCodec()) {
             LOG(ERROR) << __func__ << ": Failed to re-configure the media codec.";
@@ -473,7 +473,7 @@ bool EvsVideoEmulatedCamera::startVideoStreamImpl_locked(
                                AMEDIAEXTRACTOR_SEEK_CLOSEST_SYNC);
         AMediaCodec_flush(mVideoCodec.get());
 
-        if(auto status = AMediaCodec_start(mVideoCodec.get()); status != AMEDIA_OK) {
+        if (auto status = AMediaCodec_start(mVideoCodec.get()); status != AMEDIA_OK) {
             LOG(ERROR) << __func__ << ": Received error again in starting decoder. "
                        << "Error code: " << status;
             return false;
@@ -501,7 +501,9 @@ bool EvsVideoEmulatedCamera::postVideoStreamStop_locked(ndk::ScopedAStatus& stat
         return false;
     }
 
-    EvsEventDesc event = { .aType = EvsEventType::STREAM_STOPPED, };
+    EvsEventDesc event = {
+            .aType = EvsEventType::STREAM_STOPPED,
+    };
     if (auto result = mStream->notify(event); !result.isOk()) {
         LOG(WARNING) << "Failed to notify the end of the stream.";
     }
