@@ -141,6 +141,7 @@ class EvsCameraForTest : public EvsCamera {
                 (override));
     MOCK_METHOD(::ndk::ScopedAStatus, setPrimaryClient, (), (override));
     MOCK_METHOD(::ndk::ScopedAStatus, unsetPrimaryClient, (), (override));
+    MOCK_METHOD(std::string, getId, (), (override));
 
     bool mStreamStarted = false;
     bool mStreamStopped = false;
