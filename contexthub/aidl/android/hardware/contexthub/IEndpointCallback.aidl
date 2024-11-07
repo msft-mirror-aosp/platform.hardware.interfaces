@@ -26,6 +26,34 @@ import android.hardware.contexthub.Service;
 @VintfStability
 interface IEndpointCallback {
     /**
+     * Lifecycle event notification for endpoint starting from remote side. There is no need to
+     * report already started endpoint prior to the registration of an EndpointLifecycleCallbacks
+     * object. The EndpointInfo reported here should be consistent with values from getEndpoints().
+     *
+     * Endpoints added by registerEndpoint should not be included. registerEndpoint() should not
+     * cause this call.
+     *
+     * @param endpointInfos An array of EndpointInfo representing endpoints that just started.
+     */
+    void onEndpointStarted(in EndpointInfo[] endpointInfos);
+
+    /**
+     * Lifecycle event notification for endpoint stopping from remote side. There is no need to
+     * report already stopped endpoint prior to the registration of an EndpointLifecycleCallbacks
+     * object. The EndpointId reported here should represent a previously started Endpoint.
+     *
+     * When a hub crashes or restart, events should be batched into be a single call (containing all
+     * the EndpointId that were impacted).
+     *
+     * Endpoints added by registerEndpoint should not be included. unregisterEndpoint() should not
+     * cause this call.
+     *
+     * @param endpointIds An array of EndpointId representing endpoints that just stopped.
+     * @param reason The reason for why the endpoints stopped.
+     */
+    void onEndpointStopped(in EndpointId[] endpointIds, Reason reason);
+
+    /**
      * Invoked when an endpoint sends message to another endpoint (on host) on the (currently open)
      * session.
      *

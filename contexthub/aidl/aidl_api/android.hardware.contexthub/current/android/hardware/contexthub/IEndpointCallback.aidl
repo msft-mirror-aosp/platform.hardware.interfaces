@@ -34,6 +34,8 @@
 package android.hardware.contexthub;
 @VintfStability
 interface IEndpointCallback {
+  void onEndpointStarted(in android.hardware.contexthub.EndpointInfo[] endpointInfos);
+  void onEndpointStopped(in android.hardware.contexthub.EndpointId[] endpointIds, android.hardware.contexthub.Reason reason);
   void onMessageReceived(int sessionId, in android.hardware.contexthub.Message msg);
   void onMessageDeliveryStatusReceived(int sessionId, in android.hardware.contexthub.MessageDeliveryStatus msgStatus);
   void onEndpointSessionOpenRequest(int sessionId, in android.hardware.contexthub.EndpointId destination, in android.hardware.contexthub.EndpointId initiator, in @nullable String serviceDescriptor);
