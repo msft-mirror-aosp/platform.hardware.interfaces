@@ -27,6 +27,7 @@ namespace vehicle {
 namespace {
 
 using ::aidl::android::hardware::automotive::vehicle::GetValueResults;
+using ::aidl::android::hardware::automotive::vehicle::PropIdAreaId;
 using ::aidl::android::hardware::automotive::vehicle::SetValueResults;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropErrors;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropValues;
@@ -89,6 +90,11 @@ ScopedAStatus MockVehicleCallback::onPropertySetError(const VehiclePropErrors& r
     }
     mCond.notify_all();
     return result;
+}
+
+ScopedAStatus MockVehicleCallback::onSupportedValueChange(const std::vector<PropIdAreaId>&) {
+    // TODO(b/381020465): Add relevant implementation.
+    return ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
 }
 
 std::optional<GetValueResults> MockVehicleCallback::nextGetValueResults() {
