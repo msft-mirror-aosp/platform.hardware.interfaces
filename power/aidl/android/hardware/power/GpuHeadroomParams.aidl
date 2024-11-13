@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,23 @@
  * limitations under the License.
  */
 
-package android.hardware.radio.network;
+package android.hardware.power;
 
-/** @hide */
 @VintfStability
-@JavaDerive(toString=true)
-parcelable CdmaSignalStrength {
+@JavaDerive(equals=true, toString=true)
+parcelable GpuHeadroomParams {
     /**
-     * This value is the actual RSSI value multiplied by -1. Example: If the actual RSSI is -75,
-     * then this response value will be 75. RadioConst:VALUE_UNAVAILABLE means invalid/unreported.
+     * Defines how to calculate the headroom.
      */
-    int dbm;
+    enum CalculationType {
+        // Default to return the minimum headroom in a window.
+        MIN,
+        // Returns the average headroom in a window.
+        AVERAGE,
+    }
+
     /**
-     * This value is the actual Ec/Io multiplied by -10. Example: If the actual Ec/Io is -12.5 dB,
-     * then this response value will be 125. RadioConst:VALUE_UNAVAILABLE means invalid/unreported.
+     * The calculation type.
      */
-    int ecio;
+    CalculationType calculationType;
 }
