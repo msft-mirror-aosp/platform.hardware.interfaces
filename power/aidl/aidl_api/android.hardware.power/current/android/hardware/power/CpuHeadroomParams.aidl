@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,20 +32,17 @@
 // later when a module using the interface is updated, e.g., Mainline modules.
 
 package android.hardware.power;
-@VintfStability
-interface IPower {
-  oneway void setMode(in android.hardware.power.Mode type, in boolean enabled);
-  boolean isModeSupported(in android.hardware.power.Mode type);
-  oneway void setBoost(in android.hardware.power.Boost type, in int durationMs);
-  boolean isBoostSupported(in android.hardware.power.Boost type);
-  android.hardware.power.IPowerHintSession createHintSession(in int tgid, in int uid, in int[] threadIds, in long durationNanos);
-  long getHintSessionPreferredRate();
-  android.hardware.power.IPowerHintSession createHintSessionWithConfig(in int tgid, in int uid, in int[] threadIds, in long durationNanos, in android.hardware.power.SessionTag tag, out android.hardware.power.SessionConfig config);
-  android.hardware.power.ChannelConfig getSessionChannel(in int tgid, in int uid);
-  oneway void closeSessionChannel(in int tgid, in int uid);
-  android.hardware.power.SupportInfo getSupportInfo();
-  float[] getCpuHeadroom(in android.hardware.power.CpuHeadroomParams params);
-  float getGpuHeadroom(in android.hardware.power.GpuHeadroomParams params);
-  long getCpuHeadroomMinIntervalMillis();
-  long getGpuHeadroomMinIntervalMillis();
+@JavaDerive(equals=true, toString=true) @VintfStability
+parcelable CpuHeadroomParams {
+  android.hardware.power.CpuHeadroomParams.CalculationType calculationType;
+  android.hardware.power.CpuHeadroomParams.SelectionType selectionType;
+  int pid;
+  enum CalculationType {
+    MIN,
+    AVERAGE,
+  }
+  enum SelectionType {
+    ALL,
+    PER_CORE,
+  }
 }
