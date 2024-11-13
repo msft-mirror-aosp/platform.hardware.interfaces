@@ -38,6 +38,10 @@ enum NvItem {
   /**
    * @deprecated NV APIs are deprecated starting from Android U.
    */
+  INVALID = 0,
+  /**
+   * @deprecated NV APIs are deprecated starting from Android U.
+   */
   CDMA_MEID = 1,
   /**
    * @deprecated NV APIs are deprecated starting from Android U.

@@ -24,6 +24,10 @@ package android.hardware.radio.modem;
 @JavaDerive(toString=true)
 enum NvItem {
     /**
+     * @deprecated NV APIs are deprecated starting from Android U.
+     */
+    INVALID = 0,
+    /**
      * CDMA radio and account information (items 1-10)
      * CDMA MEID (hex)
      * @deprecated NV APIs are deprecated starting from Android U.

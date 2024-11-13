@@ -27,7 +27,7 @@ parcelable NvWriteItem {
     /**
      * @deprecated NV APIs are deprecated starting from Android U.
      */
-    NvItem itemId;
+    NvItem itemId = NvItem.INVALID;
     /**
      * @deprecated NV APIs are deprecated starting from Android U.
      */
