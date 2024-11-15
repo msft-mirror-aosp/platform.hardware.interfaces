@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,23 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package android.hardware.security.see.hwcrypto.types;
 
-package android.hardware.radio.modem;
-
-import android.hardware.radio.modem.NvItem;
-
-/**
- * @hide
+/*
+ * Implementation defined structure that represents a key and its associated metadata. It is only
+ * valid on the current boot, and its reuse after a session is closed (or between sessions) is not
+ * guaranteed.
  */
-@VintfStability
-@JavaDerive(toString=true)
-parcelable NvWriteItem {
-    /**
-     * @deprecated NV APIs are deprecated starting from Android U.
+parcelable OpaqueKeyToken {
+    /*
+     * Opaque type used to send IOpaqueKeys keys to different clients. Its format is implementation
+     * dependant.
      */
-    NvItem itemId = NvItem.INVALID;
-    /**
-     * @deprecated NV APIs are deprecated starting from Android U.
-     */
-    String value;
+    byte[] keyToken;
 }

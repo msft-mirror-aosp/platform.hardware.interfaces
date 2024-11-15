@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,11 +31,7 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.radio.modem;
-/* @hide */
-@Backing(type="int") @JavaDerive(toString=true) @SuppressWarnings(value={"redundant-name"}) @VintfStability
-enum DeviceStateType {
-  POWER_SAVE_MODE,
-  CHARGING_STATE,
-  LOW_DATA_EXPECTED,
+package android.hardware.security.see.hwcrypto.types;
+parcelable OpaqueKeyToken {
+  byte[] keyToken;
 }
