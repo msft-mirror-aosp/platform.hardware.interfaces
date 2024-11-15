@@ -2584,7 +2584,8 @@ TEST_P(NewKeyGenerationTest, EcdsaMissingCurve) {
     auto result = GenerateKey(
             AuthorizationSetBuilder().EcdsaKey(256).Digest(Digest::NONE).SetDefaultValidity());
     ASSERT_TRUE(result == ErrorCode::UNSUPPORTED_KEY_SIZE ||
-                result == ErrorCode::UNSUPPORTED_EC_CURVE);
+                result == ErrorCode::UNSUPPORTED_EC_CURVE)
+            << "unexpected result " << result;
 }
 
 /*
@@ -2605,7 +2606,7 @@ TEST_P(NewKeyGenerationTest, EcdsaMismatchKeySize) {
                                       .SigningKey()
                                       .Digest(Digest::NONE)
                                       .SetDefaultValidity());
-    ASSERT_TRUE(result == ErrorCode::INVALID_ARGUMENT);
+    ASSERT_EQ(result, ErrorCode::INVALID_ARGUMENT);
 }
 
 /*
@@ -3184,7 +3185,8 @@ TEST_P(SigningOperationsTest, RsaNoPaddingTooLong) {
     string result;
     ErrorCode finish_error_code = Finish(message, &result);
     EXPECT_TRUE(finish_error_code == ErrorCode::INVALID_INPUT_LENGTH ||
-                finish_error_code == ErrorCode::INVALID_ARGUMENT);
+                finish_error_code == ErrorCode::INVALID_ARGUMENT)
+            << "unexpected error code " << finish_error_code;
 
     // Very large message that should exceed the transfer buffer size of any reasonable TEE.
     message = string(128 * 1024, 'a');
@@ -3194,7 +3196,8 @@ TEST_P(SigningOperationsTest, RsaNoPaddingTooLong) {
                                               .Padding(PaddingMode::RSA_PKCS1_1_5_SIGN)));
     finish_error_code = Finish(message, &result);
     EXPECT_TRUE(finish_error_code == ErrorCode::INVALID_INPUT_LENGTH ||
-                finish_error_code == ErrorCode::INVALID_ARGUMENT);
+                finish_error_code == ErrorCode::INVALID_ARGUMENT)
+            << "unexpected error code " << finish_error_code;
 }
 
 /*
@@ -3248,7 +3251,8 @@ TEST_P(SigningOperationsTest, RsaNonUniqueParams) {
                                                   .Digest(Digest::NONE)
                                                   .Digest(Digest::SHA1)
                                                   .Padding(PaddingMode::RSA_PKCS1_1_5_SIGN));
-    ASSERT_TRUE(result == ErrorCode::UNSUPPORTED_DIGEST || result == ErrorCode::INVALID_ARGUMENT);
+    ASSERT_TRUE(result == ErrorCode::UNSUPPORTED_DIGEST || result == ErrorCode::INVALID_ARGUMENT)
+            << "unexpected result " << result;
 
     ASSERT_EQ(ErrorCode::UNSUPPORTED_DIGEST,
               Begin(KeyPurpose::SIGN,
@@ -3421,7 +3425,8 @@ TEST_P(SigningOperationsTest, EcdsaAllDigestsAndCurves) {
         }
 
         auto rc = DeleteKey();
-        ASSERT_TRUE(rc == ErrorCode::OK || rc == ErrorCode::UNIMPLEMENTED);
+        ASSERT_TRUE(rc == ErrorCode::OK || rc == ErrorCode::UNIMPLEMENTED)
+                << "unexpected result " << rc;
     }
 }
 
@@ -5705,7 +5710,8 @@ TEST_P(EncryptionOperationsTest, RsaOaepMGFDigestDefaultFail) {
     // is checked against those values, and found absent.
     auto result = Begin(KeyPurpose::DECRYPT, params);
     EXPECT_TRUE(result == ErrorCode::UNSUPPORTED_MGF_DIGEST ||
-                result == ErrorCode::INCOMPATIBLE_MGF_DIGEST);
+                result == ErrorCode::INCOMPATIBLE_MGF_DIGEST)
+            << "unexpected result " << result;
 }
 
 /*
@@ -5970,14 +5976,16 @@ TEST_P(EncryptionOperationsTest, AesInvalidParams) {
                                                      .BlockMode(BlockMode::ECB)
                                                      .Padding(PaddingMode::NONE));
     EXPECT_TRUE(result == ErrorCode::INCOMPATIBLE_BLOCK_MODE ||
-                result == ErrorCode::UNSUPPORTED_BLOCK_MODE);
+                result == ErrorCode::UNSUPPORTED_BLOCK_MODE)
+            << "unexpected result " << result;
 
     result = Begin(KeyPurpose::ENCRYPT, AuthorizationSetBuilder()
                                                 .BlockMode(BlockMode::ECB)
                                                 .Padding(PaddingMode::NONE)
                                                 .Padding(PaddingMode::PKCS7));
     EXPECT_TRUE(result == ErrorCode::INCOMPATIBLE_PADDING_MODE ||
-                result == ErrorCode::UNSUPPORTED_PADDING_MODE);
+                result == ErrorCode::UNSUPPORTED_PADDING_MODE)
+            << "unexpected result " << result;
 }
 
 /*
@@ -8760,7 +8768,8 @@ using DestroyAttestationIdsTest = KeyMintAidlTestBase;
 // Re-enable and run at your own risk.
 TEST_P(DestroyAttestationIdsTest, DISABLED_DestroyTest) {
     auto result = DestroyAttestationIds();
-    EXPECT_TRUE(result == ErrorCode::OK || result == ErrorCode::UNIMPLEMENTED);
+    EXPECT_TRUE(result == ErrorCode::OK || result == ErrorCode::UNIMPLEMENTED)
+            << "unexpected result " << result;
 }
 
 INSTANTIATE_KEYMINT_AIDL_TEST(DestroyAttestationIdsTest);
