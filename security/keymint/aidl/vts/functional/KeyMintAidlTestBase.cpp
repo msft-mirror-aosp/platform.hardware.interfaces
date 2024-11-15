@@ -149,7 +149,7 @@ void check_attestation_version(uint32_t attestation_version, int32_t aidl_versio
     // The multiplier should never be higher than the AIDL version, but can be less
     // (for example, if the implementation is from an earlier version but the HAL service
     // uses the default libraries and so reports the current AIDL version).
-    EXPECT_TRUE((attestation_version / 100) <= aidl_version);
+    EXPECT_LE((attestation_version / 100), aidl_version);
 }
 
 bool avb_verification_enabled() {
@@ -1142,13 +1142,12 @@ void KeyMintAidlTestBase::LocalVerifyMessage(const vector<uint8_t>& der_cert, co
                 int openssl_padding = RSA_NO_PADDING;
                 switch (padding) {
                     case PaddingMode::NONE:
-                        ASSERT_TRUE(data_size <= key_len);
+                        ASSERT_LE(data_size, key_len);
                         ASSERT_EQ(key_len, signature.size());
                         openssl_padding = RSA_NO_PADDING;
                         break;
                     case PaddingMode::RSA_PKCS1_1_5_SIGN:
-                        ASSERT_TRUE(data_size + kPkcs1UndigestedSignaturePaddingOverhead <=
-                                    key_len);
+                        ASSERT_LE(data_size + kPkcs1UndigestedSignaturePaddingOverhead, key_len);
                         openssl_padding = RSA_PKCS1_PADDING;
                         break;
                     default:
@@ -2364,7 +2363,7 @@ void device_id_attestation_check_acceptable_error(Tag tag, const ErrorCode& resu
         // ATTESTATION_IDS_NOT_PROVISIONED in this case.
         ASSERT_TRUE((tag == TAG_ATTESTATION_ID_IMEI || tag == TAG_ATTESTATION_ID_MEID ||
                      tag == TAG_ATTESTATION_ID_SECOND_IMEI))
-                << "incorrect error code on attestation ID mismatch";
+                << "incorrect error code on attestation ID mismatch for " << tag;
     } else {
         ADD_FAILURE() << "Error code " << result
                       << " returned on attestation ID mismatch, should be CANNOT_ATTEST_IDS";
