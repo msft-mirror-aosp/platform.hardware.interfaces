@@ -21,7 +21,9 @@ import android.hardware.power.ChannelConfig;
 import android.hardware.power.CompositionData;
 import android.hardware.power.CompositionUpdate;
 import android.hardware.power.CpuHeadroomParams;
+import android.hardware.power.CpuHeadroomResult;
 import android.hardware.power.GpuHeadroomParams;
+import android.hardware.power.GpuHeadroomResult;
 import android.hardware.power.IPowerHintSession;
 import android.hardware.power.Mode;
 import android.hardware.power.SessionConfig;
@@ -162,24 +164,21 @@ interface IPower {
      * Provides an estimate of available CPU headroom the device based on past history.
      * <p>
      * @param params params to customize the CPU headroom calculation
-     * @return a single value or an array of values depending on selection type of params.
-     *         Each value is ranged from [0, 100], and 0 indicates no CPU resources were left
-     *         during the calculation interval and the app may expect low resources to be granted.
      * @throws EX_UNSUPPORTED_OPERATION if the API is unsupported or the request params can't be
      *         served.
+     * @throws EX_SECURITY if the TIDs passed in do not belong to the same process.
+     * @throws EX_ILLEGAL_STATE if the TIDs passed in do not have the same core affinity setting.
      */
-    float[] getCpuHeadroom(in CpuHeadroomParams params);
+    CpuHeadroomResult getCpuHeadroom(in CpuHeadroomParams params);
 
     /**
      * Provides an estimate of available GPU headroom the device based on past history.
      * <p>
      * @param params params to customize the GPU headroom calculation
-     * @return Value is ranged from [0, 100], and 0 indicates no GPU resources were left
-     *         during the calculation interval and the app may expect low resources to be granted.
      * @throws EX_UNSUPPORTED_OPERATION if the API is unsupported or the request params can't be
      *         served.
      */
-    float getGpuHeadroom(in GpuHeadroomParams params);
+    GpuHeadroomResult getGpuHeadroom(in GpuHeadroomParams params);
 
     /**
      * Minimum polling interval for calling getCpuHeadroom in milliseconds.

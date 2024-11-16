@@ -16,27 +16,21 @@
 
 package android.hardware.power;
 
+/**
+ * Headroom value result depending on the request params.
+ *
+ * Each value is ranged from [0, 100], where 0 indicates no CPU resources were left
+ * during the calculation interval and the app may expect low resources to be granted.
+ */
 @VintfStability
 @JavaDerive(equals=true, toString=true)
-parcelable GpuHeadroomParams {
+union CpuHeadroomResult {
     /**
-     * Defines how to calculate the headroom.
+     * If ALL selection type is requested.
      */
-    enum CalculationType {
-        // Default to return the minimum headroom in a window.
-        MIN,
-        // Returns the average headroom in a window.
-        AVERAGE,
-    }
-
+    float globalHeadroom;
     /**
-     * The calculation type.
+     * If PER_CORE selection type is requested.
      */
-    CalculationType calculationType = CalculationType.MIN;
-
-    /**
-     * The device should support a superset of [50, 10000] and try to use the closest feasible
-     * window size to the provided value param.
-     */
-    int calculationWindowMillis = 1000;
+    float[] perCoreHeadroom;
 }
