@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,15 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package android.hardware.security.see.hwcrypto.types;
 
-import android.hardware.security.see.hwcrypto.types.AesKey;
-import android.hardware.security.see.hwcrypto.types.HmacKey;
+package android.hardware.automotive.vehicle;
 
-/*
- * Type encapsulating a clear key.
+import android.hardware.automotive.vehicle.RawPropValues;
+
+/**
+ * A structure containing one propertyId and one areaId.
  */
-union ExplicitKeyMaterial {
-    AesKey aes;
-    HmacKey hmac;
+@VintfStability
+@JavaDerive(equals=true, toString=true)
+@RustDerive(Clone=true)
+parcelable PropIdAreaId {
+    /** The property Id. */
+    int propId;
+    /** The area Id. */
+    int areaId;
 }
