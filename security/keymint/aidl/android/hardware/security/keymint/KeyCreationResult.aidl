@@ -145,9 +145,9 @@ parcelable KeyCreationResult {
      *     verifiedBootKey            OCTET_STRING,
      *     deviceLocked               BOOLEAN,
      *     verifiedBootState          VerifiedBootState,
-     *     # verifiedBootHash must contain 32-byte value that represents the state of all binaries
-     *     # or other components validated by verified boot.  Updating any verified binary or
-     *     # component must cause this value to change.
+     *     # verifiedBootHash must contain a SHA-256 digest of all binaries and components validated
+     *     # by Verified Boot. Updating any verified binary or component must cause this value to
+     *     # change.
      *     verifiedBootHash           OCTET_STRING,
      * }
      *
