@@ -18,6 +18,12 @@ package android.hardware.tv.mediaquality;
 
 import android.hardware.tv.mediaquality.AmbientBacklightSettings;
 import android.hardware.tv.mediaquality.IMediaQualityCallback;
+import android.hardware.tv.mediaquality.IPictureProfileAdjustmentListener;
+import android.hardware.tv.mediaquality.IPictureProfileChangedListener;
+import android.hardware.tv.mediaquality.ISoundProfileAdjustmentListener;
+import android.hardware.tv.mediaquality.ISoundProfileChangedListener;
+import android.hardware.tv.mediaquality.PictureParameters;
+import android.hardware.tv.mediaquality.SoundParameters;
 
 /**
  * Interface for the media quality service
@@ -56,4 +62,48 @@ interface IMediaQuality {
      * @return True if the ambient backlight detection is enabled, false otherwise.
      */
     boolean getAmbientBacklightDetectionEnabled();
+
+    /**
+     * Get picture profile changed listener.
+     *
+     * @return the IPictureProfileChangedListener.
+     */
+    IPictureProfileChangedListener getPictureProfileListener();
+
+    /**
+     * Sets the listener for picture adjustment from the HAL.
+     *
+     * @param IPictureProfileAdjustmentListener listener object to pass picture profile.
+     */
+    void setPictureProfileAdjustmentListener(IPictureProfileAdjustmentListener listener);
+
+    /**
+     * Get the picture parameters by PictureProfile id. Check PictureParameters for its' detail.
+     *
+     * @param pictureProfileId The PictureProfile id that associate with the PictureProfile.
+     * @return PictureParameters with all the pre-defined parameters and vendor defined parameters.
+     */
+    PictureParameters getPictureParameters(long pictureProfileId);
+
+    /**
+     * Get sound profile changed listener.
+     *
+     * @return the ISoundProfileChangedListener.
+     */
+    ISoundProfileChangedListener getSoundProfileListener();
+
+    /**
+     * Sets the listener for sound adjustment from the HAL.
+     *
+     * @param ISoundProfileAdjustmentListener listener object to pass sound profile.
+     */
+    void setSoundProfileAdjustmentListener(ISoundProfileAdjustmentListener listener);
+
+    /**
+     * Get the sound parameters by SoundProfile id. Check SoundParameters for its' detail.
+     *
+     * @param soundProfileId The SoundProfile id that associate with a SoundProfile.
+     * @return SoundParameters with all the pre-defined parameters and vendor defined parameters.
+     */
+    SoundParameters getSoundParameters(long soundProfileId);
 }
