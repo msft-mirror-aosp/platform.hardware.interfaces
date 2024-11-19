@@ -525,16 +525,27 @@ enum VehicleProperty {
     /**
      * Tire pressure
      *
-     * Each tires is identified by its areaConfig.areaId config and their
-     * minFloatValue/maxFloatValue are used to store OEM recommended pressure
-     * range. The minFloatValue and maxFloatValue in VehicleAreaConfig must be defined.
-     * The minFloatValue in the areaConfig data represents the lower bound of
-     * the recommended tire pressure.
-     * The maxFloatValue in the areaConfig data represents the upper bound of
-     * the recommended tire pressure.
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for all areas.
+     *
+     * {@code MinMaxSupportedValueResult.minSupportedValue} represents the lower bound of the
+     * recommended tire pressure for the tire at the specified area ID.
+     *
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} represents the upper bound of the
+     * recommended tire pressure for the tire at the specified area ID.
+     *
+     * For example, if the recommended tire pressure of left_front tire is from 200.0 KILOPASCAL to
+     * 240.0 KILOPASCAL, {@code getMinMaxSupportedValue} for
+     * [propId=TIRE_PRESSURE, areaId=VehicleAreaWheel::LEFT_FRONT] must return a
+     * {@code MinMaxSupportedValueResult} with OK status, 200.0 as minSupportedValue, 240.0 as
+     * maxSupportedValue.
+     *
+     * For backward compatibility, minFloatValue and maxFloatValue in {@code VehicleAreaConfig}
+     * must be set to the same as minSupportedValue and maxSupportedValue at boot time.
+     *
+     * Each tire is identified by its areaConfig.areaId config.
+     *
      * For example:
-     * The following areaConfig indicates the recommended tire pressure
-     * of left_front tire is from 200.0 KILOPASCAL to 240.0 KILOPASCAL.
      * .areaConfigs = {
      *      VehicleAreaConfig {
      *          .areaId = VehicleAreaWheel::LEFT_FRONT,
@@ -545,6 +556,7 @@ enum VehicleProperty {
      *
      * @change_mode VehiclePropertyChangeMode.CONTINUOUS
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @unit VehicleUnit.KILOPASCAL
      * @version 2
      */
@@ -589,8 +601,12 @@ enum VehicleProperty {
      * of the vehicle as described through the ImpactSensorLocation enum. As a bit flag property,
      * this property can be set to multiple ORed together values of the enum when necessary.
      *
-     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
-     * unless all bit flags of ImpactSensorLocation are supported.
+     * For the global area ID (0), {@code getSupportedValuesList}
+     * must return a {@code SupportedValuesListResult} that contains supported values unless all bit
+     * flags of ImpactSensorLocation are supported.
+     *
+     * For backward compatibility, if {@code SupportedValuesListResult} is defined,
+     * {@code VehicleAreaConfig#supportedEnumValues} must be set to the same values.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -604,18 +620,29 @@ enum VehicleProperty {
      *
      * This is the gear selected by the user.
      *
-     * Values in the config data must represent the list of supported gears for this vehicle. For
-     * example, config data for an automatic transmission must contain {GEAR_NEUTRAL, GEAR_REVERSE,
-     * GEAR_PARK, GEAR_DRIVE, GEAR_1, GEAR_2,...} and for manual transmission the list must be
-     * {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_1, GEAR_2,...}
+     * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
+     * (0) must be {@code true}.
+     *
+     * {@code getSupportedValuesList} for [GEAR_SELECTION, areaId=0] must return a
+     * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList}.
+     *
+     * The supportedValues must represent the list of supported gears for this vehicle. For example,
+     * for an automatic transmission, the list can be {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_PARK,
+     * GEAR_DRIVE, GEAR_1, GEAR_2,...} and for manual transmission it can be {GEAR_NEUTRAL,
+     * GEAR_REVERSE, GEAR_1, GEAR_2,...}.
      *
      * In the case of an automatic transmission vehicle that allows the driver to select specific
      * gears on demand (i.e. "manual mode"), GEAR_SELECTION's value must be set to the specific gear
      * selected by the driver instead of simply GEAR_DRIVE.
      *
+     * For backward compatibility, config array for this property must be a list of values
+     * same as the supported values at boot-time.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleGear
+     * @require_supported_values_list
+     * @legacy_supported_values_in_config
      * @version 2
      */
     GEAR_SELECTION = 0x0400 + 0x10000000 + 0x01000000
