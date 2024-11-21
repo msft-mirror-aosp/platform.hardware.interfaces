@@ -605,7 +605,7 @@ oneway interface IRadioNetworkResponse {
      *   RadioError:INTERNAL_ERR
      *   RadioError:SIM_ABSENT
      */
-    oneway void setUsageSettingResponse(in RadioResponseInfo info);
+    void setUsageSettingResponse(in RadioResponseInfo info);
 
     /**
      * @param info Response info struct containing response type, serial no. and error.
@@ -619,7 +619,7 @@ oneway interface IRadioNetworkResponse {
      *   RadioError:INTERNAL_ERR
      *   RadioError:SIM_ABSENT
      */
-    oneway void getUsageSettingResponse(in RadioResponseInfo info, in UsageSetting usageSetting);
+    void getUsageSettingResponse(in RadioResponseInfo info, in UsageSetting usageSetting);
 
     /**
      * Response of setEmergencyMode.
