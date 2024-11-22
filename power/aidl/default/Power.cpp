@@ -33,6 +33,8 @@ using namespace std::chrono_literals;
 using ::aidl::android::hardware::common::fmq::MQDescriptor;
 using ::aidl::android::hardware::common::fmq::SynchronizedReadWrite;
 using ::aidl::android::hardware::power::ChannelMessage;
+using ::aidl::android::hardware::power::CompositionData;
+using ::aidl::android::hardware::power::CompositionUpdate;
 using ::android::AidlMessageQueue;
 
 using ndk::ScopedAStatus;
@@ -142,16 +144,30 @@ int64_t bitsForEnum() {
 }
 
 ndk::ScopedAStatus Power::getSupportInfo(SupportInfo* _aidl_return) {
-    static SupportInfo supportInfo = {
-            .usesSessions = false,
-            .modes = bitsForEnum<Mode>(),
-            .boosts = bitsForEnum<Boost>(),
-            .sessionHints = 0,
-            .sessionModes = 0,
-            .sessionTags = 0,
-    };
+    static SupportInfo supportInfo = {.usesSessions = false,
+                                      .modes = bitsForEnum<Mode>(),
+                                      .boosts = bitsForEnum<Boost>(),
+                                      .sessionHints = 0,
+                                      .sessionModes = 0,
+                                      .sessionTags = 0,
+                                      .compositionData = {
+                                              .isSupported = false,
+                                              .disableGpuFences = false,
+                                              .maxBatchSize = 1,
+                                              .alwaysBatch = false,
+                                      }};
     // Copy the support object into the binder
     *_aidl_return = supportInfo;
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus Power::sendCompositionData(const std::vector<CompositionData>&) {
+    LOG(INFO) << "Composition data received!";
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus Power::sendCompositionUpdate(const CompositionUpdate&) {
+    LOG(INFO) << "Composition update received!";
     return ndk::ScopedAStatus::ok();
 }
 

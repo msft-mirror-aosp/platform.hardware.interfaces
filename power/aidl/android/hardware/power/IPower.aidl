@@ -18,6 +18,8 @@ package android.hardware.power;
 
 import android.hardware.power.Boost;
 import android.hardware.power.ChannelConfig;
+import android.hardware.power.CompositionData;
+import android.hardware.power.CompositionUpdate;
 import android.hardware.power.CpuHeadroomParams;
 import android.hardware.power.GpuHeadroomParams;
 import android.hardware.power.IPowerHintSession;
@@ -152,9 +154,7 @@ interface IPower {
      * Called to get detailed information on the support status of various PowerHAL
      * features, such as hint sessions and specific boosts.
      *
-     * @return  a SupportInfo giving detailed support information, or
-     *          EX_UNSUPPORTED_OPERATION if detailed support checking is itself
-     *          not supported.
+     * @return  a SupportInfo giving detailed support information.
      */
     SupportInfo getSupportInfo();
 
@@ -200,4 +200,22 @@ interface IPower {
      * @throws EX_UNSUPPORTED_OPERATION if the API is unsupported.
      */
     long getGpuHeadroomMinIntervalMillis();
+
+    /**
+     * Sent to PowerHAL when there are surface-attached sessions being composed,
+     * providing FPS and frame timing data that can be used to supplement
+     * and validate timing sent via reportActual. This call can be batched,
+     * especially in the case of a steady state or low-intensity workload.
+     *
+     * @param   data The aggregated composition data object.
+     */
+    oneway void sendCompositionData(in CompositionData[] data);
+
+    /**
+     * Sent to inform the HAL about important updates outside of the normal
+     * reporting cycle, such as lifecycle updates for displays or FrameProducers.
+     *
+     * @param   update The aggregated composition update object.
+     */
+    oneway void sendCompositionUpdate(in CompositionUpdate update);
 }
