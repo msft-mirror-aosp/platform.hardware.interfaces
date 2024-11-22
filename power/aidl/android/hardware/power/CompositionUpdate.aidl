@@ -14,27 +14,30 @@
  * limitations under the License.
  */
 
-package android.hardware.broadcastradio;
+package android.hardware.power;
+
+import android.hardware.power.FrameProducerUpdate;
 
 /**
- * Coordinate reprensenting the geographic location in alert message
- *
- * <p>(see ITU-T X.1303 bis for more info).
+ * An update regarding composition objects that might be sent outside of a normal
+ * sendCompositionData call, such as for lifecycle updates. This object is either
+ * attached to CompositionData or sent separately, depending on current activity
+ * and urgency.
  */
 @VintfStability
-@JavaDerive(equals=true, toString=true)
-parcelable Coordinate {
+parcelable CompositionUpdate {
     /**
-     * Latitude of the cooridinate.
-     *
-     * <p>Latitude is in the range of -90 to 90.
+     * Timestamp for when the message was sent.
      */
-    double latitude;
+    long timestampNanos;
 
     /**
-     * Longitude of the cooridinate.
-     *
-     * <p>Longitude is in the range of -180 to 180.
+     * Update objects for all frame producers that have changed.
      */
-    double longitude;
+    FrameProducerUpdate[] producerUpdates;
+
+    /**
+     * The IDs of any outputs that have disconnected in the framework.
+     */
+    long[] deadOutputIds;
 }
