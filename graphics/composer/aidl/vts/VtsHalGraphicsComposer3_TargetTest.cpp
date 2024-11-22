@@ -1265,6 +1265,16 @@ TEST_P(GraphicsComposerAidlV3Test, GetDisplayConfigurations) {
         EXPECT_TRUE(status.isOk());
         EXPECT_FALSE(displayConfigurations.empty());
 
+        const bool areAllModesARR =
+                std::all_of(displayConfigurations.cbegin(), displayConfigurations.cend(),
+                            [](const auto& config) { return config.vrrConfig.has_value(); });
+
+        const bool areAllModesMRR =
+                std::all_of(displayConfigurations.cbegin(), displayConfigurations.cend(),
+                            [](const auto& config) { return !config.vrrConfig.has_value(); });
+
+        EXPECT_TRUE(areAllModesARR || areAllModesMRR) << "Mixing MRR and ARR modes is not allowed";
+
         for (const auto& displayConfig : displayConfigurations) {
             EXPECT_NE(-1, displayConfig.width);
             EXPECT_NE(-1, displayConfig.height);
