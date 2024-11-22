@@ -176,6 +176,48 @@ TEST_P(MediaQualityAidl, TestSetAmbientBacklightDetector) {
     ASSERT_OK(mediaquality->setAmbientBacklightDetector(in_settings));
 }
 
+TEST_P(MediaQualityAidl, TestIsAutoPqSupported) {
+    bool supported;
+    ASSERT_OK(mediaquality->isAutoPqSupported(&supported));
+}
+
+TEST_P(MediaQualityAidl, TestGetAutoPqEnabled) {
+    bool enabled;
+    ASSERT_OK(mediaquality->getAutoPqEnabled(&enabled));
+}
+
+TEST_P(MediaQualityAidl, TestSetAutoPqEnabled) {
+    ASSERT_OK(mediaquality->setAutoPqEnabled(true));
+}
+
+TEST_P(MediaQualityAidl, TestIsAutoSrSupported) {
+    bool supported;
+    ASSERT_OK(mediaquality->isAutoSrSupported(&supported));
+}
+
+TEST_P(MediaQualityAidl, TestGetAutoSrEnabled) {
+    bool enabled;
+    ASSERT_OK(mediaquality->getAutoSrEnabled(&enabled));
+}
+
+TEST_P(MediaQualityAidl, TestSetAutoSrEnabled) {
+    ASSERT_OK(mediaquality->setAutoSrEnabled(true));
+}
+
+TEST_P(MediaQualityAidl, TestIsAutoAqSupported) {
+    bool supported;
+    ASSERT_OK(mediaquality->isAutoAqSupported(&supported));
+}
+
+TEST_P(MediaQualityAidl, TestGetAutoAqEnabled) {
+    bool enabled;
+    ASSERT_OK(mediaquality->getAutoAqEnabled(&enabled));
+}
+
+TEST_P(MediaQualityAidl, TestSetAutoAqEnabled) {
+    ASSERT_OK(mediaquality->setAutoAqEnabled(true));
+}
+
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MediaQualityAidl);
 
 INSTANTIATE_TEST_SUITE_P(

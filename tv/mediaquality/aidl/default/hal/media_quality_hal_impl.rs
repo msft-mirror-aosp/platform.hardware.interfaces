@@ -38,6 +38,12 @@ pub struct MediaQualityService {
     callback: Arc<Mutex<Option<Strong<dyn IMediaQualityCallback>>>>,
     ambient_backlight_enabled: Arc<Mutex<bool>>,
     ambient_backlight_detector_settings: Arc<Mutex<AmbientBacklightSettings>>,
+    auto_pq_supported: Arc<Mutex<bool>>,
+    auto_pq_enabled: Arc<Mutex<bool>>,
+    auto_sr_supported: Arc<Mutex<bool>>,
+    auto_sr_enabled: Arc<Mutex<bool>>,
+    auto_aq_supported: Arc<Mutex<bool>>,
+    auto_aq_enabled: Arc<Mutex<bool>>,
     picture_profile_adjustment_listener:
             Arc<Mutex<Option<Strong<dyn IPictureProfileAdjustmentListener>>>>,
     sound_profile_adjustment_listener:
@@ -55,6 +61,12 @@ impl MediaQualityService {
             ambient_backlight_enabled: Arc::new(Mutex::new(true)),
             ambient_backlight_detector_settings:
                     Arc::new(Mutex::new(AmbientBacklightSettings::default())),
+            auto_pq_supported: Arc::new(Mutex::new(false)),
+            auto_pq_enabled: Arc::new(Mutex::new(false)),
+            auto_sr_supported: Arc::new(Mutex::new(false)),
+            auto_sr_enabled: Arc::new(Mutex::new(false)),
+            auto_aq_supported: Arc::new(Mutex::new(false)),
+            auto_aq_enabled: Arc::new(Mutex::new(false)),
             picture_profile_adjustment_listener: Arc::new(Mutex::new(None)),
             sound_profile_adjustment_listener: Arc::new(Mutex::new(None)),
             picture_profile_changed_listener: Arc::new(Mutex::new(None)),
@@ -127,6 +139,69 @@ impl IMediaQuality for MediaQualityService {
     fn getAmbientBacklightDetectionEnabled(&self) -> binder::Result<bool> {
         let ambient_backlight_enabled = self.ambient_backlight_enabled.lock().unwrap();
         Ok(*ambient_backlight_enabled)
+    }
+
+    fn isAutoPqSupported(&self) -> binder::Result<bool> {
+        let auto_pq_supported = self.auto_pq_supported.lock().unwrap();
+        Ok(*auto_pq_supported)
+    }
+
+    fn getAutoPqEnabled(&self) -> binder::Result<bool> {
+        let auto_pq_enabled = self.auto_pq_enabled.lock().unwrap();
+        Ok(*auto_pq_enabled)
+    }
+
+    fn setAutoPqEnabled(&self, enabled: bool) -> binder::Result<()> {
+        let mut auto_pq_enabled = self.auto_pq_enabled.lock().unwrap();
+        *auto_pq_enabled = enabled;
+        if enabled {
+            println!("Enable auto picture quality");
+        } else {
+            println!("Disable auto picture quality");
+        }
+        Ok(())
+    }
+
+    fn isAutoSrSupported(&self) -> binder::Result<bool> {
+        let auto_sr_supported = self.auto_sr_supported.lock().unwrap();
+        Ok(*auto_sr_supported)
+    }
+
+    fn getAutoSrEnabled(&self) -> binder::Result<bool> {
+        let auto_sr_enabled = self.auto_sr_enabled.lock().unwrap();
+        Ok(*auto_sr_enabled)
+    }
+
+    fn setAutoSrEnabled(&self, enabled: bool) -> binder::Result<()> {
+        let mut auto_sr_enabled = self.auto_sr_enabled.lock().unwrap();
+        *auto_sr_enabled = enabled;
+        if enabled {
+            println!("Enable auto super resolution");
+        } else {
+            println!("Disable auto super resolution");
+        }
+        Ok(())
+    }
+
+    fn isAutoAqSupported(&self) -> binder::Result<bool> {
+        let auto_aq_supported = self.auto_aq_supported.lock().unwrap();
+        Ok(*auto_aq_supported)
+    }
+
+    fn getAutoAqEnabled(&self) -> binder::Result<bool> {
+        let auto_aq_enabled = self.auto_aq_enabled.lock().unwrap();
+        Ok(*auto_aq_enabled)
+    }
+
+    fn setAutoAqEnabled(&self, enabled: bool) -> binder::Result<()> {
+        let mut auto_aq_enabled = self.auto_aq_enabled.lock().unwrap();
+        *auto_aq_enabled = enabled;
+        if enabled {
+            println!("Enable auto audio quality");
+        } else {
+            println!("Disable auto audio quality");
+        }
+        Ok(())
     }
 
     fn getPictureProfileListener(&self) -> binder::Result<binder::Strong<dyn IPictureProfileChangedListener>> {

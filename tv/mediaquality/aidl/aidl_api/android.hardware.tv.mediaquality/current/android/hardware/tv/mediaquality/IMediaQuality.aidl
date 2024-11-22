@@ -38,6 +38,15 @@ interface IMediaQuality {
   void setAmbientBacklightDetector(in android.hardware.tv.mediaquality.AmbientBacklightSettings settings);
   void setAmbientBacklightDetectionEnabled(in boolean enabled);
   boolean getAmbientBacklightDetectionEnabled();
+  boolean isAutoPqSupported();
+  boolean getAutoPqEnabled();
+  void setAutoPqEnabled(boolean enable);
+  boolean isAutoSrSupported();
+  boolean getAutoSrEnabled();
+  void setAutoSrEnabled(boolean enable);
+  boolean isAutoAqSupported();
+  boolean getAutoAqEnabled();
+  void setAutoAqEnabled(boolean enable);
   android.hardware.tv.mediaquality.IPictureProfileChangedListener getPictureProfileListener();
   void setPictureProfileAdjustmentListener(android.hardware.tv.mediaquality.IPictureProfileAdjustmentListener listener);
   android.hardware.tv.mediaquality.PictureParameters getPictureParameters(long pictureProfileId);
