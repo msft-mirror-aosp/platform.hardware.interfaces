@@ -71,14 +71,22 @@ ScopedAStatus Power::isBoostSupported(Boost type, bool* _aidl_return) {
     return ScopedAStatus::ok();
 }
 
-ndk::ScopedAStatus Power::getCpuHeadroom(const CpuHeadroomParams& _,
-                                         std::vector<float>* _aidl_return) {
-    *_aidl_return = {0.5f};
-    return ndk::ScopedAStatus::ok();
+ndk::ScopedAStatus Power::getCpuHeadroom(const CpuHeadroomParams& params,
+                                         CpuHeadroomResult* _aidl_return) {
+    if (params.selectionType == CpuHeadroomParams::SelectionType::ALL) {
+        _aidl_return->set<CpuHeadroomResult::globalHeadroom>(100.0f);
+        return ndk::ScopedAStatus::ok();
+    } else if (params.selectionType == CpuHeadroomParams::SelectionType::PER_CORE) {
+        std::vector<float> headroom = {50.0f, 100.0f};
+        _aidl_return->set<CpuHeadroomResult::perCoreHeadroom>(headroom);
+        return ndk::ScopedAStatus::ok();
+    }
+    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
 }
 
-ndk::ScopedAStatus Power::getGpuHeadroom(const GpuHeadroomParams& _, float* _aidl_return) {
-    *_aidl_return = 0.5f;
+ndk::ScopedAStatus Power::getGpuHeadroom(const GpuHeadroomParams& _,
+                                         GpuHeadroomResult* _aidl_return) {
+    _aidl_return->set<GpuHeadroomResult::globalHeadroom>(100.0f);
     return ndk::ScopedAStatus::ok();
 }
 
