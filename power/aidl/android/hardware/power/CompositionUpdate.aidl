@@ -16,27 +16,28 @@
 
 package android.hardware.power;
 
+import android.hardware.power.FrameProducerUpdate;
+
+/**
+ * An update regarding composition objects that might be sent outside of a normal
+ * sendCompositionData call, such as for lifecycle updates. This object is either
+ * attached to CompositionData or sent separately, depending on current activity
+ * and urgency.
+ */
 @VintfStability
-@JavaDerive(equals=true, toString=true)
-parcelable GpuHeadroomParams {
+parcelable CompositionUpdate {
     /**
-     * Defines how to calculate the headroom.
+     * Timestamp for when the message was sent.
      */
-    enum CalculationType {
-        // Default to return the minimum headroom in a window.
-        MIN,
-        // Returns the average headroom in a window.
-        AVERAGE,
-    }
+    long timestampNanos;
 
     /**
-     * The calculation type.
+     * Update objects for all frame producers that have changed.
      */
-    CalculationType calculationType = CalculationType.MIN;
+    FrameProducerUpdate[] producerUpdates;
 
     /**
-     * The device should support a superset of [50, 10000] and try to use the closest feasible
-     * window size to the provided value param.
+     * The IDs of any outputs that have disconnected in the framework.
      */
-    int calculationWindowMillis = 1000;
+    long[] deadOutputIds;
 }

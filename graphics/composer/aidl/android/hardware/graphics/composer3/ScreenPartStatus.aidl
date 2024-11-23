@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2021, The Android Open Source Project
+ * Copyright (c) 2024, The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,22 @@
 
 package android.hardware.graphics.composer3;
 
-import android.hardware.graphics.composer3.ScreenPartStatus;
 /**
- * Output parameters for IComposerClient.getDisplayIdentificationData
+ * Information relating to internal screen panel part originality
  */
 @VintfStability
-parcelable DisplayIdentification {
+@Backing(type="int")
+enum ScreenPartStatus {
     /**
-     * The connector to which the display is connected.
+     * Device cannot differentiate an original screen from a replaced screen.
      */
-    byte port;
+    UNSUPPORTED = 0,
     /**
-     * The EDID 1.3 blob identifying the display.
+     * Device has the original screen it was manufactured with.
      */
-    byte[] data;
+    ORIGINAL = 1,
     /**
-     * Indicator for part originality of the screen
+     * Device has a replaced screen.
      */
-    ScreenPartStatus screenPartStatus = ScreenPartStatus.UNSUPPORTED;
+    REPLACED = 2,
 }
