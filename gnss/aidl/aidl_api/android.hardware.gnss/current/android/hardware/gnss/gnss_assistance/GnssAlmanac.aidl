@@ -34,13 +34,15 @@
 package android.hardware.gnss.gnss_assistance;
 /* @hide */
 @VintfStability
-parcelable GpsAlmanac {
-  int gpsWeekNumber;
-  int secondsOfGpsWeek;
-  android.hardware.gnss.gnss_assistance.GpsAlmanac.GpsSatelliteAlmanac[] satelliteAlmanac;
+parcelable GnssAlmanac {
+  long issueDateMs;
+  int iod;
+  int weekNumber;
+  int toaSeconds;
+  android.hardware.gnss.gnss_assistance.GnssAlmanac.GnssSatelliteAlmanac[] satelliteAlmanac;
   @VintfStability
-  parcelable GpsSatelliteAlmanac {
-    int prn;
+  parcelable GnssSatelliteAlmanac {
+    int svid;
     int svHealth;
     double eccentricity;
     double inclination;
