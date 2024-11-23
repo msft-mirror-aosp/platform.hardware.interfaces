@@ -14,22 +14,23 @@
  * limitations under the License.
  */
 
-package android.hardware.vibrator;
+package android.hardware.power;
 
+/**
+ * Headroom value result depending on the request params.
+ *
+ * Each value is ranged from [0, 100], where 0 indicates no CPU resources were left
+ * during the calculation interval and the app may expect low resources to be granted.
+ */
 @VintfStability
-parcelable FrequencyAccelerationMapEntry {
+@JavaDerive(equals=true, toString=true)
+union CpuHeadroomResult {
     /**
-     * Absolute frequency point in the units of hertz
-     *
+     * If ALL selection type is requested.
      */
-    float frequencyHz;
-
+    float globalHeadroom;
     /**
-     * Max output acceleration for the specified frequency in units of Gs.
-     *
-     * This value represents the maximum safe output acceleration (in Gs) achievable at the
-     * specified frequency, typically determined during calibration. The actual output acceleration
-     * should scale linearly based on the 'amplitude' input value.
+     * If PER_CORE selection type is requested.
      */
-    float maxOutputAccelerationGs;
+    float[] perCoreHeadroom;
 }
