@@ -34,18 +34,18 @@
 package android.hardware.gnss.gnss_assistance;
 /* @hide */
 @VintfStability
-parcelable GalileoAlmanac {
-  long issueDate;
-  int weekNumber;
-  int toa;
+parcelable GnssAlmanac {
+  long issueDateMs;
   int iod;
-  android.hardware.gnss.gnss_assistance.GalileoAlmanac.GalileoSatelliteAlmanac[] satelliteAlmanac;
+  int weekNumber;
+  int toaSeconds;
+  android.hardware.gnss.gnss_assistance.GnssAlmanac.GnssSatelliteAlmanac[] satelliteAlmanac;
   @VintfStability
-  parcelable GalileoSatelliteAlmanac {
-    int svId;
-    android.hardware.gnss.gnss_assistance.GalileoAlmanac.GalileoAlmanacSvHealth svHealth;
+  parcelable GnssSatelliteAlmanac {
+    int svid;
+    int svHealth;
     double eccentricity;
-    double deltaI;
+    double inclination;
     double omega;
     double omega0;
     double omegaDot;
@@ -53,14 +53,5 @@ parcelable GalileoAlmanac {
     double m0;
     double af0;
     double af1;
-    int weekNumber;
-    int toa;
-    int iod;
-  }
-  @VintfStability
-  parcelable GalileoAlmanacSvHealth {
-    int fNavE5a;
-    int iNavE5b;
-    int iNavE1b;
   }
 }

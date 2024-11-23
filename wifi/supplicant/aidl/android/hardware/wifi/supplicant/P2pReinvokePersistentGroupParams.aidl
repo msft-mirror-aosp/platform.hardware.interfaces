@@ -14,29 +14,27 @@
  * limitations under the License.
  */
 
-package android.hardware.power;
+package android.hardware.wifi.supplicant;
 
+/**
+ * Parameters used for |ISupplicantP2pIface.reinvokePersistentGroup|
+ */
 @VintfStability
-@JavaDerive(equals=true, toString=true)
-parcelable GpuHeadroomParams {
+parcelable P2pReinvokePersistentGroupParams {
     /**
-     * Defines how to calculate the headroom.
+     * MAC address of the peer device to reinvoke the persistent group.
      */
-    enum CalculationType {
-        // Default to return the minimum headroom in a window.
-        MIN,
-        // Returns the average headroom in a window.
-        AVERAGE,
-    }
+    byte[6] peerMacAddress;
 
     /**
-     * The calculation type.
+     * Persistent network ID of the group.
      */
-    CalculationType calculationType = CalculationType.MIN;
+    int persistentNetworkId;
 
     /**
-     * The device should support a superset of [50, 10000] and try to use the closest feasible
-     * window size to the provided value param.
+     * The identifier of device identity key information stored in the configuration file.
+     * This field is valid only for P2P group formed via pairing protocol (P2P version 2).
+     * Set to invalid value of -1 for a group formed via WPS process (P2P version 1).
      */
-    int calculationWindowMillis = 1000;
+    int deviceIdentityEntryId;
 }

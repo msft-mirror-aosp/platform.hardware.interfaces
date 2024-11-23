@@ -45,7 +45,9 @@ using android::hardware::power::Boost;
 using android::hardware::power::ChannelConfig;
 using android::hardware::power::ChannelMessage;
 using android::hardware::power::CpuHeadroomParams;
+using android::hardware::power::CpuHeadroomResult;
 using android::hardware::power::GpuHeadroomParams;
+using android::hardware::power::GpuHeadroomResult;
 using android::hardware::power::IPower;
 using android::hardware::power::IPowerHintSession;
 using android::hardware::power::Mode;
@@ -307,7 +309,7 @@ TEST_P(PowerAidl, getCpuHeadroom) {
         GTEST_SKIP() << "DEVICE not launching with Power V6 and beyond.";
     }
     CpuHeadroomParams params;
-    std::vector<float> headroom;
+    CpuHeadroomResult headroom;
     auto ret = power->getCpuHeadroom(params, &headroom);
     if (ret.getExceptionCode() == EX_UNSUPPORTED_OPERATION) {
         GTEST_SKIP() << "power->getCpuHeadroom is not supported";
@@ -316,9 +318,9 @@ TEST_P(PowerAidl, getCpuHeadroom) {
     int64_t minIntervalMillis;
     ASSERT_TRUE(power->getCpuHeadroomMinIntervalMillis(&minIntervalMillis).isOk());
     ASSERT_GE(minIntervalMillis, 0);
-    ASSERT_GE(headroom.size(), 1);
-    ASSERT_GE(headroom[0], 0.0f);
-    ASSERT_LE(headroom[0], 100.00f);
+    ASSERT_EQ(headroom.getTag(), CpuHeadroomResult::globalHeadroom);
+    ASSERT_GE(headroom.get<CpuHeadroomResult::globalHeadroom>(), 0.0f);
+    ASSERT_LE(headroom.get<CpuHeadroomResult::globalHeadroom>(), 100.00f);
 }
 
 TEST_P(PowerAidl, getGpuHeadroom) {
@@ -326,7 +328,7 @@ TEST_P(PowerAidl, getGpuHeadroom) {
         GTEST_SKIP() << "DEVICE not launching with Power V6 and beyond.";
     }
     GpuHeadroomParams params;
-    float headroom;
+    GpuHeadroomResult headroom;
     auto ret = power->getGpuHeadroom(params, &headroom);
     if (ret.getExceptionCode() == EX_UNSUPPORTED_OPERATION) {
         GTEST_SKIP() << "power->getGpuHeadroom is not supported";
@@ -335,8 +337,9 @@ TEST_P(PowerAidl, getGpuHeadroom) {
     int64_t minIntervalMillis;
     ASSERT_TRUE(power->getGpuHeadroomMinIntervalMillis(&minIntervalMillis).isOk());
     ASSERT_GE(minIntervalMillis, 0);
-    ASSERT_GE(headroom, 0.0f);
-    ASSERT_LE(headroom, 100.00f);
+    ASSERT_EQ(headroom.getTag(), GpuHeadroomResult::globalHeadroom);
+    ASSERT_GE(headroom.get<GpuHeadroomResult::globalHeadroom>(), 0.0f);
+    ASSERT_LE(headroom.get<GpuHeadroomResult::globalHeadroom>(), 100.00f);
 }
 
 // FIXED_PERFORMANCE mode is required for all devices which ship on Android 11
