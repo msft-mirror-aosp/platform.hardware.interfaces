@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2021, The Android Open Source Project
+ * Copyright (c) 2024, The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,9 +32,9 @@
 // later when a module using the interface is updated, e.g., Mainline modules.
 
 package android.hardware.graphics.composer3;
-@VintfStability
-parcelable DisplayIdentification {
-  byte port;
-  byte[] data;
-  android.hardware.graphics.composer3.ScreenPartStatus screenPartStatus = android.hardware.graphics.composer3.ScreenPartStatus.UNSUPPORTED;
+@Backing(type="int") @VintfStability
+enum ScreenPartStatus {
+  UNSUPPORTED = 0,
+  ORIGINAL = 1,
+  REPLACED = 2,
 }
