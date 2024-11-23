@@ -33,11 +33,8 @@
 
 package android.hardware.wifi.supplicant;
 @VintfStability
-parcelable P2pPairingBootstrappingMethodMask {
-  const int BOOTSTRAPPING_OPPORTUNISTIC = (1 << 0) /* 1 */;
-  const int BOOTSTRAPPING_DISPLAY_PINCODE = (1 << 1) /* 2 */;
-  const int BOOTSTRAPPING_DISPLAY_PASSPHRASE = (1 << 2) /* 4 */;
-  const int BOOTSTRAPPING_KEYPAD_PINCODE = (1 << 3) /* 8 */;
-  const int BOOTSTRAPPING_KEYPAD_PASSPHRASE = (1 << 4) /* 16 */;
-  const int BOOTSTRAPPING_OUT_OF_BAND = (1 << 5) /* 32 */;
+parcelable P2pReinvokePersistentGroupParams {
+  byte[6] peerMacAddress;
+  int persistentNetworkId;
+  int deviceIdentityEntryId;
 }
