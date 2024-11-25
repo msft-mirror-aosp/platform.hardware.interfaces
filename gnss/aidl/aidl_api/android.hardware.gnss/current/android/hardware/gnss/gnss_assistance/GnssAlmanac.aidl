@@ -34,16 +34,18 @@
 package android.hardware.gnss.gnss_assistance;
 /* @hide */
 @VintfStability
-parcelable BeidouAlmanac {
-  int beidouWeekNumber;
-  android.hardware.gnss.gnss_assistance.BeidouAlmanac.BeidouSatelliteAlmanac[] satelliteAlmanac;
+parcelable GnssAlmanac {
+  long issueDateMs;
+  int iod;
+  int weekNumber;
+  int toaSeconds;
+  android.hardware.gnss.gnss_assistance.GnssAlmanac.GnssSatelliteAlmanac[] satelliteAlmanac;
   @VintfStability
-  parcelable BeidouSatelliteAlmanac {
-    int prn;
+  parcelable GnssSatelliteAlmanac {
+    int svid;
     int svHealth;
-    int toaSeconds;
     double eccentricity;
-    double deltaI;
+    double inclination;
     double omega;
     double omega0;
     double omegaDot;
