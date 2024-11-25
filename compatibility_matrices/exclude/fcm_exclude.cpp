@@ -140,6 +140,7 @@ bool ShouldCheckMissingAidlHalsInFcm(const std::string& packageAndVersion) {
             "android.hardware.camera.common@",
             "android.hardware.common@",
             "android.hardware.common.fmq@",
+            "android.hardware.gnss.gnss_assistance@",
             "android.hardware.gnss.measurement_corrections@",
             "android.hardware.gnss.visibility_control@",
             "android.hardware.graphics.common@",
@@ -166,6 +167,8 @@ bool ShouldCheckMissingAidlHalsInFcm(const std::string& packageAndVersion) {
             "android.hardware.audio.core.sounddose@1",
             "android.hardware.audio.core.sounddose@2",
             "android.hardware.audio.core.sounddose@3",
+            // This is only used by a trusty VM
+            "android.hardware.security.see.authmgr@1",
 
             // Deprecated HALs.
             "android.hardware.audio.sounddose@3",

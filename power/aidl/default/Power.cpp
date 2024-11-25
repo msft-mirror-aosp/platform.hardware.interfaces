@@ -33,6 +33,8 @@ using namespace std::chrono_literals;
 using ::aidl::android::hardware::common::fmq::MQDescriptor;
 using ::aidl::android::hardware::common::fmq::SynchronizedReadWrite;
 using ::aidl::android::hardware::power::ChannelMessage;
+using ::aidl::android::hardware::power::CompositionData;
+using ::aidl::android::hardware::power::CompositionUpdate;
 using ::android::AidlMessageQueue;
 
 using ndk::ScopedAStatus;
@@ -67,6 +69,35 @@ ScopedAStatus Power::isBoostSupported(Boost type, bool* _aidl_return) {
     LOG(INFO) << "Power isBoostSupported: " << static_cast<int32_t>(type);
     *_aidl_return = type >= BOOST_RANGE.front() && type <= BOOST_RANGE.back();
     return ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus Power::getCpuHeadroom(const CpuHeadroomParams& params,
+                                         CpuHeadroomResult* _aidl_return) {
+    if (params.selectionType == CpuHeadroomParams::SelectionType::ALL) {
+        _aidl_return->set<CpuHeadroomResult::globalHeadroom>(100.0f);
+        return ndk::ScopedAStatus::ok();
+    } else if (params.selectionType == CpuHeadroomParams::SelectionType::PER_CORE) {
+        std::vector<float> headroom = {50.0f, 100.0f};
+        _aidl_return->set<CpuHeadroomResult::perCoreHeadroom>(headroom);
+        return ndk::ScopedAStatus::ok();
+    }
+    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
+}
+
+ndk::ScopedAStatus Power::getGpuHeadroom(const GpuHeadroomParams& _,
+                                         GpuHeadroomResult* _aidl_return) {
+    _aidl_return->set<GpuHeadroomResult::globalHeadroom>(100.0f);
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus Power::getCpuHeadroomMinIntervalMillis(int64_t* _aidl_return) {
+    *_aidl_return = 1000;
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus Power::getGpuHeadroomMinIntervalMillis(int64_t* _aidl_return) {
+    *_aidl_return = 1000;
+    return ndk::ScopedAStatus::ok();
 }
 
 ScopedAStatus Power::createHintSession(int32_t, int32_t, const std::vector<int32_t>& tids, int64_t,
@@ -121,16 +152,30 @@ int64_t bitsForEnum() {
 }
 
 ndk::ScopedAStatus Power::getSupportInfo(SupportInfo* _aidl_return) {
-    static SupportInfo supportInfo = {
-            .usesSessions = false,
-            .modes = bitsForEnum<Mode>(),
-            .boosts = bitsForEnum<Boost>(),
-            .sessionHints = 0,
-            .sessionModes = 0,
-            .sessionTags = 0,
-    };
+    static SupportInfo supportInfo = {.usesSessions = false,
+                                      .modes = bitsForEnum<Mode>(),
+                                      .boosts = bitsForEnum<Boost>(),
+                                      .sessionHints = 0,
+                                      .sessionModes = 0,
+                                      .sessionTags = 0,
+                                      .compositionData = {
+                                              .isSupported = false,
+                                              .disableGpuFences = false,
+                                              .maxBatchSize = 1,
+                                              .alwaysBatch = false,
+                                      }};
     // Copy the support object into the binder
     *_aidl_return = supportInfo;
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus Power::sendCompositionData(const std::vector<CompositionData>&) {
+    LOG(INFO) << "Composition data received!";
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus Power::sendCompositionUpdate(const CompositionUpdate&) {
+    LOG(INFO) << "Composition update received!";
     return ndk::ScopedAStatus::ok();
 }
 
