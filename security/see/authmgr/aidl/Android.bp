@@ -1,5 +1,4 @@
-//
-// Copyright (C) 2021 The Android Open Source Project
+// Copyright (C) 2024 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
 
 package {
-    default_team: "trendy_team_android_kernel",
     // See: http://go/android-license-faq
     // A large-scale-change added 'default_applicable_licenses' to import
     // all of the 'license_kinds' from "hardware_interfaces_license"
@@ -24,30 +21,37 @@ package {
     default_applicable_licenses: ["hardware_interfaces_license"],
 }
 
-cc_test {
-    name: "VtsHalHealthTargetTest",
-    defaults: [
-        "VtsHalTargetTestDefaults",
-        "use_libaidlvintf_gtest_helper_static",
-    ],
-    tidy_timeout_srcs: [
-        "VtsHalHealthTargetTest.cpp",
-    ],
+aidl_interface {
+    name: "android.hardware.security.see.authmgr",
+    vendor_available: true,
     srcs: [
-        "VtsHalHealthTargetTest.cpp",
+        "android/hardware/security/see/authmgr/*.aidl",
     ],
-    shared_libs: [
-        "libbinder_ndk",
-    ],
-    static_libs: [
-        "android.hardware.health-V4-ndk",
-        "libgmock",
-    ],
-    header_libs: [
-        "libhealthtest_headers",
-    ],
-    test_suites: [
-        "general-tests",
-        "vts",
+    stability: "vintf",
+    frozen: false,
+    backend: {
+        java: {
+            platform_apis: true,
+        },
+        ndk: {
+            enabled: true,
+        },
+        rust: {
+            enabled: true,
+            apex_available: [
+                "//apex_available:platform",
+                "com.android.virt",
+            ],
+        },
+    },
+}
+
+// A rust_defaults that includes the latest authmgr AIDL library.
+// Modules that depend on authmgr directly can include this rust_defaults to avoid
+// managing dependency versions explicitly.
+rust_defaults {
+    name: "authmgr_use_latest_hal_aidl_rust",
+    rustlibs: [
+        "android.hardware.security.see.authmgr-V1-rust",
     ],
 }
