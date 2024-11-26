@@ -534,6 +534,21 @@ enum CameraMetadataTag {
      */
     ANDROID_CONTROL_LOW_LIGHT_BOOST_STATE,
     /**
+     * android.control.aePriorityMode [dynamic, enum, public]
+     *
+     * <p>Turn on AE priority mode.</p>
+     */
+    ANDROID_CONTROL_AE_PRIORITY_MODE = 65597,
+    /**
+     * android.control.aeAvailablePriorityModes [static, byte[], public]
+     *
+     * <p>List of auto-exposure priority modes for ANDROID_CONTROL_AE_PRIORITY_MODE
+     * that are supported by this camera device.</p>
+     *
+     * @see ANDROID_CONTROL_AE_PRIORITY_MODE
+     */
+    ANDROID_CONTROL_AE_AVAILABLE_PRIORITY_MODES,
+    /**
      * android.demosaic.mode [controls, enum, system]
      *
      * <p>Controls the quality of the demosaicing
@@ -2404,7 +2419,11 @@ enum CameraMetadataTag {
      *
      * <p>The available HEIC (ISO/IEC 23008-12/24) UltraHDR stream
      * configurations that this camera device supports
-     * (i.e. format, width, height, output/input stream).</p>
+     * (i.e. format, width, height, output/input stream) for CaptureRequests where
+     * ANDROID_SENSOR_PIXEL_MODE is set to
+     * <a href="https://developer.android.com/reference/android/hardware/camera2/CameraMetadata.html#SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION">CameraMetadata#SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION</a>.</p>
+     *
+     * @see ANDROID_SENSOR_PIXEL_MODE
      */
     ANDROID_HEIC_AVAILABLE_HEIC_ULTRA_HDR_STREAM_CONFIGURATIONS_MAXIMUM_RESOLUTION,
     /**
@@ -2458,6 +2477,13 @@ enum CameraMetadataTag {
      * passenger seats.</p>
      */
     ANDROID_AUTOMOTIVE_LENS_FACING = CameraMetadataSectionStart.ANDROID_AUTOMOTIVE_LENS_START,
+    /**
+     * android.extension.nightModeIndicator [dynamic, enum, public]
+     *
+     * <p>Indicates when to activate Night Mode Camera Extension for high-quality
+     * still captures in low-light conditions.</p>
+     */
+    ANDROID_EXTENSION_NIGHT_MODE_INDICATOR = 2097154,
     /**
      * android.jpegr.availableJpegRStreamConfigurations [static, enum[], ndk_public]
      *

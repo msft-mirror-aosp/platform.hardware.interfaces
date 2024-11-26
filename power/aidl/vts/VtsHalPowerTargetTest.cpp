@@ -30,9 +30,13 @@
 #include <unistd.h>
 #include <cstdint>
 #include "aidl/android/hardware/common/fmq/SynchronizedReadWrite.h"
+#include "aidl/android/hardware/power/CpuHeadroomParams.h"
+#include "aidl/android/hardware/power/GpuHeadroomParams.h"
 
 namespace aidl::android::hardware::power {
 namespace {
+
+using namespace std::chrono_literals;
 
 using ::aidl::android::hardware::common::fmq::SynchronizedReadWrite;
 using ::android::AidlMessageQueue;
@@ -40,6 +44,10 @@ using ::android::hardware::EventFlag;
 using android::hardware::power::Boost;
 using android::hardware::power::ChannelConfig;
 using android::hardware::power::ChannelMessage;
+using android::hardware::power::CpuHeadroomParams;
+using android::hardware::power::CpuHeadroomResult;
+using android::hardware::power::GpuHeadroomParams;
+using android::hardware::power::GpuHeadroomResult;
 using android::hardware::power::IPower;
 using android::hardware::power::IPowerHintSession;
 using android::hardware::power::Mode;
@@ -133,7 +141,11 @@ class PowerAidl : public testing::TestWithParam<std::string> {
         power = IPower::fromBinder(ndk::SpAIBinder(binder));
         auto status = power->getInterfaceVersion(&mServiceVersion);
         ASSERT_TRUE(status.isOk());
-        if (mServiceVersion >= 2) {
+        if (mServiceVersion >= 6) {
+            mSupportInfo = std::make_optional<SupportInfo>();
+            ASSERT_TRUE(power->getSupportInfo(&(*mSupportInfo)).isOk());
+            mSessionSupport = mSupportInfo->usesSessions;
+        } else if (mServiceVersion >= 2) {
             status = power->createHintSession(getpid(), getuid(), kSelfTids, 16666666L, &mSession);
             mSessionSupport = status.isOk();
         }
@@ -143,6 +155,7 @@ class PowerAidl : public testing::TestWithParam<std::string> {
     int32_t mServiceVersion;
     std::shared_ptr<IPowerHintSession> mSession;
     bool mSessionSupport = false;
+    std::optional<SupportInfo> mSupportInfo = std::nullopt;
 };
 
 class HintSessionAidl : public PowerAidl {
@@ -291,6 +304,44 @@ TEST_P(PowerAidl, createHintSessionWithConfig) {
     ASSERT_NE(nullptr, session);
 }
 
+TEST_P(PowerAidl, getCpuHeadroom) {
+    if (mServiceVersion < 6) {
+        GTEST_SKIP() << "DEVICE not launching with Power V6 and beyond.";
+    }
+    CpuHeadroomParams params;
+    CpuHeadroomResult headroom;
+    auto ret = power->getCpuHeadroom(params, &headroom);
+    if (ret.getExceptionCode() == EX_UNSUPPORTED_OPERATION) {
+        GTEST_SKIP() << "power->getCpuHeadroom is not supported";
+    }
+    ASSERT_TRUE(ret.isOk());
+    int64_t minIntervalMillis;
+    ASSERT_TRUE(power->getCpuHeadroomMinIntervalMillis(&minIntervalMillis).isOk());
+    ASSERT_GE(minIntervalMillis, 0);
+    ASSERT_EQ(headroom.getTag(), CpuHeadroomResult::globalHeadroom);
+    ASSERT_GE(headroom.get<CpuHeadroomResult::globalHeadroom>(), 0.0f);
+    ASSERT_LE(headroom.get<CpuHeadroomResult::globalHeadroom>(), 100.00f);
+}
+
+TEST_P(PowerAidl, getGpuHeadroom) {
+    if (mServiceVersion < 6) {
+        GTEST_SKIP() << "DEVICE not launching with Power V6 and beyond.";
+    }
+    GpuHeadroomParams params;
+    GpuHeadroomResult headroom;
+    auto ret = power->getGpuHeadroom(params, &headroom);
+    if (ret.getExceptionCode() == EX_UNSUPPORTED_OPERATION) {
+        GTEST_SKIP() << "power->getGpuHeadroom is not supported";
+    }
+    ASSERT_TRUE(ret.isOk());
+    int64_t minIntervalMillis;
+    ASSERT_TRUE(power->getGpuHeadroomMinIntervalMillis(&minIntervalMillis).isOk());
+    ASSERT_GE(minIntervalMillis, 0);
+    ASSERT_EQ(headroom.getTag(), GpuHeadroomResult::globalHeadroom);
+    ASSERT_GE(headroom.get<GpuHeadroomResult::globalHeadroom>(), 0.0f);
+    ASSERT_LE(headroom.get<GpuHeadroomResult::globalHeadroom>(), 100.00f);
+}
+
 // FIXED_PERFORMANCE mode is required for all devices which ship on Android 11
 // or later
 TEST_P(PowerAidl, hasFixedPerformance) {
@@ -300,18 +351,47 @@ TEST_P(PowerAidl, hasFixedPerformance) {
 }
 
 TEST_P(PowerAidl, hasSupportInfo) {
-    SupportInfo config;
-    ASSERT_TRUE(power->getSupportInfo(&config).isOk());
+    if (mServiceVersion < 6) {
+        GTEST_SKIP() << "DEVICE not launching with Power V6 and beyond.";
+    }
+    ASSERT_TRUE(mSupportInfo.has_value());
     for (Mode mode : kModes) {
         bool supported;
         power->isModeSupported(mode, &supported);
-        ASSERT_EQ(supported, supportFromBitset(config.modes, mode));
+        ASSERT_EQ(supported, supportFromBitset(mSupportInfo->modes, mode));
     }
     for (Boost boost : kBoosts) {
         bool supported;
         power->isBoostSupported(boost, &supported);
-        ASSERT_EQ(supported, supportFromBitset(config.boosts, boost));
+        ASSERT_EQ(supported, supportFromBitset(mSupportInfo->boosts, boost));
     }
+}
+
+TEST_P(PowerAidl, receivesCompositionData) {
+    if (mServiceVersion < 6) {
+        GTEST_SKIP() << "DEVICE not launching with Power V6 and beyond.";
+    }
+    if (mSupportInfo->compositionData.isSupported) {
+        GTEST_SKIP() << "Composition data marked as unsupported.";
+    }
+    // Sending an empty object is fine, we just want to confirm it accepts the tx
+    std::vector<CompositionData> out{};
+    out.emplace_back();
+    auto status = power->sendCompositionData(out);
+    ASSERT_TRUE(status.isOk());
+}
+
+TEST_P(PowerAidl, receivesCompositionUpdate) {
+    if (mServiceVersion < 6) {
+        GTEST_SKIP() << "DEVICE not launching with Power V6 and beyond.";
+    }
+    if (mSupportInfo->compositionData.isSupported) {
+        GTEST_SKIP() << "Composition data marked as unsupported.";
+    }
+
+    CompositionUpdate out{};
+    auto status = power->sendCompositionUpdate(out);
+    ASSERT_TRUE(status.isOk());
 }
 
 TEST_P(HintSessionAidl, createAndCloseHintSession) {

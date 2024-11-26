@@ -16,6 +16,7 @@
 
 package android.hardware.graphics.composer3;
 
+import android.hardware.drm.HdcpLevels;
 import android.hardware.graphics.common.DisplayDecorationSupport;
 import android.hardware.graphics.common.Hdr;
 import android.hardware.graphics.common.HdrConversionCapability;
@@ -97,6 +98,14 @@ interface IComposerClient {
      * Proposed configuration failed for undisclosed reasons
      */
     const int EX_CONFIG_FAILED = 11;
+
+    /**
+     * The number of per-layer picture profiles in use is larger than the number of layer-specific
+     * picture-processing pipelines, as-defined by getMaxLayerPictureProfiles.
+     *
+     * @see LayerCommand.pictureProfileId
+     */
+    const int EX_PICTURE_PROFILE_MAX_EXCEEDED = 12;
 
     /**
      * Integer.MAX_VALUE is reserved for the invalid configuration.
@@ -919,4 +928,32 @@ interface IComposerClient {
      */
     oneway void notifyExpectedPresent(
             long display, in ClockMonotonicTimestamp expectedPresentTime, int frameIntervalNs);
+
+    /*
+     * Returns the number of layer-specific picture-processing profiles that can be referenced from
+     * multiple LayerCommand.pictureProfileId. If the client passes in more pictureProfileIds whose
+     * values are larger than zero (indicating none) then the implementation can support, it should
+     * return EX_PICTURE_PROFILE_MAX_EXCEEDED.
+     *
+     * If the implementation only supports one display-wide picture-processing
+     * pipeline, a value of zero should be returned here.
+     */
+    int getMaxLayerPictureProfiles(long display);
+
+    /**
+     * Supports HDCP lazy activation.
+     *
+     * When SurfaceFlinger detects secure layers, this method is called to instruct HWC side that
+     * HDCP negotiation process can be started.
+     *
+     * When HDCP is successfully started or failed to start, HWC reports the HDCP levels via
+     * IComposerCallback.onHdcpLevelsChanged().
+     *
+     * @param display is the display whose HDCP negotiation can be started.
+     * @param levels is the desired HDCP levels.
+     *
+     * @see IComposerCallback.onHdcpLevelsChanged
+     *
+     */
+    oneway void startHdcpNegotiation(long display, in HdcpLevels levels);
 }
