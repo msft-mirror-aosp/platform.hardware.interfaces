@@ -75,6 +75,15 @@ const uint32_t kInvalidPatchlevel = 99998877;
 // additional overhead, for the digest algorithmIdentifier required by PKCS#1.
 const size_t kPkcs1UndigestedSignaturePaddingOverhead = 11;
 
+// Determine whether the key description is for an asymmetric key.
+bool is_asymmetric(const AuthorizationSet& key_desc) {
+    auto algorithm = key_desc.GetTagValue(TAG_ALGORITHM);
+    if (algorithm && (algorithm.value() == Algorithm::RSA || algorithm.value() == Algorithm::EC)) {
+        return true;
+    } else {
+        return false;
+    }
+}
 typedef KeyMintAidlTestBase::KeyData KeyData;
 // Predicate for testing basic characteristics validity in generation or import.
 bool KeyCharacteristicsBasicallyValid(SecurityLevel secLevel,
@@ -302,11 +311,14 @@ ErrorCode KeyMintAidlTestBase::GenerateKey(const AuthorizationSet& key_desc,
     vector<Certificate> attest_cert_chain;
     // If an attestation is requested, but the system is RKP-only, we need to supply an explicit
     // attestation key. Else the result is a key without an attestation.
-    // If the RKP-only value is undeterminable (i.e., when running on GSI), generate and use the
-    // attest key anyways. In the case that using an attest key is not supported
-    // (shouldSkipAttestKeyTest), assume the device has factory keys (so not RKP-only).
+    // - If the RKP-only value is undeterminable (i.e., when running on GSI), generate and use the
+    //   `ATTEST_KEY` anyways.
+    // - In the case that using an `ATTEST_KEY` is not supported
+    //   (shouldSkipAttestKeyTest), assume the device has factory keys (so not RKP-only).
+    // - If the key being generated is a symmetric key (from test cases that check that the
+    //   attestation parameters are correctly ignored), don't try to use an `ATTEST_KEY`.
     if (isRkpOnly().value_or(true) && key_desc.Contains(TAG_ATTESTATION_CHALLENGE) &&
-        !shouldSkipAttestKeyTest()) {
+        !shouldSkipAttestKeyTest() && is_asymmetric(key_desc)) {
         AuthorizationSet attest_key_desc =
                 AuthorizationSetBuilder().EcdsaKey(EcCurve::P_256).AttestKey().SetDefaultValidity();
         attest_key.emplace();
@@ -347,10 +359,7 @@ ErrorCode KeyMintAidlTestBase::GenerateKey(const AuthorizationSet& key_desc,
         *key_characteristics = std::move(creationResult.keyCharacteristics);
         *cert_chain = std::move(creationResult.certificateChain);
 
-        auto algorithm = key_desc.GetTagValue(TAG_ALGORITHM);
-        EXPECT_TRUE(algorithm);
-        if (algorithm &&
-            (algorithm.value() == Algorithm::RSA || algorithm.value() == Algorithm::EC)) {
+        if (is_asymmetric(key_desc)) {
             EXPECT_GE(cert_chain->size(), 1);
             if (key_desc.Contains(TAG_ATTESTATION_CHALLENGE)) {
                 if (attest_key) {
@@ -391,10 +400,7 @@ ErrorCode KeyMintAidlTestBase::ImportKey(const AuthorizationSet& key_desc, KeyFo
         *key_characteristics = std::move(creationResult.keyCharacteristics);
         cert_chain_ = std::move(creationResult.certificateChain);
 
-        auto algorithm = key_desc.GetTagValue(TAG_ALGORITHM);
-        EXPECT_TRUE(algorithm);
-        if (algorithm &&
-            (algorithm.value() == Algorithm::RSA || algorithm.value() == Algorithm::EC)) {
+        if (is_asymmetric(key_desc)) {
             EXPECT_GE(cert_chain_.size(), 1);
             if (key_desc.Contains(TAG_ATTESTATION_CHALLENGE)) EXPECT_GT(cert_chain_.size(), 1);
         } else {
@@ -439,10 +445,7 @@ ErrorCode KeyMintAidlTestBase::ImportWrappedKey(string wrapped_key, string wrapp
         for (auto& entry : key_characteristics_) {
             allAuths.push_back(AuthorizationSet(entry.authorizations));
         }
-        auto algorithm = allAuths.GetTagValue(TAG_ALGORITHM);
-        EXPECT_TRUE(algorithm);
-        if (algorithm &&
-            (algorithm.value() == Algorithm::RSA || algorithm.value() == Algorithm::EC)) {
+        if (is_asymmetric(allAuths)) {
             EXPECT_GE(cert_chain_.size(), 1);
         } else {
             // For symmetric keys there should be no certificates.
