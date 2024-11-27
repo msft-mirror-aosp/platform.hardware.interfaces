@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,14 +31,10 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.wifi.supplicant;
+package android.hardware.security.see.storage;
 @VintfStability
-parcelable MloLink {
-  byte linkId;
-  byte[] staLinkMacAddress;
-  byte tidsUplinkMap;
-  byte tidsDownlinkMap;
-  @nullable byte[6] apLinkMacAddress;
-  int frequencyMHz;
-  android.hardware.wifi.supplicant.WifiChannelWidthInMhz channelBandwidth;
+parcelable Filesystem {
+  android.hardware.security.see.storage.Integrity integrity = android.hardware.security.see.storage.Integrity.TAMPER_PROOF_AT_REST;
+  android.hardware.security.see.storage.Availability availability = android.hardware.security.see.storage.Availability.BEFORE_USERDATA;
+  boolean persistent;
 }

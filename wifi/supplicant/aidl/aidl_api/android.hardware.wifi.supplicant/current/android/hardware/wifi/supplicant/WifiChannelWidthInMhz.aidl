@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,13 +32,15 @@
 // later when a module using the interface is updated, e.g., Mainline modules.
 
 package android.hardware.wifi.supplicant;
-@VintfStability
-parcelable MloLink {
-  byte linkId;
-  byte[] staLinkMacAddress;
-  byte tidsUplinkMap;
-  byte tidsDownlinkMap;
-  @nullable byte[6] apLinkMacAddress;
-  int frequencyMHz;
-  android.hardware.wifi.supplicant.WifiChannelWidthInMhz channelBandwidth;
+@Backing(type="int") @VintfStability
+enum WifiChannelWidthInMhz {
+  WIDTH_INVALID = (-1) /* -1 */,
+  WIDTH_20 = 0,
+  WIDTH_40 = 1,
+  WIDTH_80 = 2,
+  WIDTH_160 = 3,
+  WIDTH_80P80 = 4,
+  WIDTH_5 = 5,
+  WIDTH_10 = 6,
+  WIDTH_320 = 7,
 }
