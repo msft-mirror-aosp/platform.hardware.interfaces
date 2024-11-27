@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,15 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package android.hardware.security.see.storage;
 
-enum CreationMode {
-    /** Returns an error if the file does not already exist. */
-    NO_CREATE,
+package android.hardware.wifi.supplicant;
 
-    /** Creates the file or returns an error if it already exists. */
-    CREATE_EXCLUSIVE,
-
-    /** Creates the file if it does not already exist. */
-    CREATE,
+/**
+ * Channel operating width in Mhz.
+ */
+@VintfStability
+@Backing(type="int")
+enum WifiChannelWidthInMhz {
+    WIDTH_INVALID = -1,
+    WIDTH_20 = 0,
+    WIDTH_40 = 1,
+    WIDTH_80 = 2,
+    WIDTH_160 = 3,
+    WIDTH_80P80 = 4,
+    WIDTH_5 = 5,
+    WIDTH_10 = 6,
+    /**
+     * 320 MHz
+     */
+    WIDTH_320 = 7,
 }

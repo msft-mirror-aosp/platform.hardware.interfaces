@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,14 +31,11 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.wifi.supplicant;
-@VintfStability
-parcelable MloLink {
-  byte linkId;
-  byte[] staLinkMacAddress;
-  byte tidsUplinkMap;
-  byte tidsDownlinkMap;
-  @nullable byte[6] apLinkMacAddress;
-  int frequencyMHz;
-  android.hardware.wifi.supplicant.WifiChannelWidthInMhz channelBandwidth;
+package android.hardware.graphics.composer3;
+@Backing(type="int") @VintfStability
+enum OutputType {
+  INVALID = 0,
+  SYSTEM = 1,
+  SDR = 2,
+  HDR10 = 3,
 }
