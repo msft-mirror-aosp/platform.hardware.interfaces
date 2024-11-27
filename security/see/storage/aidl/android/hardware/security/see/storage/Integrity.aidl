@@ -15,6 +15,7 @@
  */
 package android.hardware.security.see.storage;
 
+@VintfStability
 enum Integrity {
     /** REE may prevent operations, but cannot alter data once written. */
     TAMPER_PROOF_AT_REST,

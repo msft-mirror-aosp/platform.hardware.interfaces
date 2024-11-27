@@ -15,11 +15,14 @@
  */
 package android.hardware.security.see.storage;
 
-/** Determines how early during the boot process file is able to be accessed. */
-enum Availability {
-    /** Available before userdata is mounted, but after android has booted. */
-    BEFORE_USERDATA,
+@VintfStability
+enum CreationMode {
+    /** Returns an error if the file does not already exist. */
+    NO_CREATE,
 
-    /** Available after userdata is mounted. */
-    AFTER_USERDATA,
+    /** Creates the file or returns an error if it already exists. */
+    CREATE_EXCLUSIVE,
+
+    /** Creates the file if it does not already exist. */
+    CREATE,
 }
