@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,19 +19,16 @@ package {
 }
 
 cc_library_headers {
-    name: "IVehicleGeneratedHeaders-V3-default",
-    vendor_available: true,
-    local_include_dirs: ["."],
-    export_include_dirs: ["."],
-    defaults: ["VehicleHalInterfaceDefaults-V3"],
-    host_supported: true,
-}
-
-cc_library_headers {
-    name: "IVehicleGeneratedHeaders-V3",
-    vendor_available: true,
-    local_include_dirs: ["."],
-    export_include_dirs: ["."],
-    defaults: ["VehicleHalInterfaceDefaults"],
+    name: "IVehicleHardware-V3",
+    vendor: true,
+    export_include_dirs: [
+        "include",
+    ],
+    header_libs: [
+        "VehicleHalUtilHeaders-V3",
+    ],
+    export_header_lib_headers: [
+        "VehicleHalUtilHeaders-V3",
+    ],
     host_supported: true,
 }

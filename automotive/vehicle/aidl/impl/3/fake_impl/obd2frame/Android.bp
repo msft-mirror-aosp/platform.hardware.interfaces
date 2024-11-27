@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,20 +18,16 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-cc_library_headers {
-    name: "IVehicleGeneratedHeaders-V3-default",
-    vendor_available: true,
-    local_include_dirs: ["."],
-    export_include_dirs: ["."],
-    defaults: ["VehicleHalInterfaceDefaults-V3"],
-    host_supported: true,
-}
-
-cc_library_headers {
-    name: "IVehicleGeneratedHeaders-V3",
-    vendor_available: true,
-    local_include_dirs: ["."],
-    export_include_dirs: ["."],
-    defaults: ["VehicleHalInterfaceDefaults"],
+cc_library {
+    name: "FakeObd2Frame-V3",
+    vendor: true,
+    srcs: ["src/*.cpp"],
+    local_include_dirs: ["include"],
+    export_include_dirs: ["include"],
+    defaults: ["VehicleHalDefaults-V3"],
+    static_libs: [
+        "VehicleHalUtils-V3",
+    ],
+    export_static_lib_headers: ["VehicleHalUtils-V3"],
     host_supported: true,
 }
