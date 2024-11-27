@@ -311,13 +311,12 @@ TEST_P(PowerAidl, getCpuHeadroom) {
     CpuHeadroomParams params;
     CpuHeadroomResult headroom;
     auto ret = power->getCpuHeadroom(params, &headroom);
-    if (ret.getExceptionCode() == EX_UNSUPPORTED_OPERATION) {
+    if (!mSupportInfo->headroom.isCpuSupported) {
+        ASSERT_EQ(ret.getExceptionCode(), EX_UNSUPPORTED_OPERATION);
         GTEST_SKIP() << "power->getCpuHeadroom is not supported";
     }
     ASSERT_TRUE(ret.isOk());
-    int64_t minIntervalMillis;
-    ASSERT_TRUE(power->getCpuHeadroomMinIntervalMillis(&minIntervalMillis).isOk());
-    ASSERT_GE(minIntervalMillis, 0);
+    ASSERT_GE(mSupportInfo->headroom.cpuMinIntervalMillis, 0);
     ASSERT_EQ(headroom.getTag(), CpuHeadroomResult::globalHeadroom);
     ASSERT_GE(headroom.get<CpuHeadroomResult::globalHeadroom>(), 0.0f);
     ASSERT_LE(headroom.get<CpuHeadroomResult::globalHeadroom>(), 100.00f);
@@ -330,13 +329,12 @@ TEST_P(PowerAidl, getGpuHeadroom) {
     GpuHeadroomParams params;
     GpuHeadroomResult headroom;
     auto ret = power->getGpuHeadroom(params, &headroom);
-    if (ret.getExceptionCode() == EX_UNSUPPORTED_OPERATION) {
+    if (!mSupportInfo->headroom.isGpuSupported) {
+        ASSERT_EQ(ret.getExceptionCode(), EX_UNSUPPORTED_OPERATION);
         GTEST_SKIP() << "power->getGpuHeadroom is not supported";
     }
     ASSERT_TRUE(ret.isOk());
-    int64_t minIntervalMillis;
-    ASSERT_TRUE(power->getGpuHeadroomMinIntervalMillis(&minIntervalMillis).isOk());
-    ASSERT_GE(minIntervalMillis, 0);
+    ASSERT_GE(mSupportInfo->headroom.gpuMinIntervalMillis, 0);
     ASSERT_EQ(headroom.getTag(), GpuHeadroomResult::globalHeadroom);
     ASSERT_GE(headroom.get<GpuHeadroomResult::globalHeadroom>(), 0.0f);
     ASSERT_LE(headroom.get<GpuHeadroomResult::globalHeadroom>(), 100.00f);
