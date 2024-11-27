@@ -33,15 +33,15 @@
 
 package android.hardware.tv.mediaquality;
 @VintfStability
-interface IMediaQuality {
-  void setCallback(in android.hardware.tv.mediaquality.IMediaQualityCallback callback);
-  void setAmbientBacklightDetector(in android.hardware.tv.mediaquality.AmbientBacklightSettings settings);
-  void setAmbientBacklightDetectionEnabled(in boolean enabled);
-  boolean getAmbientBacklightDetectionEnabled();
-  android.hardware.tv.mediaquality.IPictureProfileChangedListener getPictureProfileListener();
-  void setPictureProfileAdjustmentListener(android.hardware.tv.mediaquality.IPictureProfileAdjustmentListener listener);
-  android.hardware.tv.mediaquality.PictureParameters getPictureParameters(long pictureProfileId);
-  android.hardware.tv.mediaquality.ISoundProfileChangedListener getSoundProfileListener();
-  void setSoundProfileAdjustmentListener(android.hardware.tv.mediaquality.ISoundProfileAdjustmentListener listener);
-  android.hardware.tv.mediaquality.SoundParameters getSoundParameters(long soundProfileId);
+parcelable DolbyAudioProcessing {
+  android.hardware.tv.mediaquality.DolbyAudioProcessing.SoundMode soundMode;
+  boolean volumeLeveler;
+  boolean surroundVirtualizer;
+  boolean doblyAtmos;
+  enum SoundMode {
+    GAME,
+    MOVIE,
+    MUSIC,
+    NEWS,
+  }
 }
