@@ -33,24 +33,21 @@
 
 package android.hardware.tv.mediaquality;
 @VintfStability
-interface IMediaQuality {
-  void setCallback(in android.hardware.tv.mediaquality.IMediaQualityCallback callback);
-  void setAmbientBacklightDetector(in android.hardware.tv.mediaquality.AmbientBacklightSettings settings);
-  void setAmbientBacklightDetectionEnabled(in boolean enabled);
-  boolean getAmbientBacklightDetectionEnabled();
-  boolean isAutoPqSupported();
-  boolean getAutoPqEnabled();
-  void setAutoPqEnabled(boolean enable);
-  boolean isAutoSrSupported();
-  boolean getAutoSrEnabled();
-  void setAutoSrEnabled(boolean enable);
-  boolean isAutoAqSupported();
-  boolean getAutoAqEnabled();
-  void setAutoAqEnabled(boolean enable);
-  android.hardware.tv.mediaquality.IPictureProfileChangedListener getPictureProfileListener();
-  void setPictureProfileAdjustmentListener(android.hardware.tv.mediaquality.IPictureProfileAdjustmentListener listener);
-  android.hardware.tv.mediaquality.PictureParameters getPictureParameters(long pictureProfileId);
-  android.hardware.tv.mediaquality.ISoundProfileChangedListener getSoundProfileListener();
-  void setSoundProfileAdjustmentListener(android.hardware.tv.mediaquality.ISoundProfileAdjustmentListener listener);
-  android.hardware.tv.mediaquality.SoundParameters getSoundParameters(long soundProfileId);
+union SoundParameter {
+  int balance;
+  int bass;
+  int treble;
+  boolean surroundSoundEnabled;
+  android.hardware.tv.mediaquality.EqualizerDetail equalizerDetail;
+  boolean speakersEnabled;
+  int speakersDelayMs;
+  boolean enhancedAudioReturnChannelEnabled;
+  boolean autoVolumeControl;
+  android.hardware.tv.mediaquality.DownmixMode downmixMode;
+  boolean dtsDrc;
+  @nullable android.hardware.tv.mediaquality.DolbyAudioProcessing dolbyAudioProcessing;
+  android.hardware.tv.mediaquality.QualityLevel dolbyDialogueEnhancer;
+  @nullable android.hardware.tv.mediaquality.DtsVirtualX dtsVirtualX;
+  android.hardware.tv.mediaquality.DigitalOutput digitalOutput;
+  int digitalOutputDelayMs;
 }
