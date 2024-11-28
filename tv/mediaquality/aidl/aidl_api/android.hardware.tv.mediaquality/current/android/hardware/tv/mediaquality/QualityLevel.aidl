@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,24 +33,9 @@
 
 package android.hardware.tv.mediaquality;
 @VintfStability
-interface IMediaQuality {
-  void setCallback(in android.hardware.tv.mediaquality.IMediaQualityCallback callback);
-  void setAmbientBacklightDetector(in android.hardware.tv.mediaquality.AmbientBacklightSettings settings);
-  void setAmbientBacklightDetectionEnabled(in boolean enabled);
-  boolean getAmbientBacklightDetectionEnabled();
-  boolean isAutoPqSupported();
-  boolean getAutoPqEnabled();
-  void setAutoPqEnabled(boolean enable);
-  boolean isAutoSrSupported();
-  boolean getAutoSrEnabled();
-  void setAutoSrEnabled(boolean enable);
-  boolean isAutoAqSupported();
-  boolean getAutoAqEnabled();
-  void setAutoAqEnabled(boolean enable);
-  android.hardware.tv.mediaquality.IPictureProfileChangedListener getPictureProfileListener();
-  void setPictureProfileAdjustmentListener(android.hardware.tv.mediaquality.IPictureProfileAdjustmentListener listener);
-  android.hardware.tv.mediaquality.PictureParameters getPictureParameters(long pictureProfileId);
-  android.hardware.tv.mediaquality.ISoundProfileChangedListener getSoundProfileListener();
-  void setSoundProfileAdjustmentListener(android.hardware.tv.mediaquality.ISoundProfileAdjustmentListener listener);
-  android.hardware.tv.mediaquality.SoundParameters getSoundParameters(long soundProfileId);
+enum QualityLevel {
+  OFF,
+  LOW,
+  MEDIUM,
+  HIGH,
 }
