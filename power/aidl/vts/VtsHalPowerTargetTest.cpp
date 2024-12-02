@@ -141,13 +141,13 @@ class PowerAidl : public testing::TestWithParam<std::string> {
         power = IPower::fromBinder(ndk::SpAIBinder(binder));
         auto status = power->getInterfaceVersion(&mServiceVersion);
         ASSERT_TRUE(status.isOk());
+        if (mServiceVersion >= 2) {
+            status = power->createHintSession(getpid(), getuid(), kSelfTids, 16666666L, &mSession);
+            mSessionSupport = status.isOk();
+        }
         if (mServiceVersion >= 6) {
             mSupportInfo = std::make_optional<SupportInfo>();
             ASSERT_TRUE(power->getSupportInfo(&(*mSupportInfo)).isOk());
-            mSessionSupport = mSupportInfo->usesSessions;
-        } else if (mServiceVersion >= 2) {
-            status = power->createHintSession(getpid(), getuid(), kSelfTids, 16666666L, &mSession);
-            mSessionSupport = status.isOk();
         }
     }
 
