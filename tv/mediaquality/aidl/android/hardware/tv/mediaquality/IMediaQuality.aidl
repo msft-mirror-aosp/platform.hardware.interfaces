@@ -162,6 +162,15 @@ interface IMediaQuality {
     PictureParameters getPictureParameters(long pictureProfileId);
 
     /**
+     * Send the default picture parameters to the vendor code or HAL to apply the picture
+     * parameters.
+     *
+     * @param pictureParameters PictureParameters with pre-defined parameters and vendor defined
+     * parameters.
+     */
+    void sendDefaultPictureParameters(in PictureParameters pictureParameters);
+
+    /**
      * Get sound profile changed listener.
      *
      * @return the ISoundProfileChangedListener.
@@ -182,6 +191,14 @@ interface IMediaQuality {
      * @return SoundParameters with all the pre-defined parameters and vendor defined parameters.
      */
     SoundParameters getSoundParameters(long soundProfileId);
+
+    /**
+     * Send the default sound parameters to the vendor code or HAL to apply the sound parameters.
+     *
+     * @param soundParameters SoundParameters with pre-defined parameters and vendor defined
+     * parameters.
+     */
+    void sendDefaultSoundParameters(in SoundParameters soundParameters);
 
     /**
      * Gets capability information of the given parameters.
