@@ -33,8 +33,48 @@
 
 package android.hardware.tv.mediaquality;
 @VintfStability
-interface ISoundProfileAdjustmentListener {
-  oneway void onSoundProfileAdjusted(in android.hardware.tv.mediaquality.SoundProfile soundProfile);
-  oneway void onParamCapabilityChanged(long soundProfileId, in android.hardware.tv.mediaquality.ParamCapability[] caps);
-  oneway void onVendorParamCapabilityChanged(long soundProfileId, in android.hardware.tv.mediaquality.VendorParamCapability[] caps);
+enum ParameterName {
+  BRIGHTNESS,
+  CONTRAST,
+  SHARPNESS,
+  SATURATION,
+  HUE,
+  COLOR_TUNER_BRIGHTNESS,
+  COLOR_TUNER_SATURATION,
+  COLOR_TUNER_HUE,
+  COLOR_TUNER_RED_OFFSET,
+  COLOR_TUNER_GREEN_OFFSET,
+  COLOR_TUNER_BLUE_OFFSET,
+  COLOR_TUNER_RED_GAIN,
+  COLOR_TUNER_GREEN_GAIN,
+  COLOR_TUNER_BLUE_GAIN,
+  NOISE_REDUCTION,
+  MPEG_NOISE_REDUCTION,
+  FLASH_TONE,
+  DE_CONTOUR,
+  DYNAMIC_LUMA_CONTROL,
+  FILM_MODE,
+  BLACK_STRETCH,
+  BLUE_STRETCH,
+  COLOR_TUNE,
+  COLOR_TEMPERATURE,
+  GLOBE_DIMMING,
+  AUTO_PICTUREQUALITY_ENABLED,
+  AUTO_SUPER_RESOLUTION_ENABLED,
+  BALANCE,
+  BASS,
+  TREBLE,
+  SURROUND_SOUND_ENABLED,
+  EQUALIZER_DETAIL,
+  SPEAKERS_ENABLED,
+  SPEAKERS_DELAY_MS,
+  ENHANCED_AUDIO_RETURN_CHANNEL_ENABLED,
+  AUTO_VOLUME_CONTROL,
+  DOWNMIX_MODE,
+  DTS_DRC,
+  DOLBY_AUDIO_PROCESSING,
+  DOLBY_DIALOGUE_ENHANCER,
+  DTS_VIRTUAL_X,
+  DIGITAL_OUTPUT,
+  DIGITAL_OUTPUT_DELAY_MS,
 }
