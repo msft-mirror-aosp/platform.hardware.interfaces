@@ -243,6 +243,11 @@ impl IMediaQuality for MediaQualityService {
         Ok(picture_params)
     }
 
+    fn sendDefaultPictureParameters(&self, _picture_parameters: &PictureParameters) -> binder::Result<()>{
+        println!("Received picture parameters");
+        Ok(())
+    }
+
     fn getSoundProfileListener(&self) -> binder::Result<binder::Strong<dyn ISoundProfileChangedListener>> {
         println!("getSoundProfileListener");
         let listener = self.sound_profile_changed_listener.lock().unwrap();
@@ -276,6 +281,11 @@ impl IMediaQuality for MediaQualityService {
         };
 
         Ok(sound_params)
+    }
+
+    fn sendDefaultSoundParameters(&self, _sound_parameters: &SoundParameters) -> binder::Result<()>{
+        println!("Received sound parameters");
+        Ok(())
     }
 
     fn getParamCaps(

@@ -169,6 +169,13 @@ TEST_P(MediaQualityAidl, TestGetPictureParameters) {
     ASSERT_EQ(pictureParams.pictureParameters.size(), 2);
 }
 
+TEST_P(MediaQualityAidl, TestSendDefaultPictureParameters) {
+    PictureParameters pictureParams;
+    auto result = mediaquality->getPictureParameters(1, &pictureParams);
+    ASSERT_TRUE(result.isOk());
+    ASSERT_OK(mediaquality->sendDefaultPictureParameters(pictureParams));
+}
+
 TEST_P(MediaQualityAidl, TestSetSoundProfileAdjustmentListener) {
     std::shared_ptr<SoundProfileAdjustmentListener> listener =
             ndk::SharedRefBase::make<SoundProfileAdjustmentListener>(
@@ -181,6 +188,13 @@ TEST_P(MediaQualityAidl, TestGetSoundParameters) {
     auto result = mediaquality->getSoundParameters(1, &soundParams);
     ASSERT_TRUE(result.isOk());
     ASSERT_EQ(soundParams.soundParameters.size(), 2);
+}
+
+TEST_P(MediaQualityAidl, TestSendDefaultSoundParameters) {
+    SoundParameters soundParams;
+    auto result = mediaquality->getSoundParameters(1, &soundParams);
+    ASSERT_TRUE(result.isOk());
+    ASSERT_OK(mediaquality->sendDefaultSoundParameters(soundParams));
 }
 
 TEST_P(MediaQualityAidl, TestSetAmbientBacklightDetector) {
