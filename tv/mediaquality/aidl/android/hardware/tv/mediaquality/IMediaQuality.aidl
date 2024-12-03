@@ -22,8 +22,12 @@ import android.hardware.tv.mediaquality.IPictureProfileAdjustmentListener;
 import android.hardware.tv.mediaquality.IPictureProfileChangedListener;
 import android.hardware.tv.mediaquality.ISoundProfileAdjustmentListener;
 import android.hardware.tv.mediaquality.ISoundProfileChangedListener;
+import android.hardware.tv.mediaquality.ParamCapability;
+import android.hardware.tv.mediaquality.ParameterName;
 import android.hardware.tv.mediaquality.PictureParameters;
 import android.hardware.tv.mediaquality.SoundParameters;
+import android.hardware.tv.mediaquality.VendorParamCapability;
+import android.hardware.tv.mediaquality.VendorParameterIdentifier;
 
 /**
  * Interface for the media quality service
@@ -178,4 +182,14 @@ interface IMediaQuality {
      * @return SoundParameters with all the pre-defined parameters and vendor defined parameters.
      */
     SoundParameters getSoundParameters(long soundProfileId);
+
+    /**
+     * Gets capability information of the given parameters.
+     */
+    void getParamCaps(in ParameterName[] paramNames, out ParamCapability[] caps);
+
+    /**
+     * Gets vendor capability information of the given parameters.
+     */
+    void getVendorParamCaps(in VendorParameterIdentifier[] names, out VendorParamCapability[] caps);
 }

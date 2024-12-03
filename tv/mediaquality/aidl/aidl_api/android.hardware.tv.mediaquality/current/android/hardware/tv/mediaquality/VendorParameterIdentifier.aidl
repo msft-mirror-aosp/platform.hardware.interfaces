@@ -33,8 +33,6 @@
 
 package android.hardware.tv.mediaquality;
 @VintfStability
-interface ISoundProfileAdjustmentListener {
-  oneway void onSoundProfileAdjusted(in android.hardware.tv.mediaquality.SoundProfile soundProfile);
-  oneway void onParamCapabilityChanged(long soundProfileId, in android.hardware.tv.mediaquality.ParamCapability[] caps);
-  oneway void onVendorParamCapabilityChanged(long soundProfileId, in android.hardware.tv.mediaquality.VendorParamCapability[] caps);
+parcelable VendorParameterIdentifier {
+  ParcelableHolder identifier;
 }

@@ -16,7 +16,9 @@
 
 package android.hardware.tv.mediaquality;
 
+import android.hardware.tv.mediaquality.ParamCapability;
 import android.hardware.tv.mediaquality.SoundProfile;
+import android.hardware.tv.mediaquality.VendorParamCapability;
 
 @VintfStability
 oneway interface ISoundProfileAdjustmentListener {
@@ -26,4 +28,22 @@ oneway interface ISoundProfileAdjustmentListener {
      * @param soundProfile Sound profile.
      */
     void onSoundProfileAdjusted(in SoundProfile soundProfile);
+
+    /**
+     * Notifies Media Quality Manager when parameter capabilities changed.
+     *
+     * @param soundProfileId the ID of the profile used by the media content. -1 if there
+     *                         is no associated profile.
+     * @param caps the updated capabilities.
+     */
+    void onParamCapabilityChanged(long soundProfileId, in ParamCapability[] caps);
+
+    /**
+     * Notifies Media Quality Manager when venfor parameter capabilities changed.
+     *
+     * @param soundProfileId the ID of the profile used by the media content. -1 if there
+     *                         is no associated profile.
+     * @param caps the updated vendor capabilities.
+     */
+    void onVendorParamCapabilityChanged(long soundProfileId, in VendorParamCapability[] caps);
 }

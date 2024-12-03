@@ -33,8 +33,11 @@
 
 package android.hardware.tv.mediaquality;
 @VintfStability
-interface ISoundProfileAdjustmentListener {
-  oneway void onSoundProfileAdjusted(in android.hardware.tv.mediaquality.SoundProfile soundProfile);
-  oneway void onParamCapabilityChanged(long soundProfileId, in android.hardware.tv.mediaquality.ParamCapability[] caps);
-  oneway void onVendorParamCapabilityChanged(long soundProfileId, in android.hardware.tv.mediaquality.VendorParamCapability[] caps);
+union NumberRange {
+  @nullable int[2] intMinMax;
+  @nullable long[2] longMinMax;
+  @nullable double[2] doubleMinMax;
+  @nullable int[] intValuesSupported;
+  @nullable long[] longValuesSupported;
+  @nullable double[] doubleValuesSupported;
 }

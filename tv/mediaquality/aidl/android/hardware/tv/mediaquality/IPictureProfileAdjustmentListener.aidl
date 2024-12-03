@@ -16,7 +16,9 @@
 
 package android.hardware.tv.mediaquality;
 
+import android.hardware.tv.mediaquality.ParamCapability;
 import android.hardware.tv.mediaquality.PictureProfile;
+import android.hardware.tv.mediaquality.VendorParamCapability;
 
 @VintfStability
 oneway interface IPictureProfileAdjustmentListener {
@@ -26,4 +28,22 @@ oneway interface IPictureProfileAdjustmentListener {
      * @param pictureProfile Picture profile.
      */
     void onPictureProfileAdjusted(in PictureProfile pictureProfile);
+
+    /**
+     * Notifies Media Quality Manager when parameter capabilities changed.
+     *
+     * @param pictureProfileId the ID of the profile used by the media content. -1 if there
+     *                         is no associated profile.
+     * @param caps the updated capabilities.
+     */
+    void onParamCapabilityChanged(long pictureProfileId, in ParamCapability[] caps);
+
+    /**
+     * Notifies Media Quality Manager when venfor parameter capabilities changed.
+     *
+     * @param pictureProfileId the ID of the profile used by the media content. -1 if there
+     *                         is no associated profile.
+     * @param caps the updated vendor capabilities.
+     */
+    void onVendorParamCapabilityChanged(long pictureProfileId, in VendorParamCapability[] caps);
 }
