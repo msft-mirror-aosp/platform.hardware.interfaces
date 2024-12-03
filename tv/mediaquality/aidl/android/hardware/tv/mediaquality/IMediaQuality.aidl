@@ -18,8 +18,10 @@ package android.hardware.tv.mediaquality;
 
 import android.hardware.tv.mediaquality.AmbientBacklightSettings;
 import android.hardware.tv.mediaquality.IMediaQualityCallback;
+import android.hardware.tv.mediaquality.IPictureParametersCallback;
 import android.hardware.tv.mediaquality.IPictureProfileAdjustmentListener;
 import android.hardware.tv.mediaquality.IPictureProfileChangedListener;
+import android.hardware.tv.mediaquality.ISoundParametersCallback;
 import android.hardware.tv.mediaquality.ISoundProfileAdjustmentListener;
 import android.hardware.tv.mediaquality.ISoundProfileChangedListener;
 import android.hardware.tv.mediaquality.ParamCapability;
@@ -154,14 +156,6 @@ interface IMediaQuality {
     void setPictureProfileAdjustmentListener(IPictureProfileAdjustmentListener listener);
 
     /**
-     * Get the picture parameters by PictureProfile id. Check PictureParameters for its' detail.
-     *
-     * @param pictureProfileId The PictureProfile id that associate with the PictureProfile.
-     * @return PictureParameters with all the pre-defined parameters and vendor defined parameters.
-     */
-    PictureParameters getPictureParameters(long pictureProfileId);
-
-    /**
      * Send the default picture parameters to the vendor code or HAL to apply the picture
      * parameters.
      *
@@ -185,14 +179,6 @@ interface IMediaQuality {
     void setSoundProfileAdjustmentListener(ISoundProfileAdjustmentListener listener);
 
     /**
-     * Get the sound parameters by SoundProfile id. Check SoundParameters for its' detail.
-     *
-     * @param soundProfileId The SoundProfile id that associate with a SoundProfile.
-     * @return SoundParameters with all the pre-defined parameters and vendor defined parameters.
-     */
-    SoundParameters getSoundParameters(long soundProfileId);
-
-    /**
      * Send the default sound parameters to the vendor code or HAL to apply the sound parameters.
      *
      * @param soundParameters SoundParameters with pre-defined parameters and vendor defined
@@ -209,4 +195,30 @@ interface IMediaQuality {
      * Gets vendor capability information of the given parameters.
      */
     void getVendorParamCaps(in VendorParameterIdentifier[] names, out VendorParamCapability[] caps);
+
+    /**
+     * Sets picture parameters callback to get the picture parameters send by the client.
+     *
+     * When the same client registers this callback multiple times, only the most recent
+     * registration will be active. The previous callback will be overwritten.
+     *
+     * When different client registers this callback, it will overwrite the previous registered
+     * client. Only one callback can be active.
+     *
+     * @param callback Callback object to pass PictureParameters.
+     */
+    void setPictureParametersCallback(IPictureParametersCallback callback);
+
+    /**
+     * Sets sound parameters callback to get the sound parameters send by the client.
+     *
+     * When the same client registers this callback multiple times, only the most recent
+     * registration will be active. The previous callback will be overwritten.
+     *
+     * When different client registers this callback, it will overwrite the previous registered
+     * client. Only one callback can be active.
+     *
+     * @param callback Callback object to pass SoundParameters.
+     */
+    void setSoundParametersCallback(ISoundParametersCallback callback);
 }
