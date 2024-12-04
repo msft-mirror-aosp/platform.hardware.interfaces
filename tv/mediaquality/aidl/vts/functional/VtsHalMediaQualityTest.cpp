@@ -42,10 +42,12 @@ using aidl::android::hardware::tv::mediaquality::BnMediaQualityCallback;
 using aidl::android::hardware::tv::mediaquality::BnPictureProfileAdjustmentListener;
 using aidl::android::hardware::tv::mediaquality::BnSoundProfileAdjustmentListener;
 using aidl::android::hardware::tv::mediaquality::IMediaQuality;
+using aidl::android::hardware::tv::mediaquality::ParamCapability;
 using aidl::android::hardware::tv::mediaquality::PictureParameters;
 using aidl::android::hardware::tv::mediaquality::PictureProfile;
 using aidl::android::hardware::tv::mediaquality::SoundParameters;
 using aidl::android::hardware::tv::mediaquality::SoundProfile;
+using aidl::android::hardware::tv::mediaquality::VendorParamCapability;
 using android::ProcessState;
 using android::String16;
 using ndk::ScopedAStatus;
@@ -79,6 +81,15 @@ class PictureProfileAdjustmentListener : public BnPictureProfileAdjustmentListen
         return ScopedAStatus::ok();
     }
 
+    ScopedAStatus onParamCapabilityChanged(int64_t, const std::vector<ParamCapability>&) override {
+        return ScopedAStatus::ok();
+    }
+
+    ScopedAStatus onVendorParamCapabilityChanged(int64_t,
+                                                 const std::vector<VendorParamCapability>&) {
+        return ScopedAStatus::ok();
+    }
+
   private:
     std::function<void(const PictureProfile& pictureProfile)> on_hal_picture_profile_adjust_;
 };
@@ -91,6 +102,15 @@ class SoundProfileAdjustmentListener : public BnSoundProfileAdjustmentListener {
         : on_hal_sound_profile_adjust_(on_hal_sound_profile_adjust) {}
     ScopedAStatus onSoundProfileAdjusted(const SoundProfile& soundProfile) override {
         on_hal_sound_profile_adjust_(soundProfile);
+        return ScopedAStatus::ok();
+    }
+
+    ScopedAStatus onParamCapabilityChanged(int64_t, const std::vector<ParamCapability>&) override {
+        return ScopedAStatus::ok();
+    }
+
+    ScopedAStatus onVendorParamCapabilityChanged(int64_t,
+                                                 const std::vector<VendorParamCapability>&) {
         return ScopedAStatus::ok();
     }
 
@@ -149,6 +169,13 @@ TEST_P(MediaQualityAidl, TestGetPictureParameters) {
     ASSERT_EQ(pictureParams.pictureParameters.size(), 2);
 }
 
+TEST_P(MediaQualityAidl, TestSendDefaultPictureParameters) {
+    PictureParameters pictureParams;
+    auto result = mediaquality->getPictureParameters(1, &pictureParams);
+    ASSERT_TRUE(result.isOk());
+    ASSERT_OK(mediaquality->sendDefaultPictureParameters(pictureParams));
+}
+
 TEST_P(MediaQualityAidl, TestSetSoundProfileAdjustmentListener) {
     std::shared_ptr<SoundProfileAdjustmentListener> listener =
             ndk::SharedRefBase::make<SoundProfileAdjustmentListener>(
@@ -161,6 +188,13 @@ TEST_P(MediaQualityAidl, TestGetSoundParameters) {
     auto result = mediaquality->getSoundParameters(1, &soundParams);
     ASSERT_TRUE(result.isOk());
     ASSERT_EQ(soundParams.soundParameters.size(), 2);
+}
+
+TEST_P(MediaQualityAidl, TestSendDefaultSoundParameters) {
+    SoundParameters soundParams;
+    auto result = mediaquality->getSoundParameters(1, &soundParams);
+    ASSERT_TRUE(result.isOk());
+    ASSERT_OK(mediaquality->sendDefaultSoundParameters(soundParams));
 }
 
 TEST_P(MediaQualityAidl, TestSetAmbientBacklightDetector) {
