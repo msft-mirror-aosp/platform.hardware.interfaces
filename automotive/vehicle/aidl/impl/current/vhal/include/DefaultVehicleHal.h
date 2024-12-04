@@ -70,6 +70,18 @@ class DefaultVehicleHal final : public aidlvhal::BnVehicle {
                                    const std::vector<int32_t>& propIds) override;
     ndk::ScopedAStatus returnSharedMemory(const CallbackType& callback,
                                           int64_t sharedMemoryId) override;
+    ndk::ScopedAStatus getSupportedValuesLists(
+            const std::vector<aidlvhal::PropIdAreaId>& propIdAreaIds,
+            aidlvhal::SupportedValuesListResults* supportedValuesListResults) override;
+    ndk::ScopedAStatus getMinMaxSupportedValue(
+            const std::vector<aidlvhal::PropIdAreaId>& propIdAreaIds,
+            aidlvhal::MinMaxSupportedValueResults* minMaxSupportedValueResults) override;
+    ndk::ScopedAStatus registerSupportedValueChangeCallback(
+            const std::shared_ptr<aidlvhal::IVehicleCallback>& callback,
+            const std::vector<aidlvhal::PropIdAreaId>& propIdAreaIds) override;
+    ndk::ScopedAStatus unregisterSupportedValueChangeCallback(
+            const std::shared_ptr<aidlvhal::IVehicleCallback>& callback,
+            const std::vector<aidlvhal::PropIdAreaId>& propIdAreaIds) override;
     binder_status_t dump(int fd, const char** args, uint32_t numArgs) override;
 
     IVehicleHardware* getHardware();

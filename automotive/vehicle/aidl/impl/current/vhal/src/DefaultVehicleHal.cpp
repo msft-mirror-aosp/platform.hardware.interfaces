@@ -49,12 +49,15 @@ using ::aidl::android::hardware::automotive::vehicle::GetValueRequest;
 using ::aidl::android::hardware::automotive::vehicle::GetValueRequests;
 using ::aidl::android::hardware::automotive::vehicle::GetValueResult;
 using ::aidl::android::hardware::automotive::vehicle::GetValueResults;
+using ::aidl::android::hardware::automotive::vehicle::IVehicleCallback;
+using ::aidl::android::hardware::automotive::vehicle::MinMaxSupportedValueResults;
 using ::aidl::android::hardware::automotive::vehicle::SetValueRequest;
 using ::aidl::android::hardware::automotive::vehicle::SetValueRequests;
 using ::aidl::android::hardware::automotive::vehicle::SetValueResult;
 using ::aidl::android::hardware::automotive::vehicle::SetValueResults;
 using ::aidl::android::hardware::automotive::vehicle::StatusCode;
 using ::aidl::android::hardware::automotive::vehicle::SubscribeOptions;
+using ::aidl::android::hardware::automotive::vehicle::SupportedValuesListResults;
 using ::aidl::android::hardware::automotive::vehicle::VehicleAreaConfig;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropConfig;
 using ::aidl::android::hardware::automotive::vehicle::VehiclePropConfigs;
@@ -959,6 +962,34 @@ ScopedAStatus DefaultVehicleHal::unsubscribe(const CallbackType& callback,
 ScopedAStatus DefaultVehicleHal::returnSharedMemory(const CallbackType&, int64_t) {
     // TODO(b/200737967): implement this.
     return ScopedAStatus::ok();
+}
+
+ScopedAStatus DefaultVehicleHal::getSupportedValuesLists(
+        const std::vector<::aidl::android::hardware::automotive::vehicle::PropIdAreaId>&,
+        SupportedValuesListResults*) {
+    // TODO(b/381020465): Add relevant implementation.
+    return ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
+}
+
+ScopedAStatus DefaultVehicleHal::getMinMaxSupportedValue(
+        const std::vector<::aidl::android::hardware::automotive::vehicle::PropIdAreaId>&,
+        MinMaxSupportedValueResults*) {
+    // TODO(b/381020465): Add relevant implementation.
+    return ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
+}
+
+ScopedAStatus DefaultVehicleHal::registerSupportedValueChangeCallback(
+        const std::shared_ptr<IVehicleCallback>&,
+        const std::vector<::aidl::android::hardware::automotive::vehicle::PropIdAreaId>&) {
+    // TODO(b/381020465): Add relevant implementation.
+    return ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
+}
+
+ScopedAStatus DefaultVehicleHal::unregisterSupportedValueChangeCallback(
+        const std::shared_ptr<IVehicleCallback>&,
+        const std::vector<::aidl::android::hardware::automotive::vehicle::PropIdAreaId>&) {
+    // TODO(b/381020465): Add relevant implementation.
+    return ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
 }
 
 IVehicleHardware* DefaultVehicleHal::getHardware() {

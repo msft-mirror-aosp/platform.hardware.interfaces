@@ -55,6 +55,9 @@ class MockVehicleCallback final
             int32_t) override;
     ndk::ScopedAStatus onPropertySetError(
             const aidl::android::hardware::automotive::vehicle::VehiclePropErrors&) override;
+    ndk::ScopedAStatus onSupportedValueChange(
+            const std::vector<aidl::android::hardware::automotive::vehicle::PropIdAreaId>&)
+            override;
 
     // Test functions
     std::optional<aidl::android::hardware::automotive::vehicle::GetValueResults>
