@@ -16,8 +16,12 @@
 
 package android.hardware.tv.mediaquality;
 
+import android.hardware.tv.mediaquality.ColorRange;
+import android.hardware.tv.mediaquality.ColorSpace;
 import android.hardware.tv.mediaquality.ColorTemperature;
+import android.hardware.tv.mediaquality.Gamma;
 import android.hardware.tv.mediaquality.QualityLevel;
+
 /**
  * The parameters for Picture Profile.
  */
@@ -187,4 +191,66 @@ union PictureParameter {
      * image and uses its knowledge to invent the missing pixel, make the image look sharper.
      */
     boolean autoSuperResolutionEnabled;
+
+    /**
+     * The color range of the content. This indicates the range of luminance values
+     * used in the video signal.
+     */
+    ColorRange levelRange;
+
+    /**
+     * Enable/disable gamut mapping. Gamut mapping is a process that adjusts
+     * the colors in the video signal to match the color gamut of the display.
+     */
+    boolean gamutMapping;
+
+    /**
+     * Enable/disable PC mode. PC mode is a display mode that is optimized for
+     * use with computers.
+     */
+    boolean pcMode;
+
+    /**
+     * Enable/disable low latency mode. Low latency mode reduces the delay
+     * between the video source and the display.
+     */
+    boolean lowLatency;
+
+    /**
+     * Enable/disable variable refresh rate (VRR) mode. VRR allows the display to
+     * dynamically adjust its refresh rate to match the frame rate of the video
+     * source, reducing screen tearing.
+     */
+    boolean vrr;
+
+    /**
+     * Enable/disable continuous variable refresh rate (CVRR) mode. CVRR is a type
+     * of VRR that allows for a wider range of refresh rates.
+     */
+    boolean cvrr;
+
+    /**
+     * The color range of the HDMI input. This indicates the range of luminance
+     * values used in the HDMI signal.
+     */
+    ColorRange hdmiRgbRange;
+
+    /**
+     * The color space of the content. This indicates the color gamut and
+     * transfer function used in the video signal.
+     */
+    ColorSpace colorSpace;
+
+    /**
+     * The initial maximum luminance of the panel, in nits.
+     */
+    int panelInitMaxLuminceNits;
+
+    /**
+     * Whether the initial maximum luminance value is valid.
+     */
+    boolean panelInitMaxLuminceValid;
+
+    /* The gamma curve used for the display. */
+    Gamma gamma;
 }
