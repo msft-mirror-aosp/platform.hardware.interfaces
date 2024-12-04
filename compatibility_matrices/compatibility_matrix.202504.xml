@@ -653,6 +653,15 @@
         </interface>
     </hal>
     <hal format="aidl">
+      <name>android.hardware.virtualization.capabilities</name>
+        <version>1</version>
+        <interface>
+            <name>IVmCapabilitiesService</name>
+            <instance>default</instance>
+            <instance>noop</instance>
+        </interface>
+    </hal>
+    <hal format="aidl">
         <name>android.hardware.weaver</name>
         <version>2</version>
         <interface>
