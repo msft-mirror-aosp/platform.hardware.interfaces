@@ -22,12 +22,16 @@ use android_hardware_tv_mediaquality::aidl::android::hardware::tv::mediaquality:
     AmbientBacklightSettings::AmbientBacklightSettings,
     IPictureProfileAdjustmentListener::IPictureProfileAdjustmentListener,
     IPictureProfileChangedListener::IPictureProfileChangedListener,
+    ParamCapability::ParamCapability,
+    ParameterName::ParameterName,
     PictureParameter::PictureParameter,
     PictureParameters::PictureParameters,
     ISoundProfileAdjustmentListener::ISoundProfileAdjustmentListener,
     ISoundProfileChangedListener::ISoundProfileChangedListener,
     SoundParameter::SoundParameter,
     SoundParameters::SoundParameters,
+    VendorParamCapability::VendorParamCapability,
+    VendorParameterIdentifier::VendorParameterIdentifier,
 };
 use binder::{Interface, ParcelableHolder, Strong};
 use std::sync::{Arc, Mutex};
@@ -239,6 +243,11 @@ impl IMediaQuality for MediaQualityService {
         Ok(picture_params)
     }
 
+    fn sendDefaultPictureParameters(&self, _picture_parameters: &PictureParameters) -> binder::Result<()>{
+        println!("Received picture parameters");
+        Ok(())
+    }
+
     fn getSoundProfileListener(&self) -> binder::Result<binder::Strong<dyn ISoundProfileChangedListener>> {
         println!("getSoundProfileListener");
         let listener = self.sound_profile_changed_listener.lock().unwrap();
@@ -272,5 +281,28 @@ impl IMediaQuality for MediaQualityService {
         };
 
         Ok(sound_params)
+    }
+
+    fn sendDefaultSoundParameters(&self, _sound_parameters: &SoundParameters) -> binder::Result<()>{
+        println!("Received sound parameters");
+        Ok(())
+    }
+
+    fn getParamCaps(
+            &self,
+            param_names: &[ParameterName],
+            _caps: &mut Vec<ParamCapability>
+    ) -> binder::Result<()> {
+        println!("getParamCaps. len= {}", param_names.len());
+        Ok(())
+    }
+
+    fn getVendorParamCaps(
+            &self,
+            param_names: &[VendorParameterIdentifier],
+            _caps: &mut Vec<VendorParamCapability>
+    ) -> binder::Result<()> {
+        println!("getVendorParamCaps. len= {}", param_names.len());
+        Ok(())
     }
 }

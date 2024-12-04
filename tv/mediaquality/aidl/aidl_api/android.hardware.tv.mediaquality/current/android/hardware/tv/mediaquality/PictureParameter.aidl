@@ -39,4 +39,25 @@ union PictureParameter {
   int sharpness;
   int saturation;
   int hue;
+  int colorTunerBrightness;
+  int colorTunerSaturation;
+  int colorTunerHue;
+  int colorTunerRedOffset;
+  int colorTunerGreenOffset;
+  int colorTunerBlueOffset;
+  int colorTunerRedGain;
+  int colorTunerGreenGain;
+  int colorTunerBlueGain;
+  android.hardware.tv.mediaquality.QualityLevel noiseReduction;
+  android.hardware.tv.mediaquality.QualityLevel mpegNoiseReduction;
+  android.hardware.tv.mediaquality.QualityLevel fleshTone;
+  android.hardware.tv.mediaquality.QualityLevel deContour;
+  android.hardware.tv.mediaquality.QualityLevel dynamicLumaControl;
+  boolean filmMode;
+  boolean blueStretch;
+  boolean colorTune;
+  android.hardware.tv.mediaquality.ColorTemperature colorTemperature;
+  boolean globeDimming;
+  boolean autoPictureQualityEnabled;
+  boolean autoSuperResolutionEnabled;
 }
