@@ -46,4 +46,15 @@ oneway interface IPictureProfileAdjustmentListener {
      * @param caps the updated vendor capabilities.
      */
     void onVendorParamCapabilityChanged(long pictureProfileId, in VendorParamCapability[] caps);
+
+    /**
+     * Request the picture parameters by picture profile id. Check PictureParameters for its detail.
+     * This is called from the HAL to media quality framework.
+     *
+     * The requested picture parameters will get from IMediaQuality::sendPictureParameters called
+     * by the framework.
+     *
+     * @param pictureProfileId The PictureProfile id that associate with the PictureProfile.
+     */
+    void onRequestPictureParameters(long pictureProfileId);
 }
