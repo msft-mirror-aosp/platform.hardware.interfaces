@@ -39,7 +39,10 @@ oneway interface IPictureProfileAdjustmentListener {
     void onParamCapabilityChanged(long pictureProfileId, in ParamCapability[] caps);
 
     /**
-     * Notifies Media Quality Manager when venfor parameter capabilities changed.
+     * Notifies Media Quality Manager when vendor parameter capabilities changed.
+     *
+     * <p>This should be also called when the listener is registered to let the client know
+     * what vendor parameters are supported.
      *
      * @param pictureProfileId the ID of the profile used by the media content. -1 if there
      *                         is no associated profile.

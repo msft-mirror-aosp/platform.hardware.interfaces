@@ -52,6 +52,7 @@ using aidl::android::hardware::tv::mediaquality::SoundParameter;
 using aidl::android::hardware::tv::mediaquality::SoundParameters;
 using aidl::android::hardware::tv::mediaquality::SoundProfile;
 using aidl::android::hardware::tv::mediaquality::VendorParamCapability;
+using aidl::android::hardware::tv::mediaquality::VendorParameterIdentifier;
 using android::ProcessState;
 using android::String16;
 using ndk::ScopedAStatus;
