@@ -30,8 +30,6 @@ use android_hardware_tv_mediaquality::aidl::android::hardware::tv::mediaquality:
     SoundParameters::SoundParameters,
     VendorParamCapability::VendorParamCapability,
     VendorParameterIdentifier::VendorParameterIdentifier,
-    IPictureParametersCallback::IPictureParametersCallback,
-    ISoundParametersCallback::ISoundParametersCallback,
 };
 use binder::{Interface, Strong};
 use std::sync::{Arc, Mutex};
@@ -54,8 +52,6 @@ pub struct MediaQualityService {
             Arc<Mutex<Option<Strong<dyn ISoundProfileAdjustmentListener>>>>,
     picture_profile_changed_listener: Arc<Mutex<Option<Strong<dyn IPictureProfileChangedListener>>>>,
     sound_profile_changed_listener: Arc<Mutex<Option<Strong<dyn ISoundProfileChangedListener>>>>,
-    picture_parameters_callback: Arc<Mutex<Option<Strong<dyn IPictureParametersCallback>>>>,
-    sound_parameters_callback: Arc<Mutex<Option<Strong<dyn ISoundParametersCallback>>>>,
 }
 
 impl MediaQualityService {
@@ -77,8 +73,6 @@ impl MediaQualityService {
             sound_profile_adjustment_listener: Arc::new(Mutex::new(None)),
             picture_profile_changed_listener: Arc::new(Mutex::new(None)),
             sound_profile_changed_listener: Arc::new(Mutex::new(None)),
-            picture_parameters_callback: Arc::new(Mutex::new(None)),
-            sound_parameters_callback: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -269,24 +263,6 @@ impl IMediaQuality for MediaQualityService {
             _caps: &mut Vec<VendorParamCapability>
     ) -> binder::Result<()> {
         println!("getVendorParamCaps. len= {}", param_names.len());
-        Ok(())
-    }
-
-    fn setPictureParametersCallback(
-        &self,
-        callback: &Strong<dyn IPictureParametersCallback>
-    ) -> binder::Result<()> {
-        let mut cb = self.picture_parameters_callback.lock().unwrap();
-        *cb = Some(callback.clone());
-        Ok(())
-    }
-
-    fn setSoundParametersCallback(
-        &self,
-        callback: &Strong<dyn ISoundParametersCallback>
-    ) -> binder::Result<()> {
-        let mut cb = self.sound_parameters_callback.lock().unwrap();
-        *cb = Some(callback.clone());
         Ok(())
     }
 }

@@ -94,6 +94,8 @@ class PictureProfileAdjustmentListener : public BnPictureProfileAdjustmentListen
         return ScopedAStatus::ok();
     }
 
+    ScopedAStatus onRequestPictureParameters(int64_t) { return ScopedAStatus::ok(); }
+
   private:
     std::function<void(const PictureProfile& pictureProfile)> on_hal_picture_profile_adjust_;
 };
@@ -117,6 +119,8 @@ class SoundProfileAdjustmentListener : public BnSoundProfileAdjustmentListener {
                                                  const std::vector<VendorParamCapability>&) {
         return ScopedAStatus::ok();
     }
+
+    ScopedAStatus onRequestSoundParameters(int64_t) { return ScopedAStatus::ok(); }
 
   private:
     std::function<void(const SoundProfile& soundProfile)> on_hal_sound_profile_adjust_;
