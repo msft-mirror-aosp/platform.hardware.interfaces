@@ -60,4 +60,15 @@ union PictureParameter {
   boolean globeDimming;
   boolean autoPictureQualityEnabled;
   boolean autoSuperResolutionEnabled;
+  android.hardware.tv.mediaquality.ColorRange levelRange;
+  boolean gamutMapping;
+  boolean pcMode;
+  boolean lowLatency;
+  boolean vrr;
+  boolean cvrr;
+  android.hardware.tv.mediaquality.ColorRange hdmiRgbRange;
+  android.hardware.tv.mediaquality.ColorSpace colorSpace;
+  int panelInitMaxLuminceNits;
+  boolean panelInitMaxLuminceValid;
+  android.hardware.tv.mediaquality.Gamma gamma;
 }
