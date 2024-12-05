@@ -29,7 +29,7 @@ cc_defaults {
 cc_defaults {
     name: "VehicleHalInterfaceDefaults",
     static_libs: [
-        "android.hardware.automotive.vehicle-V3-ndk",
+        "android.hardware.automotive.vehicle-V4-ndk",
         "android.hardware.automotive.vehicle.property-V4-ndk",
     ],
 }
@@ -45,7 +45,7 @@ rust_defaults {
 aidl_interface_defaults {
     name: "android.hardware.automotive.vehicle-latest-defaults",
     imports: [
-        "android.hardware.automotive.vehicle-V3",
+        "android.hardware.automotive.vehicle-V4",
         "android.hardware.automotive.vehicle.property-V4",
     ],
 }
