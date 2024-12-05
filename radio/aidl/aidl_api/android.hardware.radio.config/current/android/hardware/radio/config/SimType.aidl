@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,16 +33,9 @@
 
 package android.hardware.radio.config;
 /* @hide */
-@VintfStability
-interface IRadioConfigResponse {
-  oneway void getHalDeviceCapabilitiesResponse(in android.hardware.radio.RadioResponseInfo info, in boolean modemReducedFeatureSet1);
-  oneway void getNumOfLiveModemsResponse(in android.hardware.radio.RadioResponseInfo info, in byte numOfLiveModems);
-  oneway void getPhoneCapabilityResponse(in android.hardware.radio.RadioResponseInfo info, in android.hardware.radio.config.PhoneCapability phoneCapability);
-  oneway void getSimSlotsStatusResponse(in android.hardware.radio.RadioResponseInfo info, in android.hardware.radio.config.SimSlotStatus[] slotStatus);
-  oneway void setNumOfLiveModemsResponse(in android.hardware.radio.RadioResponseInfo info);
-  oneway void setPreferredDataModemResponse(in android.hardware.radio.RadioResponseInfo info);
-  oneway void setSimSlotsMappingResponse(in android.hardware.radio.RadioResponseInfo info);
-  oneway void getSimultaneousCallingSupportResponse(in android.hardware.radio.RadioResponseInfo info, in int[] enabledLogicalSlots);
-  oneway void getSimTypeInfoResponse(in android.hardware.radio.RadioResponseInfo info, in android.hardware.radio.config.SimTypeInfo[] simTypeInfo);
-  oneway void setSimTypeResponse(in android.hardware.radio.RadioResponseInfo info);
+@Backing(type="int") @JavaDerive(toString=true) @VintfStability
+enum SimType {
+  UNKNOWN = 0,
+  PHYSICAL = (1 << 0) /* 1 */,
+  ESIM = (1 << 1) /* 2 */,
 }
