@@ -70,6 +70,12 @@ class PropertyCallback final : public BnVehicleCallback {
         return ScopedAStatus::ok();
     }
 
+    ScopedAStatus onSupportedValueChange(
+            const std::vector<::aidl::android::hardware::automotive::vehicle::PropIdAreaId>&)
+            override {
+        return ScopedAStatus::ok();
+    }
+
     // Test functions.
     std::list<VehiclePropValue> getEvents() {
         std::scoped_lock<std::mutex> lockGuard(mLock);

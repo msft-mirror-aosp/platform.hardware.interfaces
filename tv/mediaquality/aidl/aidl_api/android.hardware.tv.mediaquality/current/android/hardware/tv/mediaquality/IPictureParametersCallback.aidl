@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,30 +31,8 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.wifi;
+package android.hardware.tv.mediaquality;
 @VintfStability
-parcelable NanCapabilities {
-  int maxConcurrentClusters;
-  int maxPublishes;
-  int maxSubscribes;
-  int maxServiceNameLen;
-  int maxMatchFilterLen;
-  int maxTotalMatchFilterLen;
-  int maxServiceSpecificInfoLen;
-  int maxExtendedServiceSpecificInfoLen;
-  int maxNdiInterfaces;
-  int maxNdpSessions;
-  int maxAppInfoLen;
-  int maxQueuedTransmitFollowupMsgs;
-  int maxSubscribeInterfaceAddresses;
-  int supportedCipherSuites;
-  boolean instantCommunicationModeSupportFlag;
-  boolean supports6g;
-  boolean supportsHe;
-  boolean supportsPairing;
-  boolean supportsSetClusterId;
-  boolean supportsSuspension;
-  boolean supportsPeriodicRanging;
-  android.hardware.wifi.RttBw maxSupportedBandwidth;
-  int maxNumRxChainsSupported;
+interface IPictureParametersCallback {
+  android.hardware.tv.mediaquality.PictureParameters getPictureParameters(long pictureProfileId);
 }
