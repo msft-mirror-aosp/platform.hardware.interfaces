@@ -14,16 +14,25 @@ aidl_interface {
     srcs: [
         "android/hardware/tv/mediaquality/*.aidl",
     ],
+    imports: [
+        "android.hardware.graphics.common-V5",
+    ],
     stability: "vintf",
     backend: {
         java: {
-            sdk_version: "module_current",
+            enabled: true,
+            platform_apis: true,
         },
         ndk: {
             enabled: true,
+            min_sdk_version: "31",
         },
         rust: {
             enabled: true,
+            min_sdk_version: "31",
+        },
+        cpp: {
+            enabled: false,
         },
     },
     frozen: false,
