@@ -93,6 +93,11 @@
                 "description": "Multiple EV port locations\nImplement this property if the vehicle has multiple EV ports. Port locations are defined in PortLocationType. For example, a car has one port in front left and one port in rear left: int32Values[0] = PortLocationType::FRONT_LEFT int32Values[1] = PortLocationType::REAR_LEFT\nIf only one port exists on the vehicle, this property's value should list just one element. See INFO_EV_PORT_LOCATION for describing just one port location."
             },
             {
+                "name": "INFO_MODEL_TRIM",
+                "value": 286261517,
+                "description": "Public trim name of the vehicle.\nThis property must communicate the vehicle's public trim name.\nFor example, say an OEM manufactures two different versions of a vehicle model: \"makeName modelName\" and \"makeName modelName Sport\" This property must be empty for the first vehicle (i.e. base model), and set to \"Sport\" for the second vehicle."
+            },
+            {
                 "name": "PERF_ODOMETER",
                 "value": 291504644,
                 "description": "Current odometer value of the vehicle"

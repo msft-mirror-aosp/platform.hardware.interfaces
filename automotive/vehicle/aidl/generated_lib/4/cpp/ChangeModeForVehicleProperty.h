@@ -49,6 +49,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyChangeMode> ChangeModeForVehi
         {VehicleProperty::INFO_DRIVER_SEAT, VehiclePropertyChangeMode::STATIC},
         {VehicleProperty::INFO_EXTERIOR_DIMENSIONS, VehiclePropertyChangeMode::STATIC},
         {VehicleProperty::INFO_MULTI_EV_PORT_LOCATIONS, VehiclePropertyChangeMode::STATIC},
+        {VehicleProperty::INFO_MODEL_TRIM, VehiclePropertyChangeMode::STATIC},
         {VehicleProperty::PERF_ODOMETER, VehiclePropertyChangeMode::CONTINUOUS},
         {VehicleProperty::PERF_VEHICLE_SPEED, VehiclePropertyChangeMode::CONTINUOUS},
         {VehicleProperty::PERF_VEHICLE_SPEED_DISPLAY, VehiclePropertyChangeMode::CONTINUOUS},
