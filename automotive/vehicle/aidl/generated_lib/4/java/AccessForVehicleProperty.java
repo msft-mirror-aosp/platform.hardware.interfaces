@@ -50,6 +50,7 @@ public final class AccessForVehicleProperty {
         Map.entry(VehicleProperty.PERF_STEERING_ANGLE, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.PERF_REAR_STEERING_ANGLE, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.INSTANTANEOUS_FUEL_ECONOMY, VehiclePropertyAccess.READ),
+        Map.entry(VehicleProperty.INSTANTANEOUS_EV_EFFICIENCY, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.ENGINE_COOLANT_TEMP, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.ENGINE_OIL_LEVEL, VehiclePropertyAccess.READ),
         Map.entry(VehicleProperty.ENGINE_OIL_TEMP, VehiclePropertyAccess.READ),

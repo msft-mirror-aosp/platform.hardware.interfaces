@@ -57,6 +57,7 @@ std::unordered_map<VehicleProperty, VehiclePropertyAccess> AccessForVehiclePrope
         {VehicleProperty::PERF_STEERING_ANGLE, VehiclePropertyAccess::READ},
         {VehicleProperty::PERF_REAR_STEERING_ANGLE, VehiclePropertyAccess::READ},
         {VehicleProperty::INSTANTANEOUS_FUEL_ECONOMY, VehiclePropertyAccess::READ},
+        {VehicleProperty::INSTANTANEOUS_EV_EFFICIENCY, VehiclePropertyAccess::READ},
         {VehicleProperty::ENGINE_COOLANT_TEMP, VehiclePropertyAccess::READ},
         {VehicleProperty::ENGINE_OIL_LEVEL, VehiclePropertyAccess::READ},
         {VehicleProperty::ENGINE_OIL_TEMP, VehiclePropertyAccess::READ},

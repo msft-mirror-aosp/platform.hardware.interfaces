@@ -56,6 +56,7 @@ enum VehicleProperty {
   PERF_STEERING_ANGLE = (((0x0209 + 0x10000000) + 0x01000000) + 0x00600000) /* 291504649 */,
   PERF_REAR_STEERING_ANGLE = (((0x0210 + 0x10000000) + 0x01000000) + 0x00600000) /* 291504656 */,
   INSTANTANEOUS_FUEL_ECONOMY = (((0x0211 + android.hardware.automotive.vehicle.VehiclePropertyGroup.SYSTEM) + android.hardware.automotive.vehicle.VehicleArea.GLOBAL) + android.hardware.automotive.vehicle.VehiclePropertyType.FLOAT) /* 291504657 */,
+  INSTANTANEOUS_EV_EFFICIENCY = (((0x0212 + android.hardware.automotive.vehicle.VehiclePropertyGroup.SYSTEM) + android.hardware.automotive.vehicle.VehicleArea.GLOBAL) + android.hardware.automotive.vehicle.VehiclePropertyType.FLOAT) /* 291504658 */,
   ENGINE_COOLANT_TEMP = (((0x0301 + 0x10000000) + 0x01000000) + 0x00600000) /* 291504897 */,
   ENGINE_OIL_LEVEL = (((0x0303 + 0x10000000) + 0x01000000) + 0x00400000) /* 289407747 */,
   ENGINE_OIL_TEMP = (((0x0304 + 0x10000000) + 0x01000000) + 0x00600000) /* 291504900 */,

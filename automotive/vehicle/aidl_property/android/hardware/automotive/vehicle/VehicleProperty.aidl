@@ -358,6 +358,22 @@ enum VehicleProperty {
     INSTANTANEOUS_FUEL_ECONOMY =
             0x0211 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
     /**
+     * Instantaneous EV efficiency in km/kWh.
+     *
+     * This property must communicate the instantaneous EV battery efficiency of the vehicle in
+     * units of km/kWh. The property's value is independent of the DISTANCE_DISPLAY_UNITS and
+     * EV_BATTERY_DISPLAY_UNITS properties i.e. this property must always communicate the value in
+     * km/kWh.
+     *
+     * For the fuel version of this property, see INSTANTANEOUS_FUEL_ECONOMY.
+     *
+     * @change_mode VehiclePropertyChangeMode.CONTINUOUS
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    INSTANTANEOUS_EV_EFFICIENCY =
+            0x0212 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
+    /**
      * Temperature of engine coolant
      *
      * @change_mode VehiclePropertyChangeMode.CONTINUOUS
