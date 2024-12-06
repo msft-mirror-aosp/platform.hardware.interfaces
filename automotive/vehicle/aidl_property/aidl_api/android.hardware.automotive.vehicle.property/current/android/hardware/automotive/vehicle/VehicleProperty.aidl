@@ -48,6 +48,8 @@ enum VehicleProperty {
   INFO_DRIVER_SEAT = (((0x010A + 0x10000000) + 0x05000000) + 0x00400000) /* 356516106 */,
   INFO_EXTERIOR_DIMENSIONS = (((0x010B + 0x10000000) + 0x01000000) + 0x00410000) /* 289472779 */,
   INFO_MULTI_EV_PORT_LOCATIONS = (((0x010C + 0x10000000) + 0x01000000) + 0x00410000) /* 289472780 */,
+  INFO_MODEL_TRIM = (((0x010D + android.hardware.automotive.vehicle.VehiclePropertyGroup.SYSTEM) + android.hardware.automotive.vehicle.VehicleArea.GLOBAL) + android.hardware.automotive.vehicle.VehiclePropertyType.STRING) /* 286261517 */,
+  INFO_VEHICLE_SIZE_CLASS = (((0x010E + android.hardware.automotive.vehicle.VehiclePropertyGroup.SYSTEM) + android.hardware.automotive.vehicle.VehicleArea.GLOBAL) + android.hardware.automotive.vehicle.VehiclePropertyType.INT32_VEC) /* 289472782 */,
   PERF_ODOMETER = (((0x0204 + 0x10000000) + 0x01000000) + 0x00600000) /* 291504644 */,
   PERF_VEHICLE_SPEED = (((0x0207 + 0x10000000) + 0x01000000) + 0x00600000) /* 291504647 */,
   PERF_VEHICLE_SPEED_DISPLAY = (((0x0208 + 0x10000000) + 0x01000000) + 0x00600000) /* 291504648 */,

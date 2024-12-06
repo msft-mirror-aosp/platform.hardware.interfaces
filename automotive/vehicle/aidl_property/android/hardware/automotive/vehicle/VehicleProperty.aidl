@@ -232,6 +232,45 @@ enum VehicleProperty {
     INFO_MULTI_EV_PORT_LOCATIONS = 0x010C + 0x10000000 + 0x01000000
             + 0x00410000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:INT32_VEC
     /**
+     * Public trim name of the vehicle.
+     *
+     * This property must communicate the vehicle's public trim name.
+     *
+     * For example, say an OEM manufactures two different versions of a vehicle model:
+     *   "makeName modelName" and
+     *   "makeName modelName Sport"
+     * This property must be empty for the first vehicle (i.e. base model), and set to "Sport" for
+     * the second vehicle.
+     *
+     * @change_mode VehiclePropertyChangeMode.STATIC
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    INFO_MODEL_TRIM =
+            0x010D + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.STRING,
+    /**
+     * Vehicle Size Class.
+     *
+     * This property must communicate an integer array that contains the size classifications
+     * followed by the vehicle as enumerated in VehicleSizeClass.aidl. If the vehicle follows a
+     * single standard, then the array size of the property's value should be 1. If the vehicle
+     * follows multiple standards that the OEM wants to communicate, this may be communicated as
+     * additional values in the array.
+     *
+     * For example, suppose a vehicle model follows the VehicleSizeClass.EU_A_SEGMENT standard in
+     * the EU and the VehicleSizeClass.JPN_KEI standard in Japan. In this scenario this property
+     * must return an intArray = [VehicleSizeClass.EU_A_SEGMENT, VehicleSizeClass.JPN_KEI]. If this
+     * vehicle only followed the VehicleSizeClass.EU_A_SEGMENT standard, then we expect intArray =
+     * [VehicleSizeClass.EU_A_SEGMENT].
+     *
+     * @change_mode VehiclePropertyChangeMode.STATIC
+     * @access VehiclePropertyAccess.READ
+     * @data_enum VehicleSizeClass
+     * @version 4
+     */
+    INFO_VEHICLE_SIZE_CLASS = 0x010E + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL
+            + VehiclePropertyType.INT32_VEC,
+    /**
      * Current odometer value of the vehicle
      *
      * @change_mode VehiclePropertyChangeMode.CONTINUOUS
@@ -525,16 +564,27 @@ enum VehicleProperty {
     /**
      * Tire pressure
      *
-     * Each tires is identified by its areaConfig.areaId config and their
-     * minFloatValue/maxFloatValue are used to store OEM recommended pressure
-     * range. The minFloatValue and maxFloatValue in VehicleAreaConfig must be defined.
-     * The minFloatValue in the areaConfig data represents the lower bound of
-     * the recommended tire pressure.
-     * The maxFloatValue in the areaConfig data represents the upper bound of
-     * the recommended tire pressure.
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for all areas.
+     *
+     * {@code MinMaxSupportedValueResult.minSupportedValue} represents the lower bound of the
+     * recommended tire pressure for the tire at the specified area ID.
+     *
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} represents the upper bound of the
+     * recommended tire pressure for the tire at the specified area ID.
+     *
+     * For example, if the recommended tire pressure of left_front tire is from 200.0 KILOPASCAL to
+     * 240.0 KILOPASCAL, {@code getMinMaxSupportedValue} for
+     * [propId=TIRE_PRESSURE, areaId=VehicleAreaWheel::LEFT_FRONT] must return a
+     * {@code MinMaxSupportedValueResult} with OK status, 200.0 as minSupportedValue, 240.0 as
+     * maxSupportedValue.
+     *
+     * For backward compatibility, minFloatValue and maxFloatValue in {@code VehicleAreaConfig}
+     * must be set to the same as minSupportedValue and maxSupportedValue at boot time.
+     *
+     * Each tire is identified by its areaConfig.areaId config.
+     *
      * For example:
-     * The following areaConfig indicates the recommended tire pressure
-     * of left_front tire is from 200.0 KILOPASCAL to 240.0 KILOPASCAL.
      * .areaConfigs = {
      *      VehicleAreaConfig {
      *          .areaId = VehicleAreaWheel::LEFT_FRONT,
@@ -545,6 +595,7 @@ enum VehicleProperty {
      *
      * @change_mode VehiclePropertyChangeMode.CONTINUOUS
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @unit VehicleUnit.KILOPASCAL
      * @version 2
      */
@@ -589,8 +640,12 @@ enum VehicleProperty {
      * of the vehicle as described through the ImpactSensorLocation enum. As a bit flag property,
      * this property can be set to multiple ORed together values of the enum when necessary.
      *
-     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
-     * unless all bit flags of ImpactSensorLocation are supported.
+     * For the global area ID (0), {@code getSupportedValuesList}
+     * must return a {@code SupportedValuesListResult} that contains supported values unless all bit
+     * flags of ImpactSensorLocation are supported.
+     *
+     * For backward compatibility, if {@code SupportedValuesListResult} is defined,
+     * {@code VehicleAreaConfig#supportedEnumValues} must be set to the same values.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -604,18 +659,29 @@ enum VehicleProperty {
      *
      * This is the gear selected by the user.
      *
-     * Values in the config data must represent the list of supported gears for this vehicle. For
-     * example, config data for an automatic transmission must contain {GEAR_NEUTRAL, GEAR_REVERSE,
-     * GEAR_PARK, GEAR_DRIVE, GEAR_1, GEAR_2,...} and for manual transmission the list must be
-     * {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_1, GEAR_2,...}
+     * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
+     * (0) must be {@code true}.
+     *
+     * {@code getSupportedValuesList} for [GEAR_SELECTION, areaId=0] must return a
+     * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList}.
+     *
+     * The supportedValues must represent the list of supported gears for this vehicle. For example,
+     * for an automatic transmission, the list can be {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_PARK,
+     * GEAR_DRIVE, GEAR_1, GEAR_2,...} and for manual transmission it can be {GEAR_NEUTRAL,
+     * GEAR_REVERSE, GEAR_1, GEAR_2,...}.
      *
      * In the case of an automatic transmission vehicle that allows the driver to select specific
      * gears on demand (i.e. "manual mode"), GEAR_SELECTION's value must be set to the specific gear
      * selected by the driver instead of simply GEAR_DRIVE.
      *
+     * For backward compatibility, config array for this property must be a list of values
+     * same as the supported values at boot-time.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleGear
+     * @require_supported_values_list
+     * @legacy_supported_values_in_config
      * @version 2
      */
     GEAR_SELECTION = 0x0400 + 0x10000000 + 0x01000000
@@ -626,16 +692,27 @@ enum VehicleProperty {
      * the current gear will be one of GEAR_1, GEAR_2 etc, which reflects
      * the actual gear the transmission is currently running in.
      *
-     * Values in the config data must represent the list of supported gears
-     * for this vehicle.  For example, config data for an automatic transmission
-     * must contain {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_PARK, GEAR_1, GEAR_2,...}
-     * and for manual transmission the list must be
+     * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
+     * (0) must be {@code true}.
+     *
+     * {@code getSupportedValuesList} for [GEAR_SELECTION, areaId=0] must return a
+     * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList}.
+     *
+     * The supported values list must represent the list of supported gears
+     * for this vehicle.  For example, for an automatic transmission, this list can be
+     * {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_PARK, GEAR_1, GEAR_2,...}
+     * and for manual transmission the list can be
      * {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_1, GEAR_2,...}. This list need not be the
      * same as that of the supported gears reported in GEAR_SELECTION.
+     *
+     * For backward compatibility, config array for this property must be a list of values
+     * same as the supported values at boot-time.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleGear
+     * @require_supported_values_list
+     * @legacy_supported_values_in_config
      * @version 2
      */
     CURRENT_GEAR = 0x0401 + 0x10000000 + 0x01000000
@@ -673,11 +750,19 @@ enum VehicleProperty {
     /**
      * Regenerative braking level of a electronic vehicle
      *
-     * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined. All values between
-     * minInt32Value and maxInt32Value must be supported. The minInt32Value must be 0.
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for global area ID(0)
      *
-     * The maxInt32Value indicates the setting for the maximum amount of energy regenerated from
-     * braking. The minInt32Value indicates the setting for no regenerative braking.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} must be 0.
+     *
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the setting for the maximum
+     * amount of energy regenerated from braking. The minSupportedValue indicates the setting for no
+     * regenerative braking.
+     *
+     * All values between min and max supported value must be supported.
+     *
+     * For backward compatibility, minInt32Value and maxInt32Value in {@code VehicleAreaConfig}
+     * must be set to the same as minSupportedValue and maxSupportedValue at boot time.
      *
      * This property is a more granular form of EV_REGENERATIVE_BRAKING_STATE. It allows the user to
      * set a more specific level of regenerative braking if the states in EvRegenerativeBrakingState
@@ -689,6 +774,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     EV_BRAKE_REGENERATION_LEVEL =
@@ -774,8 +860,12 @@ enum VehicleProperty {
     /**
      * Represents property for the current stopping mode of the vehicle.
      *
-     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues must be defined unless
-     * all enum values of EvStoppingMode are supported.
+     * For the global area ID (0), {@code getSupportedValuesList}
+     * must return a {@code SupportedValuesListResult} that contains supported values unless all
+     * enum values of EvStoppingMode are supported.
+     *
+     * For backward compatibility, if {@code SupportedValuesListResult} is defined,
+     * {@code VehicleAreaConfig#supportedEnumValues} must be set to the same values.
      *
      * The EvStoppingMode enum may be extended to include more states in the future.
      *
@@ -819,9 +909,13 @@ enum VehicleProperty {
      * ElectronicStabilityControlState or ErrorState. It must not surface errors through StatusCode
      * and must use the supported error states instead.
      *
-     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
-     * unless all states of both ElectronicStabilityControlState (including OTHER, which is not
+     * For the global area ID (0), {@code getSupportedValuesList}
+     * must return a {@code SupportedValuesListResult} that contains supported values unless all
+     * states of both ElectronicStabilityControlState (including OTHER, which is not
      * recommended) and ErrorState are supported.
+     *
+     * For backward compatibility, if {@code SupportedValuesListResult} is defined,
+     * {@code VehicleAreaConfig#supportedEnumValues} must be set to the same values.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -903,6 +997,10 @@ enum VehicleProperty {
      *
      * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
      * implement it as VehiclePropertyAccess.READ only.
+     *
+     * The supported hvac fan direction is exposed through {@code HVAC_FAN_DIRECTION_AVAILABLE}
+     * property. Caller should not call {@code getSupportedValuesList}, or use
+     * {@code VehicleAreaConfig#supportedEnumValues}.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
@@ -1544,8 +1642,15 @@ enum VehicleProperty {
      *
      * Indicates type of units the car is using to display speed to user. Eg. m/s, km/h, or mph.
      *
-     * VehiclePropConfig.configArray is used to indicate the supported speed display units.
-     * Pressure units are defined in VehicleUnit.
+     * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
+     * (0) must be {@code true}.
+     *
+     * {@code getSupportedValuesLists} for [VEHICLE_SPEED_DISPLAY_UNITS, areaId=0] must return a
+     * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList},
+     * e.g. [METER_PER_SEC, MILES_PER_HOUR, KILOMETERS_PER_HOUR].
+     *
+     * For backward compatibility, config array for this property must contain the same values as
+     * supported values at boot time.
      * For example: configArray[0] = METER_PER_SEC
      *              configArray[1] = MILES_PER_HOUR
      *              configArray[2] = KILOMETERS_PER_HOUR
@@ -1559,6 +1664,9 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @data_enum VehicleUnit
+     * @require_supported_values_list
+     * @legacy_supported_values_in_config
      * @version 2
      */
     VEHICLE_SPEED_DISPLAY_UNITS = 0x0605 + 0x10000000 + 0x01000000
