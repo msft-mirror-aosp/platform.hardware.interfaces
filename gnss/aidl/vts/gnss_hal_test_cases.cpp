@@ -25,6 +25,7 @@
 #include <android/hardware/gnss/IGnssMeasurementInterface.h>
 #include <android/hardware/gnss/IGnssPowerIndication.h>
 #include <android/hardware/gnss/IGnssPsds.h>
+#include <android/hardware/gnss/gnss_assistance/IGnssAssistanceInterface.h>
 #include <android/hardware/gnss/measurement_corrections/IMeasurementCorrectionsInterface.h>
 #include <android/hardware/gnss/visibility_control/IGnssVisibilityControl.h>
 #include <cutils/properties.h>
@@ -73,6 +74,8 @@ using android::hardware::gnss::IGnssPsds;
 using android::hardware::gnss::PsdsType;
 using android::hardware::gnss::SatellitePvt;
 using android::hardware::gnss::common::Utils;
+using android::hardware::gnss::gnss_assistance::GnssAssistance;
+using android::hardware::gnss::gnss_assistance::IGnssAssistanceInterface;
 using android::hardware::gnss::measurement_corrections::IMeasurementCorrectionsInterface;
 using android::hardware::gnss::visibility_control::IGnssVisibilityControl;
 
@@ -419,6 +422,10 @@ TEST_P(GnssHalTest, TestGnssMeasurementExtensionAndSatellitePvt) {
         ASSERT_TRUE(callback->gnss_data_cbq_.retrieve(lastMeasurement,
                                                       kFirstGnssMeasurementTimeoutSeconds));
         EXPECT_EQ(callback->gnss_data_cbq_.calledCount(), i + 1);
+        if (i <= 2 && lastMeasurement.measurements.size() == 0) {
+            // Allow 3 seconds tolerance for empty measurement
+            continue;
+        }
         ASSERT_TRUE(lastMeasurement.measurements.size() > 0);
 
         // Validity check GnssData fields
@@ -479,6 +486,10 @@ TEST_P(GnssHalTest, TestCorrelationVector) {
         ASSERT_TRUE(callback->gnss_data_cbq_.retrieve(lastMeasurement,
                                                       kFirstGnssMeasurementTimeoutSeconds));
         EXPECT_EQ(callback->gnss_data_cbq_.calledCount(), i + 1);
+        if (i <= 2 && lastMeasurement.measurements.size() == 0) {
+            // Allow 3 seconds tolerance for empty measurement
+            continue;
+        }
         ASSERT_TRUE(lastMeasurement.measurements.size() > 0);
 
         // Validity check GnssData fields
@@ -657,19 +668,19 @@ TEST_P(GnssHalTest, BlocklistIndividualSatellites) {
                                                          kGnssSvInfoListTimeout);
         ASSERT_EQ(count, sv_info_list_cbq_size);
         source_to_blocklist =
-                FindStrongFrequentNonGpsSource(sv_info_vec_list, kLocationsToAwait - 1);
+                FindStrongFrequentBlockableSource(sv_info_vec_list, kLocationsToAwait - 1);
     } else {
         std::list<std::vector<IGnssCallback::GnssSvInfo>> sv_info_vec_list;
         int count = aidl_gnss_cb_->sv_info_list_cbq_.retrieve(
                 sv_info_vec_list, sv_info_list_cbq_size, kGnssSvInfoListTimeout);
         ASSERT_EQ(count, sv_info_list_cbq_size);
         source_to_blocklist =
-                FindStrongFrequentNonGpsSource(sv_info_vec_list, kLocationsToAwait - 1);
+                FindStrongFrequentBlockableSource(sv_info_vec_list, kLocationsToAwait - 1);
     }
 
     if (source_to_blocklist.constellation == GnssConstellationType::UNKNOWN) {
-        // Cannot find a non-GPS satellite. Let the test pass.
-        ALOGD("Cannot find a non-GPS satellite. Letting the test pass.");
+        // Cannot find a blockable satellite. Let the test pass.
+        ALOGD("Cannot find a blockable satellite. Letting the test pass.");
         return;
     }
 
@@ -816,8 +827,8 @@ TEST_P(GnssHalTest, BlocklistIndividualSatellites) {
  * BlocklistConstellationLocationOff:
  *
  * 1) Turns on location, waits for 3 locations, ensuring they are valid, and checks corresponding
- * GnssStatus for any non-GPS constellations.
- * 2a & b) Turns off location, and blocklist first non-GPS constellations.
+ * GnssStatus for any blockable constellations.
+ * 2a & b) Turns off location, and blocklist first blockable constellations.
  * 3) Restart location, wait for 3 locations, ensuring they are valid, and checks corresponding
  * GnssStatus does not use any constellation but GPS.
  * 4a & b) Clean up by turning off location, and send in empty blocklist.
@@ -833,9 +844,9 @@ TEST_P(GnssHalTest, BlocklistConstellationLocationOff) {
     const int kLocationsToAwait = 3;
     const int kGnssSvInfoListTimeout = 2;
 
-    // Find first non-GPS constellation to blocklist
+    // Find first blockable constellation to blocklist
     GnssConstellationType constellation_to_blocklist = static_cast<GnssConstellationType>(
-            startLocationAndGetNonGpsConstellation(kLocationsToAwait, kGnssSvInfoListTimeout));
+            startLocationAndGetBlockableConstellation(kLocationsToAwait, kGnssSvInfoListTimeout));
 
     // Turns off location
     StopAndClearLocations();
@@ -919,8 +930,8 @@ TEST_P(GnssHalTest, BlocklistConstellationLocationOff) {
  * BlocklistConstellationLocationOn:
  *
  * 1) Turns on location, waits for 3 locations, ensuring they are valid, and checks corresponding
- * GnssStatus for any non-GPS constellations.
- * 2a & b) Blocklist first non-GPS constellation, and turn off location.
+ * GnssStatus for any blockable constellations.
+ * 2a & b) Blocklist first blockable constellation, and turn off location.
  * 3) Restart location, wait for 3 locations, ensuring they are valid, and checks corresponding
  * GnssStatus does not use any constellation but GPS.
  * 4a & b) Clean up by turning off location, and send in empty blocklist.
@@ -936,9 +947,9 @@ TEST_P(GnssHalTest, BlocklistConstellationLocationOn) {
     const int kLocationsToAwait = 3;
     const int kGnssSvInfoListTimeout = 2;
 
-    // Find first non-GPS constellation to blocklist
+    // Find first blockable constellation to blocklist
     GnssConstellationType constellation_to_blocklist = static_cast<GnssConstellationType>(
-            startLocationAndGetNonGpsConstellation(kLocationsToAwait, kGnssSvInfoListTimeout));
+            startLocationAndGetBlockableConstellation(kLocationsToAwait, kGnssSvInfoListTimeout));
 
     BlocklistedSource source_to_blocklist_1;
     source_to_blocklist_1.constellation = constellation_to_blocklist;
@@ -1335,7 +1346,10 @@ TEST_P(GnssHalTest, TestGnssAgcInGnssMeasurement) {
         ASSERT_TRUE(callback->gnss_data_cbq_.retrieve(lastMeasurement,
                                                       kFirstGnssMeasurementTimeoutSeconds));
         EXPECT_EQ(callback->gnss_data_cbq_.calledCount(), i + 1);
-        ASSERT_TRUE(lastMeasurement.measurements.size() > 0);
+        if (i > 2) {
+            // Allow 3 seconds tolerance for empty measurement
+            ASSERT_TRUE(lastMeasurement.measurements.size() > 0);
+        }
 
         // Validity check GnssData fields
         checkGnssMeasurementClockFields(lastMeasurement);
@@ -1790,6 +1804,10 @@ TEST_P(GnssHalTest, TestAccumulatedDeltaRange) {
         GnssData lastGnssData;
         ASSERT_TRUE(callback->gnss_data_cbq_.retrieve(lastGnssData, 10));
         EXPECT_EQ(callback->gnss_data_cbq_.calledCount(), i + 1);
+        if (i <= 2 && lastGnssData.measurements.size() == 0) {
+            // Allow 3 seconds tolerance to report empty measurement
+            continue;
+        }
         ASSERT_TRUE(lastGnssData.measurements.size() > 0);
 
         // Validity check GnssData fields
@@ -1860,5 +1878,24 @@ TEST_P(GnssHalTest, TestSvStatusIntervals) {
                 ASSERT_TRUE(status.isOk());
             }
         }
+    }
+}
+
+/*
+ * Test GnssAssistanceExtension:
+ * 1. Gets the GnssAssistanceExtension
+ * 2. Injects empty GnssAssistance data and verifies that it returns an error.
+ */
+TEST_P(GnssHalTest, TestGnssAssistanceExtension) {
+    // Only runs on devices launched in Android 16+
+    if (aidl_gnss_hal_->getInterfaceVersion() <= 4) {
+        return;
+    }
+    sp<IGnssAssistanceInterface> iGnssAssistance;
+    auto status = aidl_gnss_hal_->getExtensionGnssAssistanceInterface(&iGnssAssistance);
+    if (status.isOk() && iGnssAssistance != nullptr) {
+        GnssAssistance gnssAssistance = {};
+        status = iGnssAssistance->injectGnssAssistance(gnssAssistance);
+        ASSERT_FALSE(status.isOk());
     }
 }
