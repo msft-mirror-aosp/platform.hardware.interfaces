@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,8 +31,28 @@
 // with such a backward incompatible change, it has a high risk of breaking
 // later when a module using the interface is updated, e.g., Mainline modules.
 
-package android.hardware.tv.mediaquality;
+package android.hardware.security.see.hdcp;
 @VintfStability
-interface IPictureParametersCallback {
-  android.hardware.tv.mediaquality.PictureParameters getPictureParameters(long pictureProfileId);
+interface IHdcpAuthControl {
+  android.hardware.drm.HdcpLevels getHdcpLevels();
+  void trySetHdcpLevel(in android.hardware.drm.HdcpLevel level);
+  android.hardware.security.see.hdcp.IHdcpAuthControl.PendingHdcpLevelResult getPendingHdcpLevel();
+  parcelable HalErrorCode {
+    const int NO_ERROR = 0;
+    const int GENERIC_ERROR = (-1) /* -1 */;
+    const int BAD_STATE = (-2) /* -2 */;
+    const int UNSUPPORTED = (-3) /* -3 */;
+    const int SERIALIZATION_ERROR = (-4) /* -4 */;
+    const int ALLOCATION_ERROR = (-5) /* -5 */;
+    const int BAD_PARAMETER = (-7) /* -7 */;
+    const int UNAUTHORIZED = (-8) /* -8 */;
+  }
+  parcelable PendingHdcpLevelResult {
+    android.hardware.security.see.hdcp.IHdcpAuthControl.PendingHdcpLevelResult.Status status;
+    android.hardware.drm.HdcpLevel level;
+    enum Status {
+      NONE,
+      PENDING,
+    }
+  }
 }
