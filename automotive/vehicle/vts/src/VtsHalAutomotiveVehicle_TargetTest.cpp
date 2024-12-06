@@ -1376,6 +1376,30 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyLowSpeedAutomaticEmergencyBrakin
                    VehiclePropertyGroup::SYSTEM, VehicleArea::GLOBAL, VehiclePropertyType::INT32);
 }
 
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyInfoModelTrimConfig) {
+    verifyProperty(VehicleProperty::INFO_MODEL_TRIM, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::STATIC, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::STRING);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyInfoVehicleSizeClassConfig) {
+    verifyProperty(VehicleProperty::INFO_VEHICLE_SIZE_CLASS, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::STATIC, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::INT32_VEC);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyTurnSignalLightStateConfig) {
+    verifyProperty(VehicleProperty::TURN_SIGNAL_LIGHT_STATE, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyTurnSignalSwitchConfig) {
+    verifyProperty(VehicleProperty::TURN_SIGNAL_SWITCH, VehiclePropertyAccess::READ_WRITE,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
 bool VtsHalAutomotiveVehicleTargetTest::checkIsSupported(int32_t propertyId) {
     auto result = mVhalClient->getPropConfigs({propertyId});
     return result.ok();
