@@ -49,6 +49,8 @@ std::unordered_map<VehicleProperty, VehiclePropertyAccess> AccessForVehiclePrope
         {VehicleProperty::INFO_DRIVER_SEAT, VehiclePropertyAccess::READ},
         {VehicleProperty::INFO_EXTERIOR_DIMENSIONS, VehiclePropertyAccess::READ},
         {VehicleProperty::INFO_MULTI_EV_PORT_LOCATIONS, VehiclePropertyAccess::READ},
+        {VehicleProperty::INFO_MODEL_TRIM, VehiclePropertyAccess::READ},
+        {VehicleProperty::INFO_VEHICLE_SIZE_CLASS, VehiclePropertyAccess::READ},
         {VehicleProperty::PERF_ODOMETER, VehiclePropertyAccess::READ},
         {VehicleProperty::PERF_VEHICLE_SPEED, VehiclePropertyAccess::READ},
         {VehicleProperty::PERF_VEHICLE_SPEED_DISPLAY, VehiclePropertyAccess::READ},

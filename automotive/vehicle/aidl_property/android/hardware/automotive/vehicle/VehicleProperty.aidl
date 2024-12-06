@@ -232,6 +232,45 @@ enum VehicleProperty {
     INFO_MULTI_EV_PORT_LOCATIONS = 0x010C + 0x10000000 + 0x01000000
             + 0x00410000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:INT32_VEC
     /**
+     * Public trim name of the vehicle.
+     *
+     * This property must communicate the vehicle's public trim name.
+     *
+     * For example, say an OEM manufactures two different versions of a vehicle model:
+     *   "makeName modelName" and
+     *   "makeName modelName Sport"
+     * This property must be empty for the first vehicle (i.e. base model), and set to "Sport" for
+     * the second vehicle.
+     *
+     * @change_mode VehiclePropertyChangeMode.STATIC
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    INFO_MODEL_TRIM =
+            0x010D + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.STRING,
+    /**
+     * Vehicle Size Class.
+     *
+     * This property must communicate an integer array that contains the size classifications
+     * followed by the vehicle as enumerated in VehicleSizeClass.aidl. If the vehicle follows a
+     * single standard, then the array size of the property's value should be 1. If the vehicle
+     * follows multiple standards that the OEM wants to communicate, this may be communicated as
+     * additional values in the array.
+     *
+     * For example, suppose a vehicle model follows the VehicleSizeClass.EU_A_SEGMENT standard in
+     * the EU and the VehicleSizeClass.JPN_KEI standard in Japan. In this scenario this property
+     * must return an intArray = [VehicleSizeClass.EU_A_SEGMENT, VehicleSizeClass.JPN_KEI]. If this
+     * vehicle only followed the VehicleSizeClass.EU_A_SEGMENT standard, then we expect intArray =
+     * [VehicleSizeClass.EU_A_SEGMENT].
+     *
+     * @change_mode VehiclePropertyChangeMode.STATIC
+     * @access VehiclePropertyAccess.READ
+     * @data_enum VehicleSizeClass
+     * @version 4
+     */
+    INFO_VEHICLE_SIZE_CLASS = 0x010E + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL
+            + VehiclePropertyType.INT32_VEC,
+    /**
      * Current odometer value of the vehicle
      *
      * @change_mode VehiclePropertyChangeMode.CONTINUOUS
