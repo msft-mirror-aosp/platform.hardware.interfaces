@@ -1382,6 +1382,12 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyInfoModelTrimConfig) {
                    VehicleArea::GLOBAL, VehiclePropertyType::STRING);
 }
 
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyInfoVehicleSizeClassConfig) {
+    verifyProperty(VehicleProperty::INFO_VEHICLE_SIZE_CLASS, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::STATIC, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::INT32_VEC);
+}
+
 bool VtsHalAutomotiveVehicleTargetTest::checkIsSupported(int32_t propertyId) {
     auto result = mVhalClient->getPropConfigs({propertyId});
     return result.ok();

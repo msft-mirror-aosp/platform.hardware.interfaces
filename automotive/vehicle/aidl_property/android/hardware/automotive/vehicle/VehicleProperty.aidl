@@ -249,6 +249,28 @@ enum VehicleProperty {
     INFO_MODEL_TRIM =
             0x010D + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.STRING,
     /**
+     * Vehicle Size Class.
+     *
+     * This property must communicate an integer array that contains the size classifications
+     * followed by the vehicle as enumerated in VehicleSizeClass.aidl. If the vehicle follows a
+     * single standard, then the array size of the property's value should be 1. If the vehicle
+     * follows multiple standards that the OEM wants to communicate, this may be communicated as
+     * additional values in the array.
+     *
+     * For example, suppose a vehicle model follows the VehicleSizeClass.EU_A_SEGMENT standard in
+     * the EU and the VehicleSizeClass.JPN_KEI standard in Japan. In this scenario this property
+     * must return an intArray = [VehicleSizeClass.EU_A_SEGMENT, VehicleSizeClass.JPN_KEI]. If this
+     * vehicle only followed the VehicleSizeClass.EU_A_SEGMENT standard, then we expect intArray =
+     * [VehicleSizeClass.EU_A_SEGMENT].
+     *
+     * @change_mode VehiclePropertyChangeMode.STATIC
+     * @access VehiclePropertyAccess.READ
+     * @data_enum VehicleSizeClass
+     * @version 4
+     */
+    INFO_VEHICLE_SIZE_CLASS = 0x010E + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL
+            + VehiclePropertyType.INT32_VEC,
+    /**
      * Current odometer value of the vehicle
      *
      * @change_mode VehiclePropertyChangeMode.CONTINUOUS
