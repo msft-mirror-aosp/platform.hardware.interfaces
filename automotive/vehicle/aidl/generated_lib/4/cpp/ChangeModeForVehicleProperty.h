@@ -88,6 +88,8 @@ std::unordered_map<VehicleProperty, VehiclePropertyChangeMode> ChangeModeForVehi
         {VehicleProperty::EV_STOPPING_MODE, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::ELECTRONIC_STABILITY_CONTROL_ENABLED, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::ELECTRONIC_STABILITY_CONTROL_STATE, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::TURN_SIGNAL_LIGHT_STATE, VehiclePropertyChangeMode::ON_CHANGE},
+        {VehicleProperty::TURN_SIGNAL_SWITCH, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::HVAC_FAN_SPEED, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::HVAC_FAN_DIRECTION, VehiclePropertyChangeMode::ON_CHANGE},
         {VehicleProperty::HVAC_TEMPERATURE_CURRENT, VehiclePropertyChangeMode::ON_CHANGE},
