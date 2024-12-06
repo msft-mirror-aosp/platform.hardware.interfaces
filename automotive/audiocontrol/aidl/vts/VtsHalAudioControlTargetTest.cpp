@@ -26,6 +26,7 @@
 #include <android/hardware/automotive/audiocontrol/BnModuleChangeCallback.h>
 #include <android/hardware/automotive/audiocontrol/IAudioControl.h>
 #include <android/log.h>
+#include <android/media/audio/common/AudioHalProductStrategy.h>
 #include <binder/IServiceManager.h>
 #include <binder/ProcessState.h>
 #include <include/AudioControlTestUtils.h>
@@ -63,6 +64,8 @@ using android::hardware::automotive::audiocontrol::VolumeActivationConfiguration
         DEFAULT_MAX_ACTIVATION_VALUE;
 using android::hardware::automotive::audiocontrol::VolumeActivationConfigurationEntry::
         DEFAULT_MIN_ACTIVATION_VALUE;
+using android::media::audio::common::AudioHalProductStrategy;
+
 using ::testing::AnyOf;
 using ::testing::Eq;
 
@@ -623,7 +626,7 @@ TEST_P(AudioControlWithAudioZoneInfo, AudioZonesRequirements) {
     std::set<android::String16> zoneNames;
     std::set<std::string> deviceAddresses;
     for (const auto& zone : audioZones) {
-        if (zone.id == AudioZone::PRIMARY_AUDIO_ZONE) {
+        if (zone.id == static_cast<int>(AudioHalProductStrategy::ZoneId::DEFAULT)) {
             EXPECT_FALSE(primaryZoneFound) << "There can only be one primary zone";
             primaryZoneFound = true;
         }
