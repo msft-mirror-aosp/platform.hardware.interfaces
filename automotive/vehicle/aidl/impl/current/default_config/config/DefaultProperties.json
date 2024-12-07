@@ -100,6 +100,21 @@
             }
         },
         {
+            "property": "VehicleProperty::INFO_MODEL_TRIM",
+            "defaultValue": {
+                "stringValue": "Sport"
+            }
+        },
+        {
+            "property": "VehicleProperty::INFO_VEHICLE_SIZE_CLASS",
+            "defaultValue": {
+                "int32Values": [
+                    "VehicleSizeClass::EU_A_SEGMENT",
+                    "VehicleSizeClass::JPN_KEI"
+                ]
+            }
+        },
+        {
             "property": "VehicleProperty::PERF_VEHICLE_SPEED",
             "defaultValue": {
                 "floatValues": [
@@ -1465,6 +1480,16 @@
             "minSampleRate": 1.0
         },
         {
+            "property": "VehicleProperty::INSTANTANEOUS_FUEL_ECONOMY",
+            "defaultValue": {
+                "floatValues": [
+                    0.0
+                ]
+            },
+            "maxSampleRate": 10.0,
+            "minSampleRate": 1.0
+        },
+        {
             "property": "VehicleProperty::ENGINE_RPM",
             "defaultValue": {
                 "floatValues": [
@@ -2521,7 +2546,15 @@
             ]
         },
         {
-            "property": "VehicleProperty::TURN_SIGNAL_STATE",
+            "property": "VehicleProperty::TURN_SIGNAL_LIGHT_STATE",
+            "defaultValue": {
+                "int32Values": [
+                    "VehicleTurnSignal::NONE"
+                ]
+            }
+        },
+        {
+            "property": "VehicleProperty::TURN_SIGNAL_SWITCH",
             "defaultValue": {
                 "int32Values": [
                     "VehicleTurnSignal::NONE"
