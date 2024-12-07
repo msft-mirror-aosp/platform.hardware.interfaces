@@ -1388,6 +1388,30 @@ TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyInfoVehicleSizeClassConfig) {
                    VehicleArea::GLOBAL, VehiclePropertyType::INT32_VEC);
 }
 
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyTurnSignalLightStateConfig) {
+    verifyProperty(VehicleProperty::TURN_SIGNAL_LIGHT_STATE, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyTurnSignalSwitchConfig) {
+    verifyProperty(VehicleProperty::TURN_SIGNAL_SWITCH, VehiclePropertyAccess::READ_WRITE,
+                   VehiclePropertyChangeMode::ON_CHANGE, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::INT32);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyInstantaneousFuelEconomyConfig) {
+    verifyProperty(VehicleProperty::INSTANTANEOUS_FUEL_ECONOMY, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::CONTINUOUS, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::FLOAT);
+}
+
+TEST_P(VtsHalAutomotiveVehicleTargetTest, verifyInstantaneousEvEfficiencyConfig) {
+    verifyProperty(VehicleProperty::INSTANTANEOUS_EV_EFFICIENCY, VehiclePropertyAccess::READ,
+                   VehiclePropertyChangeMode::CONTINUOUS, VehiclePropertyGroup::SYSTEM,
+                   VehicleArea::GLOBAL, VehiclePropertyType::FLOAT);
+}
+
 bool VtsHalAutomotiveVehicleTargetTest::checkIsSupported(int32_t propertyId) {
     auto result = mVhalClient->getPropConfigs({propertyId});
     return result.ok();
