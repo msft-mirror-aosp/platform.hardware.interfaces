@@ -67,6 +67,8 @@ class MockVehicleHardware final : public IVehicleHardware {
     aidl::android::hardware::automotive::vehicle::StatusCode unsubscribe(int32_t propId,
                                                                          int32_t areaId) override;
     std::chrono::nanoseconds getPropertyOnChangeEventBatchingWindow() override;
+    std::vector<aidl::android::hardware::automotive::vehicle::SupportedValuesListResult>
+    getSupportedValuesLists(const std::vector<PropIdAreaId>& propIdAreaIds) override;
 
     // Test functions.
     void setPropertyConfigs(
@@ -78,6 +80,10 @@ class MockVehicleHardware final : public IVehicleHardware {
     void addSetValueResponses(
             const std::vector<aidl::android::hardware::automotive::vehicle::SetValueResult>&
                     responses);
+    void setSupportedValuesListResponse(
+            const std::vector<
+                    aidl::android::hardware::automotive::vehicle::SupportedValuesListResult>&
+                    response);
     void setGetValueResponder(
             std::function<aidl::android::hardware::automotive::vehicle::StatusCode(
                     std::shared_ptr<const GetValuesCallback>,
@@ -88,6 +94,7 @@ class MockVehicleHardware final : public IVehicleHardware {
     nextGetValueRequests();
     std::vector<aidl::android::hardware::automotive::vehicle::SetValueRequest>
     nextSetValueRequests();
+    std::vector<PropIdAreaId> getSupportedValuesListRequest();
     void setStatus(const char* functionName,
                    aidl::android::hardware::automotive::vehicle::StatusCode status);
     void setSleepTime(int64_t timeInNano);
@@ -118,6 +125,9 @@ class MockVehicleHardware final : public IVehicleHardware {
             mSetValueRequests GUARDED_BY(mLock);
     mutable std::list<std::vector<aidl::android::hardware::automotive::vehicle::SetValueResult>>
             mSetValueResponses GUARDED_BY(mLock);
+    mutable std::vector<PropIdAreaId> mSupportedValuesListRequest GUARDED_BY(mLock);
+    mutable std::vector<aidl::android::hardware::automotive::vehicle::SupportedValuesListResult>
+            mSupportedValuesListResponse GUARDED_BY(mLock);
     std::unordered_map<const char*, aidl::android::hardware::automotive::vehicle::StatusCode>
             mStatusByFunctions GUARDED_BY(mLock);
     int64_t mSleepTime GUARDED_BY(mLock) = 0;

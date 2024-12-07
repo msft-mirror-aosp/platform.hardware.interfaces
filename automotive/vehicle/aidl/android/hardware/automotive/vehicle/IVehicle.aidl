@@ -267,6 +267,9 @@ interface IVehicle {
     /**
      * Gets the supported values lists for [propId, areaId]s.
      *
+     * This is only supported for [propId, areaId]s that have non-null
+     * {@code hasSupportedValueInfo} for their {@code VehicleAreaConfig}.
+     *
      * For a specific [propId, areaId], if the hardware currently specifies
      * a list of supported values for it, then it is returned through the
      * {@code supportedValuesList} field inside
@@ -303,6 +306,9 @@ interface IVehicle {
 
     /**
      * Gets the min/max supported values for [propId, areaId]s.
+     *
+     * This is only supported for [propId, areaId]s that have non-null
+     * {@code hasSupportedValueInfo} for their {@code VehicleAreaConfig}.
      *
      * For a specific [propId, areaId], if the hardware currently specifies
      * min/max supported value for it, then it is returned through the
@@ -342,6 +348,9 @@ interface IVehicle {
     /**
      * Registers the supported value change callback.
      *
+     * This is only supported for [propId, areaId]s that have non-null
+     * {@code hasSupportedValueInfo} for their {@code VehicleAreaConfig}.
+     *
      * For the specified [propId, areaId]s,
      * {@code callback.onSupportedValueChange} must be invoked if change
      * happens.
@@ -359,6 +368,9 @@ interface IVehicle {
 
     /**
      * Unregisters the supported value change callback.
+     *
+     * This is only supported for [propId, areaId]s that have non-null
+     * {@code hasSupportedValueInfo} for their {@code VehicleAreaConfig}.
      *
      * @param callback The callback to unregister.
      * @param propIdAreaIds A list of [propId, areaId]s to unregister.
