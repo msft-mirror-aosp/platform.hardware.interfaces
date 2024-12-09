@@ -199,7 +199,7 @@ bool hadValidAudioFadeConfiguration(const AudioFadeConfiguration& fadeConfigurat
 void validateVolumeGroupInfo(const AudioZoneConfig& audioZoneConfig,
                              const VolumeGroupConfig& volumeGroupConfig,
                              const AudioDeviceConfiguration& deviceConfig,
-                             std::set<std::string>& groupDevices) {
+                             std::set<std::string>& groupDevices, std::set<int>& groupIds) {
     std::string zoneConfigName = testutils::toAlphaNumeric(ToString(audioZoneConfig.name));
     std::string volumeGroupName = testutils::toAlphaNumeric(ToString(volumeGroupConfig.name));
     std::string volumeGroupInfo =
@@ -211,6 +211,10 @@ void validateVolumeGroupInfo(const AudioZoneConfig& audioZoneConfig,
     if (deviceConfig.routingConfig == CONFIGURABLE_AUDIO_ENGINE_ROUTING) {
         EXPECT_FALSE(volumeGroupConfig.name.empty())
                 << volumeGroupInfo << " must have a non-empty volume name";
+    }
+    if (volumeGroupConfig.id != VolumeGroupConfig::UNASSIGNED_ID) {
+        EXPECT_TRUE(groupIds.insert(volumeGroupConfig.id).second)
+                << volumeGroupInfo << " repeats volume group id " << volumeGroupConfig.id;
     }
     for (const auto& audioRoute : volumeGroupConfig.carAudioRoutes) {
         std::string routeMessage;
@@ -257,6 +261,7 @@ void validateAudioZoneConfiguration(const AudioZone& carAudioZone,
     EXPECT_FALSE(audioZoneConfig.volumeGroups.empty())
             << "Volume groups for zone config " << zoneConfigName.c_str();
     std::set<std::string> groupDevices;
+    std::set<int> groupIds;
     for (const auto& volumeGroup : audioZoneConfig.volumeGroups) {
         ALOGI("Zone config name %s volume group test %s", zoneConfigName.c_str(),
               ToString(volumeGroup.name).c_str());
@@ -271,7 +276,7 @@ void validateAudioZoneConfiguration(const AudioZone& carAudioZone,
         if (deviceConfig.routingConfig == CONFIGURABLE_AUDIO_ENGINE_ROUTING) {
             groupDevices.clear();
         }
-        validateVolumeGroupInfo(audioZoneConfig, volumeGroup, deviceConfig, groupDevices);
+        validateVolumeGroupInfo(audioZoneConfig, volumeGroup, deviceConfig, groupDevices, groupIds);
     }
     const auto& audioZoneContexts = carAudioZone.audioZoneContext.audioContextInfos;
     std::map<std::string, AudioZoneContextInfo> infoNameToInfo;
