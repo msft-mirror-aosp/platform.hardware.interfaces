@@ -358,6 +358,22 @@ enum VehicleProperty {
     INSTANTANEOUS_FUEL_ECONOMY =
             0x0211 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
     /**
+     * Instantaneous EV efficiency in km/kWh.
+     *
+     * This property must communicate the instantaneous EV battery efficiency of the vehicle in
+     * units of km/kWh. The property's value is independent of the DISTANCE_DISPLAY_UNITS and
+     * EV_BATTERY_DISPLAY_UNITS properties i.e. this property must always communicate the value in
+     * km/kWh.
+     *
+     * For the fuel version of this property, see INSTANTANEOUS_FUEL_ECONOMY.
+     *
+     * @change_mode VehiclePropertyChangeMode.CONTINUOUS
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    INSTANTANEOUS_EV_EFFICIENCY =
+            0x0212 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
+    /**
      * Temperature of engine coolant
      *
      * @change_mode VehiclePropertyChangeMode.CONTINUOUS
@@ -634,6 +650,100 @@ enum VehicleProperty {
     CRITICALLY_LOW_TIRE_PRESSURE = 0x030A + 0x10000000 + 0x07000000
             + 0x00600000, // VehiclePropertyGroup:SYSTEM,VehicleArea:WHEEL,VehiclePropertyType:FLOAT
     /**
+     * Accelerator pedal compression percentage.
+     *
+     * This property must communicate the percentage that the physical accelerator pedal in the
+     * vehicle is compressed. This property must return a float value from 0 to 100.
+     *
+     * 0 indicates the pedal is not compressed.
+     * 100 indicates the pedal is maximally compressed.
+     *
+     * @change_mode VehiclePropertyChangeMode.CONTINUOUS
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    ACCELERATOR_PEDAL_COMPRESSION_PERCENTAGE =
+            0x030F + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
+    /**
+     * Brake pedal compression percentage.
+     *
+     * This property must communicate the percentage that the physical brake pedal in the vehicle is
+     * compressed. This property must return a float value from 0 to 100.
+     *
+     * 0 indicates the pedal is not compressed.
+     * 100 indicates the pedal is maximally compressed.
+     *
+     * @change_mode VehiclePropertyChangeMode.CONTINUOUS
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    BRAKE_PEDAL_COMPRESSION_PERCENTAGE =
+            0x0310 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.FLOAT,
+    /**
+     * Brake pad wear percentage.
+     *
+     * This property must communicate the amount of brake pad wear accumulated by the vehicle as a
+     * percentage. This property return a float value from 0 to 100.
+     *
+     * 0 indicates the brake pad has no wear.
+     * 100 indicates the brake pad is maximally worn.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    BRAKE_PAD_WEAR_PERCENTAGE =
+            0x0311 + VehiclePropertyGroup.SYSTEM + VehicleArea.WHEEL + VehiclePropertyType.FLOAT,
+    /**
+     * Brake fluid low.
+     *
+     * This property must communicate that the brake fluid level in the vehicle is low according to
+     * the OEM. This property must match the vehicle's brake fluid level status as displayed on the
+     * instrument cluster. If the brake fluid level is low, this property must be set to true. If
+     * not, it must be set to false.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    BRAKE_FLUID_LEVEL_LOW =
+            0x0312 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
+    /**
+     * Vehicle Passive Suspension Height in mm.
+     *
+     * This property must communicate the real-time suspension displacement of the vehicle relative
+     * to its neutral position, given in mm. In other words, the displacement of the suspension at
+     * any given point in time relative to the suspension's position when the vehicle is on a flat
+     * surface with no passengers or cargo. When the suspension is compressed in comparison to the
+     * neutral position, the value should be negative. When the suspension is decompressed in
+     * comparison to the neutral position, the value should be positive.
+     *
+     * Examples for further clarity:
+     *   1) Suppose the user is driving on a smooth flat surface, and all wheels are currently
+     *   compressed by 2 cm in comparison to the default suspension height. In this scenario, this
+     *   property must be set to -20 for all wheels.
+     *   2) Suppose the user drives over a pothole. While the front left wheel is over the pothole,
+     *   it's decompressed by 3 cm in comparison to the rest of the wheels, or 1 cm in comparison to
+     *   the default suspension height. All the others are still compressed by 2 cm. In this
+     *   scenario, this property must be set to -20 for all wheels except for the front left, which
+     *   must be set to 10.
+     *
+     * HasSupportedValueInfo.hasMinSupportedValue and HasSupportedValueInfo.hasMaxSupportedValue
+     * must be true for all areas.
+     *
+     * MinMaxSupportedValueResult.minSupportedValue represents the lower bound of the suspension
+     * height for the wheel at the specified area ID.
+     *
+     * MinMaxSupportedValueResult.maxSupportedValue represents the upper bound of the suspension
+     * height for the wheel at the specified area ID.
+     *
+     * @change_mode VehiclePropertyChangeMode.CONTINUOUS
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    VEHICLE_PASSIVE_SUSPENSION_HEIGHT =
+            0x0313 + VehiclePropertyGroup.SYSTEM + VehicleArea.WHEEL + VehiclePropertyType.INT32,
+    /**
      * Represents feature for engine idle automatic stop.
      *
      * If true, the vehicle may automatically shut off the engine when it is not needed and then
@@ -670,6 +780,19 @@ enum VehicleProperty {
      */
     IMPACT_DETECTED =
             0x0330 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
+    /**
+     * Vehicle horn engaged.
+     *
+     * This property must communicate if the vehicle's horn is currently engaged or not. If true,
+     * the horn is engaged. If false, the horn is disengaged.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ_WRITE
+     * @access VehiclePropertyAccess.READ
+     * @version 4
+     */
+    VEHICLE_HORN_ENGAGED =
+            0x0340 + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.BOOLEAN,
     /**
      * Currently selected gear
      *
@@ -5370,9 +5493,7 @@ enum VehicleProperty {
      *
      * Defines the level of autonomy currently engaged in the vehicle from the J3016_202104 revision
      * of the SAE standard levels 0-5, with 0 representing no autonomy and 5 representing full
-     * driving automation. These levels should be used in accordance with the standards defined in
-     * https://www.sae.org/standards/content/j3016_202104/ and
-     * https://www.sae.org/blog/sae-j3016-update
+     * driving automation.
      *
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of VehicleAutonomousState are supported.
@@ -5384,7 +5505,35 @@ enum VehicleProperty {
      */
     VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL =
             0x0F4C + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
-
+    /**
+     * Target state of vehicle autonomy.
+     *
+     * Defines the level of autonomy being targeted by the vehicle from the J3016_202104 revision of
+     * the SAE standard levels 0-5, with 0 representing no autonomy and 5 representing full driving
+     * automation.
+     *
+     * For example, suppose the vehicle is currently in a Level 3 state of automation and wants to
+     * give the driver full manual control (i.e. Level 0) as soon as it's safe to do so. In this
+     * scenario, this property must be set to VehicleAutonomousState.LEVEL_0. Similarly, if the
+     * vehicle is currently in Level 1 state of automation and wants to go up to Level 2, this
+     * property must be set to VehicleAutonomousState.LEVEL_2. If the vehicle has already reached
+     * and is currently in the target level of autonomy, this property must be equal to the value of
+     * VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL.
+     *
+     * For the global area ID (0), the SupportedValuesListResult#supportedValuesList array must be
+     * defined unless all states of VehicleAutonomousState are supported. These values must match
+     * the values in supportedValuesList of VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL.
+     *
+     * For the property that communicates the current state of autonomy, see
+     * VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL.
+     *
+     * @change_mode VehiclePropertyChangeMode.ON_CHANGE
+     * @access VehiclePropertyAccess.READ
+     * @data_enum VehicleAutonomousState
+     * @version 4
+     */
+    VEHICLE_DRIVING_AUTOMATION_TARGET_LEVEL =
+            0x0F4F + VehiclePropertyGroup.SYSTEM + VehicleArea.GLOBAL + VehiclePropertyType.INT32,
     /**
      * Reports current state of CarEvsService types.
      *
