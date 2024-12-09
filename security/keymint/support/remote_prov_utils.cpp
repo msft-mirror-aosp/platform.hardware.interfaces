@@ -1005,7 +1005,7 @@ ErrMsgOr<bytevec> parseAndValidateAuthenticatedRequestSignedPayload(
 
 ErrMsgOr<hwtrust::DiceChain::Kind> getDiceChainKind() {
     int vendor_api_level = ::android::base::GetIntProperty("ro.vendor.api_level", -1);
-    if (vendor_api_level == __ANDROID_API_T__) {
+    if (vendor_api_level <= __ANDROID_API_T__) {
         return hwtrust::DiceChain::Kind::kVsr13;
     } else if (vendor_api_level == __ANDROID_API_U__) {
         return hwtrust::DiceChain::Kind::kVsr14;
