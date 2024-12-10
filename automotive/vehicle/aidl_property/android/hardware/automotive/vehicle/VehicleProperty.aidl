@@ -1570,6 +1570,18 @@ enum VehicleProperty {
      * The minInt32Value should be 0, unless the vehicle supports steering wheel cooling as well. In
      * such a case, the minInt32Value indicates the maximum steering wheel cooling setting.
      *
+     * If {@code HasSupportedValueInfo} is not null for the global area ID (0):
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true}.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the maximum steering wheel
+     * heating setting.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} should be 0, unless the vehicle supports
+     * steering wheel cooling as well. In such a case, the minSupportedValue indicates the maximum
+     * steering wheel cooling setting.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
+     *
      * This property is not in any particular unit but in a specified range of heating settings.
      *
      * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
@@ -1578,6 +1590,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     HVAC_STEERING_WHEEL_HEAT = 0x050D + 0x10000000 + 0x01000000
