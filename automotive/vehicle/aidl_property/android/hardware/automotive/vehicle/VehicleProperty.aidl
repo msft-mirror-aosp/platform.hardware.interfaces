@@ -1598,11 +1598,20 @@ enum VehicleProperty {
     /**
      * Temperature units for display
      *
-     * Indicates whether the vehicle is displaying temperature to the user as
-     * Celsius or Fahrenheit.
+     * Indicates whether the vehicle is displaying temperature to the user as Celsius or Fahrenheit.
+     *
      * VehiclePropConfig.configArray is used to indicate the supported temperature display units.
+     *
      * For example: configArray[0] = CELSIUS
      *              configArray[1] = FAHRENHEIT
+     *
+     * If {@code HasSupportedValueInfo} is not {@code null} for the global area ID (0):
+     * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
+     * (0) must be {@code true}.
+     * {@code getSupportedValuesLists} for [HVAC_TEMPERATURE_DISPLAY_UNITS, areaId=0] must return a
+     * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList},
+     * e.g. [CELSIUS, FAHRENHEIT].
+     * At boot, the values in the config array are equal to the supported values list.
      *
      * This parameter MAY be used for displaying any HVAC temperature in the system.
      * Values must be one of VehicleUnit.CELSIUS or VehicleUnit.FAHRENHEIT
@@ -1618,6 +1627,8 @@ enum VehicleProperty {
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleUnit
+     * @require_supported_values_list
+     * @legacy_supported_values_in_config
      * @version 2
      */
     HVAC_TEMPERATURE_DISPLAY_UNITS = 0x050E + 0x10000000 + 0x01000000
