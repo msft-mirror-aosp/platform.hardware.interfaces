@@ -1496,6 +1496,19 @@ enum VehicleProperty {
      * The minInt32Value must be 0, unless the vehicle supports seat cooling as well. In this case,
      * minInt32Value indicates the maximum seat temperature cooling setting.
      *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specified
+     * area ID.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the maximum seat temperature
+     * heating setting.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} must be 0, unless the vehicle supports
+     * seat cooling as well. In this case, minSupportedValue indicates the maximum seat temperature
+     * cooling setting.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
+     *
      * This property is not in any particular unit, but in a specified range of relative temperature
      * settings.
      *
@@ -1505,6 +1518,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     HVAC_SEAT_TEMPERATURE = 0x050B + 0x10000000 + 0x05000000
