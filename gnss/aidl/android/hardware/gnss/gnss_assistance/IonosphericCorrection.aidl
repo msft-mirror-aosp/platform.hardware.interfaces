@@ -31,6 +31,6 @@ parcelable IonosphericCorrection {
      */
     long carrierFrequencyHz;
 
-    /** Ionospheric correction component. */
-    GnssCorrectionComponent ionosphericCorrectionComponent;
+    /** Ionospheric correction. */
+    GnssCorrectionComponent ionosphericCorrection;
 }
