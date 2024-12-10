@@ -1534,6 +1534,16 @@ enum VehicleProperty {
      * The maxInt32Value in the config data represents the maximum heating level.
      * The minInt32Value in the config data MUST be zero and indicates no heating.
      *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specified
+     * area ID.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the maximum heating level.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} must be 0 and indicates no heating.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
+     *
      * This property is not in any particular unit but in a specified range of relative heating
      * settings.
      *
@@ -1543,6 +1553,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     HVAC_SIDE_MIRROR_HEAT = 0x050C + 0x10000000 + 0x04000000
