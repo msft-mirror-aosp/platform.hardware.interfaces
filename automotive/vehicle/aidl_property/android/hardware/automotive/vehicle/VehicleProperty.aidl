@@ -1729,11 +1729,24 @@ enum VehicleProperty {
     /**
      * Seat ventilation
      *
-     * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
+     * The minInt32Value and maxInt32Value in VehicleAreaConfig must be defined.
+     *
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
      * The minInt32Value must be 0.
+     *
      * The maxInt32Value indicates the maximum ventilation setting available for the seat.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specified
+     * area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} must be 0.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the maximum ventilation
+     * setting available for the seat.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in the specified range of ventilation
      * settings.
@@ -1748,6 +1761,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     HVAC_SEAT_VENTILATION = 0x0513 + 0x10000000 + 0x05000000
