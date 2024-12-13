@@ -222,6 +222,15 @@ ErrMsgOr<bool> compareRootPublicKeysInDiceChains(const std::vector<uint8_t>& csr
                                                  const std::vector<uint8_t>& csr2,
                                                  std::string_view instanceName2);
 
+/** Checks whether the component name in the configuration descriptor in the leaf certificate
+ * of the primary KeyMint instance's DICE certificate chain contains "keymint"
+ */
+ErrMsgOr<bool> verifyComponentNameInKeyMintDiceChain(const std::vector<uint8_t>& csr);
+
+/** Checks whether the DICE chain in the CSR has a certificate with a non-normal mode. */
+ErrMsgOr<bool> hasNonNormalModeInDiceChain(const std::vector<uint8_t>& csr,
+                                           std::string_view instanceName);
+
 /** Verify the DICE chain. */
 ErrMsgOr<std::vector<BccEntryData>> validateBcc(const cppbor::Array* bcc,
                                                 hwtrust::DiceChain::Kind kind, bool allowAnyMode,
