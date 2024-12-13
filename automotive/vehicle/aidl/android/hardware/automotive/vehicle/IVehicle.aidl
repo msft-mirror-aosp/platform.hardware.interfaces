@@ -237,6 +237,8 @@ interface IVehicle {
      * {@link StatusCode#INVALID_ARG}. If a specified propId was not subscribed
      * before, this method must ignore that propId.
      *
+     * Unsubscribe a not-subscribed property ID must do nothing.
+     *
      * If error is returned, some of the properties failed to unsubscribe.
      * Caller is safe to try again, since unsubscribing an already unsubscribed
      * property is okay.

@@ -1842,12 +1842,11 @@ TEST_F(DefaultVehicleHalTest, testSubscribeAreaNoneAccess) {
     ASSERT_EQ(status.getServiceSpecificError(), toInt(StatusCode::ACCESS_DENIED));
 }
 
-TEST_F(DefaultVehicleHalTest, testUnsubscribeFailure) {
+TEST_F(DefaultVehicleHalTest, testUnsubscribeNotSubscribedProperty) {
     auto status = getClient()->unsubscribe(getCallbackClient(),
                                            std::vector<int32_t>({GLOBAL_ON_CHANGE_PROP}));
 
-    ASSERT_FALSE(status.isOk()) << "unsubscribe to a not-subscribed property must fail";
-    ASSERT_EQ(status.getServiceSpecificError(), toInt(StatusCode::INVALID_ARG));
+    ASSERT_TRUE(status.isOk()) << "unsubscribe to a not-subscribed property must do nothing";
 }
 
 TEST_F(DefaultVehicleHalTest, testHeartbeatEvent) {
