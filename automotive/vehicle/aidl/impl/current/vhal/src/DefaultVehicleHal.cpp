@@ -51,6 +51,7 @@ using ::aidl::android::hardware::automotive::vehicle::GetValueResult;
 using ::aidl::android::hardware::automotive::vehicle::GetValueResults;
 using ::aidl::android::hardware::automotive::vehicle::HasSupportedValueInfo;
 using ::aidl::android::hardware::automotive::vehicle::IVehicleCallback;
+using ::aidl::android::hardware::automotive::vehicle::MinMaxSupportedValueResult;
 using ::aidl::android::hardware::automotive::vehicle::MinMaxSupportedValueResults;
 using ::aidl::android::hardware::automotive::vehicle::SetValueRequest;
 using ::aidl::android::hardware::automotive::vehicle::SetValueRequests;
@@ -1065,10 +1066,67 @@ ScopedAStatus DefaultVehicleHal::getSupportedValuesLists(
     return ScopedAStatus::ok();
 }
 
-ScopedAStatus DefaultVehicleHal::getMinMaxSupportedValue(const std::vector<VhalPropIdAreaId>&,
-                                                         MinMaxSupportedValueResults*) {
-    // TODO(b/381020465): Add relevant implementation.
-    return ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
+ScopedAStatus DefaultVehicleHal::getMinMaxSupportedValue(
+        const std::vector<VhalPropIdAreaId>& vhalPropIdAreaIds,
+        MinMaxSupportedValueResults* minMaxSupportedValueResults) {
+    std::vector<size_t> toHardwareRequestCounters;
+    std::vector<PropIdAreaId> toHardwarePropIdAreaIds;
+    std::vector<MinMaxSupportedValueResult> results;
+    results.resize(vhalPropIdAreaIds.size());
+    for (size_t requestCounter = 0; requestCounter < vhalPropIdAreaIds.size(); requestCounter++) {
+        const auto& vhalPropIdAreaId = vhalPropIdAreaIds.at(requestCounter);
+        int32_t propId = vhalPropIdAreaId.propId;
+        int32_t areaId = vhalPropIdAreaId.areaId;
+        auto hasSupportedValueInfoResult = getHasSupportedValueInfo(propId, areaId);
+        if (!hasSupportedValueInfoResult.ok()) {
+            ALOGE("getMinMaxSupportedValue: %s",
+                  hasSupportedValueInfoResult.error().message().c_str());
+            results[requestCounter] = MinMaxSupportedValueResult{.status = StatusCode::INVALID_ARG,
+                                                                 .minSupportedValue = std::nullopt,
+                                                                 .maxSupportedValue = std::nullopt};
+            continue;
+        }
+
+        const auto& hasSupportedValueInfo = *(hasSupportedValueInfoResult.value());
+        if (hasSupportedValueInfo.hasMinSupportedValue ||
+            hasSupportedValueInfo.hasMaxSupportedValue) {
+            toHardwarePropIdAreaIds.push_back(PropIdAreaId{.propId = propId, .areaId = areaId});
+            toHardwareRequestCounters.push_back(requestCounter);
+        } else {
+            results[requestCounter] = MinMaxSupportedValueResult{.status = StatusCode::OK,
+                                                                 .minSupportedValue = std::nullopt,
+                                                                 .maxSupportedValue = std::nullopt};
+            continue;
+        }
+    }
+    if (toHardwarePropIdAreaIds.size() != 0) {
+        std::vector<MinMaxSupportedValueResult> resultsFromHardware =
+                mVehicleHardware->getMinMaxSupportedValues(toHardwarePropIdAreaIds);
+        // It is guaranteed that toHardwarePropIdAreaIds, toHardwareRequestCounters,
+        // resultsFromHardware have the same size.
+        if (resultsFromHardware.size() != toHardwareRequestCounters.size()) {
+            return ScopedAStatus::fromServiceSpecificErrorWithMessage(
+                    toInt(StatusCode::INTERNAL_ERROR),
+                    fmt::format(
+                            "getMinMaxSupportedValue: Unexpected results size from IVehicleHardware"
+                            ", got: {}, expect: {}",
+                            resultsFromHardware.size(), toHardwareRequestCounters.size())
+                            .c_str());
+        }
+        for (size_t i = 0; i < toHardwareRequestCounters.size(); i++) {
+            results[toHardwareRequestCounters[i]] = resultsFromHardware[i];
+        }
+    }
+    ScopedAStatus status =
+            vectorToStableLargeParcelable(std::move(results), minMaxSupportedValueResults);
+    if (!status.isOk()) {
+        int statusCode = status.getServiceSpecificError();
+        ALOGE("getMinMaxSupportedValue: failed to marshal result into large parcelable, error: "
+              "%s, code: %d",
+              status.getMessage(), statusCode);
+        return status;
+    }
+    return ScopedAStatus::ok();
 }
 
 ScopedAStatus DefaultVehicleHal::registerSupportedValueChangeCallback(

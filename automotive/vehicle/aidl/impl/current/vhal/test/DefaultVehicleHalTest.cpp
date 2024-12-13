@@ -55,6 +55,8 @@ using ::aidl::android::hardware::automotive::vehicle::GetValueResults;
 using ::aidl::android::hardware::automotive::vehicle::HasSupportedValueInfo;
 using ::aidl::android::hardware::automotive::vehicle::IVehicle;
 using ::aidl::android::hardware::automotive::vehicle::IVehicleCallback;
+using ::aidl::android::hardware::automotive::vehicle::MinMaxSupportedValueResult;
+using ::aidl::android::hardware::automotive::vehicle::MinMaxSupportedValueResults;
 using ::aidl::android::hardware::automotive::vehicle::RawPropValues;
 using ::aidl::android::hardware::automotive::vehicle::SetValueRequest;
 using ::aidl::android::hardware::automotive::vehicle::SetValueRequests;
@@ -2220,7 +2222,7 @@ TEST_F(DefaultVehicleHalTest, testGetSupportedValuesLists) {
 
     result = results.payloads[2];
     ASSERT_EQ(result.status, StatusCode::INVALID_ARG)
-            << "PropId, areaId that set hasSupportedValueInfo to null must not be supported";
+            << "Must return INVALID_ARG for global property without area config";
     ASSERT_FALSE(result.supportedValuesList.has_value());
 
     result = results.payloads[3];
@@ -2266,6 +2268,152 @@ TEST_F(DefaultVehicleHalTest, testGetSupportedValuesLists_propIdAreaIdNotFound) 
                                << status.getMessage();
     ASSERT_EQ(results.payloads.size(), 2u);
     SupportedValuesListResult result = results.payloads[0];
+    ASSERT_EQ(result.status, StatusCode::INVALID_ARG);
+    result = results.payloads[1];
+    ASSERT_EQ(result.status, StatusCode::INVALID_ARG);
+}
+
+TEST_F(DefaultVehicleHalTest, testGetMinMaxSupportedValue) {
+    auto testConfigs = std::vector<VehiclePropConfig>(
+            {// This ia valid request, but no supported values are specified.
+             VehiclePropConfig{
+                     .prop = testInt32VecProp(1),
+                     .areaConfigs =
+                             {
+                                     {.areaId = 0,
+                                      .hasSupportedValueInfo =
+                                              HasSupportedValueInfo{
+                                                      .hasMinSupportedValue = false,
+                                                      .hasMaxSupportedValue = false,
+                                              }},
+                             },
+             },
+             // This is an invalid request since hasSupportedValueInfo is null. This is not
+             // supported.
+             VehiclePropConfig{
+                     .prop = testInt32VecWindowProp(2),
+                     .areaConfigs =
+                             {
+                                     {
+                                             .areaId = 2,
+                                     },
+                             },
+             },
+             // This is an invalid request for global property.
+             VehiclePropConfig{
+                     .prop = testInt32VecProp(3),
+             },
+             // This is a normal request.
+             VehiclePropConfig{
+                     .prop = testInt32VecWindowProp(4),
+                     .areaConfigs =
+                             {
+                                     {.areaId = 4,
+                                      .hasSupportedValueInfo =
+                                              HasSupportedValueInfo{
+                                                      .hasMinSupportedValue = true,
+                                                      .hasMaxSupportedValue = false,
+                                              }},
+                             },
+             }});
+
+    auto hardware = std::make_unique<MockVehicleHardware>();
+    MockVehicleHardware* hardwarePtr = hardware.get();
+    hardware->setPropertyConfigs(testConfigs);
+
+    MinMaxSupportedValueResult resultFromHardware = {
+            .status = StatusCode::OK,
+            .minSupportedValue = std::optional<RawPropValues>{RawPropValues{.int32Values = {1}}},
+            .maxSupportedValue = std::nullopt,
+    };
+    auto response = std::vector<MinMaxSupportedValueResult>({resultFromHardware});
+    hardware->setMinMaxSupportedValueResponse(response);
+
+    auto vhal = ndk::SharedRefBase::make<DefaultVehicleHal>(std::move(hardware));
+    std::shared_ptr<IVehicle> client = IVehicle::fromBinder(vhal->asBinder());
+
+    MinMaxSupportedValueResults results;
+
+    auto propIdAreaId1 = VhalPropIdAreaId{.propId = testInt32VecProp(1), .areaId = 0};
+    auto propIdAreaId2 = VhalPropIdAreaId{.propId = testInt32VecWindowProp(2), .areaId = 2};
+    auto propIdAreaId3 = VhalPropIdAreaId{.propId = testInt32VecWindowProp(3), .areaId = 0};
+    auto propIdAreaId4 = VhalPropIdAreaId{.propId = testInt32VecWindowProp(4), .areaId = 4};
+    auto status = vhal->getMinMaxSupportedValue(
+            std::vector<VhalPropIdAreaId>{propIdAreaId1, propIdAreaId2, propIdAreaId3,
+                                          propIdAreaId4},
+            &results);
+
+    ASSERT_TRUE(status.isOk()) << "Get non-okay status from getMinMaxSupportedValue"
+                               << status.getMessage();
+    ASSERT_THAT(hardwarePtr->getMinMaxSupportedValueRequest(),
+                ElementsAre(PropIdAreaId{.propId = testInt32VecWindowProp(4), .areaId = 4}))
+            << "Only valid request 4 should get to hardware";
+
+    ASSERT_EQ(results.payloads.size(), 4u);
+    MinMaxSupportedValueResult result = results.payloads[0];
+    ASSERT_EQ(result.status, StatusCode::OK)
+            << "Must return OK even if the min/max supported values are not specified";
+    ASSERT_FALSE(result.minSupportedValue.has_value())
+            << "Must return null min supported value if not specified";
+    ASSERT_FALSE(result.maxSupportedValue.has_value())
+            << "Must return null max supported value if not specified";
+
+    result = results.payloads[1];
+    ASSERT_EQ(result.status, StatusCode::INVALID_ARG)
+            << "PropId, areaId that set hasSupportedValueInfo to null must not be supported";
+    ASSERT_FALSE(result.minSupportedValue.has_value());
+    ASSERT_FALSE(result.maxSupportedValue.has_value());
+
+    result = results.payloads[2];
+    ASSERT_EQ(result.status, StatusCode::INVALID_ARG)
+            << "Must return INVALID_ARG for global property without area config";
+    ASSERT_FALSE(result.minSupportedValue.has_value());
+    ASSERT_FALSE(result.maxSupportedValue.has_value());
+
+    result = results.payloads[3];
+    ASSERT_EQ(result.status, StatusCode::OK);
+    ASSERT_TRUE(result.minSupportedValue.has_value());
+    ASSERT_EQ(result.minSupportedValue->int32Values.size(), 1u);
+    ASSERT_EQ(result.minSupportedValue->int32Values[0], 1);
+    ASSERT_FALSE(result.maxSupportedValue.has_value());
+}
+
+TEST_F(DefaultVehicleHalTest, testGetMinMaxSupportedValue_propIdAreaIdNotFound) {
+    auto testConfigs = std::vector<VehiclePropConfig>({
+            VehiclePropConfig{
+                    .prop = testInt32VecWindowProp(1),
+                    .areaConfigs =
+                            {
+                                    {.areaId = 1,
+                                     .hasSupportedValueInfo =
+                                             HasSupportedValueInfo{
+                                                     .hasMinSupportedValue = true,
+                                                     .hasMaxSupportedValue = true,
+                                             }},
+                            },
+            },
+    });
+
+    auto hardware = std::make_unique<MockVehicleHardware>();
+    hardware->setPropertyConfigs(testConfigs);
+
+    auto vhal = ndk::SharedRefBase::make<DefaultVehicleHal>(std::move(hardware));
+    std::shared_ptr<IVehicle> client = IVehicle::fromBinder(vhal->asBinder());
+
+    MinMaxSupportedValueResults results;
+
+    // propId not valid.
+    auto propIdAreaId1 = VhalPropIdAreaId{.propId = testInt32VecWindowProp(2), .areaId = 1};
+    // areaId not valid.
+    auto propIdAreaId2 = VhalPropIdAreaId{.propId = testInt32VecWindowProp(1), .areaId = 2};
+
+    auto status = vhal->getMinMaxSupportedValue(
+            std::vector<VhalPropIdAreaId>{propIdAreaId1, propIdAreaId2}, &results);
+
+    ASSERT_TRUE(status.isOk()) << "Get non-okay status from getMinMaxSupportedValue"
+                               << status.getMessage();
+    ASSERT_EQ(results.payloads.size(), 2u);
+    MinMaxSupportedValueResult result = results.payloads[0];
     ASSERT_EQ(result.status, StatusCode::INVALID_ARG);
     result = results.payloads[1];
     ASSERT_EQ(result.status, StatusCode::INVALID_ARG);

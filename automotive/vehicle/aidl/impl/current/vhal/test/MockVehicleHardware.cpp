@@ -26,6 +26,7 @@ namespace vehicle {
 
 using ::aidl::android::hardware::automotive::vehicle::GetValueRequest;
 using ::aidl::android::hardware::automotive::vehicle::GetValueResult;
+using ::aidl::android::hardware::automotive::vehicle::MinMaxSupportedValueResult;
 using ::aidl::android::hardware::automotive::vehicle::SetValueRequest;
 using ::aidl::android::hardware::automotive::vehicle::SetValueResult;
 using ::aidl::android::hardware::automotive::vehicle::StatusCode;
@@ -208,6 +209,13 @@ std::vector<SupportedValuesListResult> MockVehicleHardware::getSupportedValuesLi
     return mSupportedValuesListResponse;
 }
 
+std::vector<MinMaxSupportedValueResult> MockVehicleHardware::getMinMaxSupportedValues(
+        const std::vector<PropIdAreaId>& propIdAreaIds) {
+    std::scoped_lock<std::mutex> lockGuard(mLock);
+    mMinMaxSupportedValueRequest = propIdAreaIds;
+    return mMinMaxSupportedValueResponse;
+}
+
 void MockVehicleHardware::registerOnPropertyChangeEvent(
         std::unique_ptr<const PropertyChangeCallback> callback) {
     std::scoped_lock<std::mutex> lockGuard(mLock);
@@ -281,9 +289,20 @@ void MockVehicleHardware::setSupportedValuesListResponse(
     mSupportedValuesListResponse = response;
 }
 
+void MockVehicleHardware::setMinMaxSupportedValueResponse(
+        const std::vector<MinMaxSupportedValueResult>& response) {
+    std::scoped_lock<std::mutex> lockGuard(mLock);
+    mMinMaxSupportedValueResponse = response;
+}
+
 std::vector<PropIdAreaId> MockVehicleHardware::getSupportedValuesListRequest() {
     std::scoped_lock<std::mutex> lockGuard(mLock);
     return mSupportedValuesListRequest;
+}
+
+std::vector<PropIdAreaId> MockVehicleHardware::getMinMaxSupportedValueRequest() {
+    std::scoped_lock<std::mutex> lockGuard(mLock);
+    return mMinMaxSupportedValueRequest;
 }
 
 std::chrono::nanoseconds MockVehicleHardware::getPropertyOnChangeEventBatchingWindow() {
