@@ -265,14 +265,4 @@ impl IMediaQuality for MediaQualityService {
         println!("getVendorParamCaps. len= {}", param_names.len());
         Ok(())
     }
-
-    fn sendPictureParameters(&self, _picture_parameters: &PictureParameters) -> binder::Result<()>{
-        println!("Received picture parameters");
-        Ok(())
-    }
-
-    fn sendSoundParameters(&self, _sound_parameters: &SoundParameters) -> binder::Result<()>{
-        println!("Received sound parameters");
-        Ok(())
-    }
 }

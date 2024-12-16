@@ -207,20 +207,4 @@ interface IMediaQuality {
      * Gets vendor capability information of the given parameters.
      */
     void getVendorParamCaps(in VendorParameterIdentifier[] names, out VendorParamCapability[] caps);
-
-    /**
-     * When HAL request picture parameters by picture profile id, the framework will use this to
-     * send the picture parameters associate with the profile id.
-     *
-     * @param pictureParameters pictureParameters that associate with the profile id HAL provided.
-     */
-    void sendPictureParameters(in PictureParameters pictureParameters);
-
-    /**
-     * When HAL request sound parameters by sound profile id, the framework will use this to
-     * send the sound parameters associate with the profile id.
-     *
-     * @param soundParameters soundParameters that associate with the profile id HAL provided.
-     */
-    void sendSoundParameters(in SoundParameters soundParameters);
 }
