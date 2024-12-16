@@ -26,6 +26,9 @@ namespace wifi {
 namespace aidl_struct_util {
 
 WifiChannelWidthInMhz convertLegacyWifiChannelWidthToAidl(legacy_hal::wifi_channel_width type);
+bool convertAidlWifiChannelInfoToLegacy(const WifiChannelInfo& aidl_info,
+                                        legacy_hal::wifi_channel_info* legacy_info);
+RttBw convertLegacyRttBwToAidl(legacy_hal::wifi_rtt_bw type);
 
 std::string safeConvertChar(const char* str, size_t max_len) {
     const char* c = str;
@@ -118,7 +121,8 @@ bool convertLegacyChipFeaturesToAidl(uint64_t legacy_feature_set, uint32_t* aidl
                                       WIFI_FEATURE_SET_LATENCY_MODE,
                                       WIFI_FEATURE_P2P_RAND_MAC,
                                       WIFI_FEATURE_AFC_CHANNEL,
-                                      WIFI_FEATURE_SET_VOIP_MODE};
+                                      WIFI_FEATURE_SET_VOIP_MODE,
+                                      WIFI_FEATURE_MLO_SAP};
     for (const auto feature : features) {
         if (feature & legacy_feature_set) {
             *aidl_feature_set |= static_cast<uint32_t>(convertLegacyChipFeatureToAidl(feature));
@@ -2296,6 +2300,10 @@ bool convertLegacyNanCapabilitiesResponseToAidl(const legacy_hal::NanCapabilitie
     aidl_response->supportsPairing = legacy_response.is_pairing_supported;
     aidl_response->supportsSetClusterId = legacy_response.is_set_cluster_id_supported;
     aidl_response->supportsSuspension = legacy_response.is_suspension_supported;
+    // TODO: Retrieve values from the legacy HAL
+    aidl_response->supportsPeriodicRanging = false;
+    aidl_response->maxSupportedBandwidth = RttBw::BW_UNSPECIFIED;
+    aidl_response->maxNumRxChainsSupported = 2;
 
     return true;
 }

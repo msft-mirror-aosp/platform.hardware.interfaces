@@ -42,6 +42,8 @@
 #include <keymint_support/key_param_output.h>
 #include <keymint_support/openssl_utils.h>
 
+#include <vendorsupport/api_level.h>
+
 #include "KeyMintAidlTestBase.h"
 
 using aidl::android::hardware::security::keymint::AuthorizationSet;
@@ -4156,7 +4158,7 @@ TEST_P(ImportKeyTest, EcdsaSuccess) {
  * when the EC_CURVE is not explicitly specified.
  */
 TEST_P(ImportKeyTest, EcdsaSuccessCurveNotSpecified) {
-    if (get_vsr_api_level() < __ANDROID_API_V__) {
+    if (get_vsr_api_level() < AVendorSupport_getVendorApiLevelOf(__ANDROID_API_V__)) {
         /*
          * The KeyMint spec was previously not clear as to whether EC_CURVE was optional on import
          * of EC keys. However, this was not checked at the time so we can only be strict about
@@ -5315,7 +5317,7 @@ auto wrapping_key_for_asym_keys = hex2str(
 
 TEST_P(ImportWrappedKeyTest, RsaKey) {
     int vsr_api_level = get_vsr_api_level();
-    if (vsr_api_level < __ANDROID_API_V__) {
+    if (vsr_api_level < AVendorSupport_getVendorApiLevelOf(__ANDROID_API_V__)) {
         /*
          * The Keymaster v4 spec introduced `importWrappedKey()` and did not restrict it to
          * just symmetric keys.  However, the import of asymmetric wrapped keys was not tested
@@ -5346,7 +5348,7 @@ TEST_P(ImportWrappedKeyTest, RsaKey) {
 
 TEST_P(ImportWrappedKeyTest, EcKey) {
     int vsr_api_level = get_vsr_api_level();
-    if (vsr_api_level < __ANDROID_API_V__) {
+    if (vsr_api_level < AVendorSupport_getVendorApiLevelOf(__ANDROID_API_V__)) {
         /*
          * The Keymaster v4 spec introduced `importWrappedKey()` and did not restrict it to
          * just symmetric keys.  However, the import of asymmetric wrapped keys was not tested
@@ -8305,21 +8307,15 @@ TEST_P(KeyDeletionTest, DeleteAllKeys) {
         GTEST_SKIP() << "Option --arm_deleteAllKeys not set";
         return;
     }
+    // This test was introduced in API level 36, but is not version guarded because it requires a
+    // manual opt-in anyway. This makes it easier to run on older devices.
     auto error = GenerateKey(AuthorizationSetBuilder()
                                      .RsaSigningKey(2048, 65537)
                                      .Digest(Digest::NONE)
                                      .Padding(PaddingMode::NONE)
                                      .Authorization(TAG_NO_AUTH_REQUIRED)
-                                     .Authorization(TAG_ROLLBACK_RESISTANCE)
                                      .SetDefaultValidity());
-    if (error == ErrorCode::ROLLBACK_RESISTANCE_UNAVAILABLE) {
-        GTEST_SKIP() << "Rollback resistance not supported";
-    }
-
-    // Delete must work if rollback protection is implemented
     ASSERT_EQ(ErrorCode::OK, error);
-    AuthorizationSet hardwareEnforced(SecLevelAuthorizations());
-    ASSERT_TRUE(hardwareEnforced.Contains(TAG_ROLLBACK_RESISTANCE));
 
     ASSERT_EQ(ErrorCode::OK, DeleteAllKeys());
 
@@ -8968,7 +8964,7 @@ TEST_P(VsrRequirementTest, Vsr14Test) {
 // @VsrTest = GMS-VSR-3.10-019
 TEST_P(VsrRequirementTest, Vsr16Test) {
     int vsr_api_level = get_vsr_api_level();
-    if (vsr_api_level <= __ANDROID_API_V__) {
+    if (vsr_api_level <= AVendorSupport_getVendorApiLevelOf(__ANDROID_API_V__)) {
         GTEST_SKIP() << "Applies only to VSR API level > 35, this device is: " << vsr_api_level;
     }
     if (SecLevel() == SecurityLevel::STRONGBOX) {

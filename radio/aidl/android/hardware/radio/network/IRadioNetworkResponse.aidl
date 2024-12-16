@@ -80,6 +80,8 @@ oneway interface IRadioNetworkResponse {
      *   RadioError:MODEM_ERR
      *   RadioError:NO_RESOURCES
      *   RadioError:CANCELLED
+     *
+     * @deprecated Android Telephony framework doesn't use this.
      */
     void getAvailableBandModesResponse(in RadioResponseInfo info, in RadioBandMode[] bandModes);
 
@@ -332,6 +334,8 @@ oneway interface IRadioNetworkResponse {
      *   RadioError:MODEM_ERR
      *   RadioError:NO_RESOURCES
      *   RadioError:CANCELLED
+     *
+     * @deprecated Android Telephony framework doesn't use this.
      */
     void setBandModeResponse(in RadioResponseInfo info);
 
@@ -437,6 +441,8 @@ oneway interface IRadioNetworkResponse {
      *   RadioError:NO_RESOURCES
      *   RadioError:CANCELLED
      *   RadioError:SIM_ABSENT
+     *
+     * @deprecated Android Telephony framework doesn't use this.
      */
     void setLocationUpdatesResponse(in RadioResponseInfo info);
 
@@ -528,6 +534,8 @@ oneway interface IRadioNetworkResponse {
      *   RadioError:NO_RESOURCES
      *   RadioError:CANCELLED
      *   RadioError:SIM_ABSENT
+     *
+     * @deprecated Android Telephony framework doesn't use this.
      */
     void setSuppServiceNotificationsResponse(in RadioResponseInfo info);
 
@@ -816,4 +824,53 @@ oneway interface IRadioNetworkResponse {
      */
     void isSecurityAlgorithmsUpdatedEnabledResponse(
             in RadioResponseInfo info, in boolean isEnabled);
+
+    /**
+     * Response of setSatellitePlmn.
+     * This is an optional API.
+     *
+     * @param info Response info struct containing response type, serial no. and error.
+     *
+     * Valid errors returned:
+     *   RadioError:REQUEST_NOT_SUPPORTED
+     *   RadioError:NONE
+     *   RadioError:RADIO_NOT_AVAILABLE
+     *   RadioError:INTERNAL_ERR
+     *   RadioError:REQUEST_NOT_SUPPORTED
+     *   RadioError:INVALID_STATE
+     */
+    void setSatellitePlmnResponse(in RadioResponseInfo info);
+
+    /**
+     * Response of setSatelliteEnabledForCarrier.
+     * This is an optional API.
+     *
+     * @param info Response info struct containing response type, serial no. and error.
+     *
+     * Valid errors returned:
+     *   RadioError:REQUEST_NOT_SUPPORTED
+     *   RadioError:NONE
+     *   RadioError:RADIO_NOT_AVAILABLE
+     *   RadioError:INTERNAL_ERR
+     *   RadioError:REQUEST_NOT_SUPPORTED
+     *   RadioError:INVALID_STATE
+     */
+    void setSatelliteEnabledForCarrierResponse(in RadioResponseInfo info);
+
+    /**
+     * Response of isSatelliteEnabledForCarrier.
+     * This is an optional API.
+     *
+     * @param info Response info struct containing response type, serial no. and error.
+     * @param isEnabled Indicates whether satellite is enabled for carrier or not.
+     *
+     * Valid errors returned:
+     *   RadioError:REQUEST_NOT_SUPPORTED
+     *   RadioError:NONE
+     *   RadioError:RADIO_NOT_AVAILABLE
+     *   RadioError:INTERNAL_ERR
+     *   RadioError:REQUEST_NOT_SUPPORTED
+     *   RadioError:INVALID_STATE
+     */
+    void isSatelliteEnabledForCarrierResponse(in RadioResponseInfo info, boolean isEnabled);
 }

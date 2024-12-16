@@ -35,6 +35,7 @@
 #include <openssl/evp.h>
 #include <openssl/mem.h>
 #include <remote_prov/remote_prov_utils.h>
+#include <vendorsupport/api_level.h>
 
 #include <keymaster/cppcose/cppcose.h>
 #include <keymint_support/key_param_output.h>
@@ -1908,16 +1909,29 @@ void verify_root_of_trust(const vector<uint8_t>& verified_boot_key, bool device_
         }
     }
 
+    if (get_vsr_api_level() > AVendorSupport_getVendorApiLevelOf(__ANDROID_API_V__)) {
+        // The Verified Boot key field should be exactly 32 bytes since it
+        // contains the SHA-256 hash of the key on locked devices or 32 bytes
+        // of zeroes on unlocked devices. This wasn't checked for earlier
+        // versions of the KeyMint HAL, so only only be strict for VSR-16+.
+        EXPECT_EQ(verified_boot_key.size(), 32);
+    } else if (get_vsr_api_level() == AVendorSupport_getVendorApiLevelOf(__ANDROID_API_V__)) {
+        // The Verified Boot key field should be:
+        //   - Exactly 32 bytes on locked devices since it should contain
+        //     the SHA-256 hash of the key, or
+        //   - Up to 32 bytes of zeroes on unlocked devices (behaviour on
+        //     unlocked devices isn't specified in the HAL interface
+        //     specification).
+        // Thus, we can't check for strict equality in case unlocked devices
+        // report values with less than 32 bytes. This wasn't checked for
+        // earlier versions of the KeyMint HAL, so only check on VSR-15.
+        EXPECT_LE(verified_boot_key.size(), 32);
+    }
+
     // Verified Boot key should be all zeroes if the boot state is "orange".
     std::string empty_boot_key(32, '\0');
     std::string verified_boot_key_str((const char*)verified_boot_key.data(),
                                       verified_boot_key.size());
-    if (get_vsr_api_level() >= __ANDROID_API_V__) {
-        // The attestation should contain the SHA-256 hash of the verified boot
-        // key.  However, this was not checked for earlier versions of the KeyMint
-        // HAL so only be strict for VSR-V and above.
-        EXPECT_LE(verified_boot_key.size(), 32);
-    }
     EXPECT_NE(property_get("ro.boot.verifiedbootstate", property_value, ""), 0);
     if (!strcmp(property_value, "green")) {
         EXPECT_EQ(verified_boot_state, VerifiedBoot::VERIFIED);
@@ -2232,6 +2246,33 @@ void KeyMintAidlTestBase::assert_mgf_digests_present_or_not_in_key_characteristi
 
 namespace {
 
+std::optional<std::string> validateP256Point(const std::vector<uint8_t>& x_buffer,
+                                             const std::vector<uint8_t>& y_buffer) {
+    auto group = EC_GROUP_Ptr(EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    if (group.get() == nullptr) {
+        return "Error creating EC group by curve name for prime256v1";
+    }
+
+    auto point = EC_POINT_Ptr(EC_POINT_new(group.get()));
+    BIGNUM_Ptr x(BN_bin2bn(x_buffer.data(), x_buffer.size(), nullptr));
+    BIGNUM_Ptr y(BN_bin2bn(y_buffer.data(), y_buffer.size(), nullptr));
+    if (!EC_POINT_set_affine_coordinates_GFp(group.get(), point.get(), x.get(), y.get(), nullptr)) {
+        return "Failed to set affine coordinates.";
+    }
+    if (!EC_POINT_is_on_curve(group.get(), point.get(), nullptr)) {
+        return "Point is not on curve.";
+    }
+    if (EC_POINT_is_at_infinity(group.get(), point.get())) {
+        return "Point is at infinity.";
+    }
+    const auto* generator = EC_GROUP_get0_generator(group.get());
+    if (!EC_POINT_cmp(group.get(), generator, point.get(), nullptr)) {
+        return "Point is equal to generator.";
+    }
+
+    return std::nullopt;
+}
+
 void check_cose_key(const vector<uint8_t>& data, bool testMode) {
     auto [parsedPayload, __, payloadParseErr] = cppbor::parse(data);
     ASSERT_TRUE(parsedPayload) << "Key parse failed: " << payloadParseErr;
@@ -2265,6 +2306,24 @@ void check_cose_key(const vector<uint8_t>& data, bool testMode) {
                              "  -3 : \\{(0x[0-9a-f]{2}, ){31}0x[0-9a-f]{2}\\},\n"  // pub_y: data
                              "\\}"));
     }
+
+    ASSERT_TRUE(parsedPayload->asMap()) << "CBOR item was not a map";
+
+    ASSERT_TRUE(parsedPayload->asMap()->get(CoseKey::Label::PUBKEY_X))
+            << "CBOR map did not contain x coordinate of public key";
+    ASSERT_TRUE(parsedPayload->asMap()->get(CoseKey::Label::PUBKEY_X)->asBstr())
+            << "x coordinate of public key was not a bstr";
+    const auto& x = parsedPayload->asMap()->get(CoseKey::Label::PUBKEY_X)->asBstr()->value();
+
+    ASSERT_TRUE(parsedPayload->asMap()->get(CoseKey::Label::PUBKEY_Y))
+            << "CBOR map did not contain y coordinate of public key";
+    ASSERT_TRUE(parsedPayload->asMap()->get(CoseKey::Label::PUBKEY_Y)->asBstr())
+            << "y coordinate of public key was not a bstr";
+    const auto& y = parsedPayload->asMap()->get(CoseKey::Label::PUBKEY_Y)->asBstr()->value();
+
+    auto errorMessage = validateP256Point(x, y);
+    EXPECT_EQ(errorMessage, std::nullopt)
+            << *errorMessage << " x: " << bin2hex(x) << " y: " << bin2hex(y);
 }
 
 }  // namespace
