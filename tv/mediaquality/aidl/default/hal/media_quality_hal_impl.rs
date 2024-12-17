@@ -100,14 +100,14 @@ impl IMediaQuality for MediaQualityService {
     ) -> binder::Result<()> {
         println!("Received settings: {:?}", settings);
         let mut ambient_backlight_detector_settings = self.ambient_backlight_detector_settings.lock().unwrap();
-        ambient_backlight_detector_settings.packageName = settings.packageName.clone();
+        ambient_backlight_detector_settings.uid = settings.uid.clone();
         ambient_backlight_detector_settings.source = settings.source;
         ambient_backlight_detector_settings.maxFramerate = settings.maxFramerate;
         ambient_backlight_detector_settings.colorFormat = settings.colorFormat;
         ambient_backlight_detector_settings.hZonesNumber = settings.hZonesNumber;
         ambient_backlight_detector_settings.vZonesNumber = settings.vZonesNumber;
         ambient_backlight_detector_settings.hasLetterbox = settings.hasLetterbox;
-        ambient_backlight_detector_settings.threshold = settings.threshold;
+        ambient_backlight_detector_settings.colorThreshold = settings.colorThreshold;
         Ok(())
     }
 
