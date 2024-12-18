@@ -60,5 +60,5 @@ parcelable DolbyAudioProcessing {
      * mixed in Dolby Atmos and a compatible sound system with upward-firing speakers
      * or a Dolby Atmos soundbar.
      */
-    boolean doblyAtmos;
+    boolean dolbyAtmos;
 }
