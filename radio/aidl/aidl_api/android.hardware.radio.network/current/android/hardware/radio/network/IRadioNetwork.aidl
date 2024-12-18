@@ -36,9 +36,15 @@ package android.hardware.radio.network;
 @VintfStability
 interface IRadioNetwork {
   oneway void getAllowedNetworkTypesBitmap(in int serial);
+  /**
+   * @deprecated Android Telephony framework doesn't use this.
+   */
   oneway void getAvailableBandModes(in int serial);
   oneway void getAvailableNetworks(in int serial);
   oneway void getBarringInfo(in int serial);
+  /**
+   * @deprecated Legacy CDMA is unsupported.
+   */
   oneway void getCdmaRoamingPreference(in int serial);
   oneway void getCellInfoList(in int serial);
   oneway void getDataRegistrationState(in int serial);
@@ -55,18 +61,30 @@ interface IRadioNetwork {
   oneway void isNrDualConnectivityEnabled(in int serial);
   oneway void responseAcknowledgement();
   oneway void setAllowedNetworkTypesBitmap(in int serial, in int networkTypeBitmap);
+  /**
+   * @deprecated Android Telephony framework doesn't use this.
+   */
   oneway void setBandMode(in int serial, in android.hardware.radio.network.RadioBandMode mode);
   oneway void setBarringPassword(in int serial, in String facility, in String oldPassword, in String newPassword);
+  /**
+   * @deprecated Legacy CDMA is unsupported.
+   */
   oneway void setCdmaRoamingPreference(in int serial, in android.hardware.radio.network.CdmaRoamingType type);
   oneway void setCellInfoListRate(in int serial, in int rate);
   oneway void setIndicationFilter(in int serial, in int indicationFilter);
   oneway void setLinkCapacityReportingCriteria(in int serial, in int hysteresisMs, in int hysteresisDlKbps, in int hysteresisUlKbps, in int[] thresholdsDownlinkKbps, in int[] thresholdsUplinkKbps, in android.hardware.radio.AccessNetwork accessNetwork);
+  /**
+   * @deprecated Android Telephony framework doesn't use this.
+   */
   oneway void setLocationUpdates(in int serial, in boolean enable);
   oneway void setNetworkSelectionModeAutomatic(in int serial);
   oneway void setNetworkSelectionModeManual(in int serial, in String operatorNumeric, in android.hardware.radio.AccessNetwork ran);
   oneway void setNrDualConnectivityState(in int serial, in android.hardware.radio.network.NrDualConnectivityState nrDualConnectivityState);
   oneway void setResponseFunctions(in android.hardware.radio.network.IRadioNetworkResponse radioNetworkResponse, in android.hardware.radio.network.IRadioNetworkIndication radioNetworkIndication);
   oneway void setSignalStrengthReportingCriteria(in int serial, in android.hardware.radio.network.SignalThresholdInfo[] signalThresholdInfos);
+  /**
+   * @deprecated Android Telephony framework doesn't use this.
+   */
   oneway void setSuppServiceNotifications(in int serial, in boolean enable);
   oneway void setSystemSelectionChannels(in int serial, in boolean specifyChannels, in android.hardware.radio.network.RadioAccessSpecifier[] specifiers);
   oneway void startNetworkScan(in int serial, in android.hardware.radio.network.NetworkScanRequest request);
@@ -86,4 +104,7 @@ interface IRadioNetwork {
   oneway void setCellularIdentifierTransparencyEnabled(in int serial, in boolean enabled);
   oneway void setSecurityAlgorithmsUpdatedEnabled(in int serial, boolean enable);
   oneway void isSecurityAlgorithmsUpdatedEnabled(in int serial);
+  oneway void setSatellitePlmn(in int serial, in int simSlot, in String[] carrierPlmnArray, in String[] allSatellitePlmnArray);
+  oneway void setSatelliteEnabledForCarrier(in int serial, in int simSlot, boolean satelliteEnabled);
+  oneway void isSatelliteEnabledForCarrier(in int serial, in int simSlot);
 }
