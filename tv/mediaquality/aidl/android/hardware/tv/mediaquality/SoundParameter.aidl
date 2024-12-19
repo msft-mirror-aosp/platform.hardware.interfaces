@@ -92,4 +92,9 @@ union SoundParameter {
 
     /* Digital output delay in ms. */
     int digitalOutputDelayMs;
+
+    /**
+     * Determines whether the current profile is actively in use or not.
+     */
+    boolean activeProfile;
 }
