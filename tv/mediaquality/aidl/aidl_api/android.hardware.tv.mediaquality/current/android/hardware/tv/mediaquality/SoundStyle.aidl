@@ -33,23 +33,13 @@
 
 package android.hardware.tv.mediaquality;
 @VintfStability
-union SoundParameter {
-  int balance;
-  int bass;
-  int treble;
-  boolean surroundSoundEnabled;
-  android.hardware.tv.mediaquality.EqualizerDetail equalizerDetail;
-  boolean speakersEnabled;
-  int speakersDelayMs;
-  boolean enhancedAudioReturnChannelEnabled;
-  boolean autoVolumeControl;
-  android.hardware.tv.mediaquality.DownmixMode downmixMode;
-  boolean dtsDrc;
-  @nullable android.hardware.tv.mediaquality.DolbyAudioProcessing dolbyAudioProcessing;
-  android.hardware.tv.mediaquality.QualityLevel dolbyDialogueEnhancer;
-  @nullable android.hardware.tv.mediaquality.DtsVirtualX dtsVirtualX;
-  android.hardware.tv.mediaquality.DigitalOutput digitalOutput;
-  int digitalOutputDelayMs;
-  boolean activeProfile;
-  android.hardware.tv.mediaquality.SoundStyle soundStyle;
+enum SoundStyle {
+  USER,
+  STANDARD,
+  VIVID,
+  SPORTS,
+  MOVIE,
+  MUSIC,
+  NEWS,
+  AUTO,
 }
