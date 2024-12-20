@@ -33,8 +33,13 @@
 
 package android.hardware.tv.mediaquality;
 @VintfStability
-parcelable AmbientBacklightMetadata {
-  android.hardware.tv.mediaquality.AmbientBacklightSettings settings;
-  android.hardware.tv.mediaquality.AmbientBacklightCompressAlgorithm compressAlgorithm;
-  android.hardware.tv.mediaquality.AmbientBacklightColorFormat[] zonesColors;
+enum SoundStyle {
+  USER,
+  STANDARD,
+  VIVID,
+  SPORTS,
+  MOVIE,
+  MUSIC,
+  NEWS,
+  AUTO,
 }

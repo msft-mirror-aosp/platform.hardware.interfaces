@@ -43,5 +43,8 @@ parcelable DolbyAudioProcessing {
     MOVIE,
     MUSIC,
     NEWS,
+    STADIUM,
+    STANDARD,
+    USER,
   }
 }

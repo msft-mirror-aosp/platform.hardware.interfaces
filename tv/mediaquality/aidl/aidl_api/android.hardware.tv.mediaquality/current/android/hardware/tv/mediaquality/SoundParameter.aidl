@@ -51,4 +51,5 @@ union SoundParameter {
   android.hardware.tv.mediaquality.DigitalOutput digitalOutput;
   int digitalOutputDelayMs;
   boolean activeProfile;
+  android.hardware.tv.mediaquality.SoundStyle soundStyle;
 }
