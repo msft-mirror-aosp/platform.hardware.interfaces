@@ -33,8 +33,6 @@
 
 package android.hardware.tv.mediaquality;
 @VintfStability
-parcelable AmbientBacklightMetadata {
-  android.hardware.tv.mediaquality.AmbientBacklightSettings settings;
-  android.hardware.tv.mediaquality.AmbientBacklightCompressAlgorithm compressAlgorithm;
-  android.hardware.tv.mediaquality.AmbientBacklightColorFormat[] zonesColors;
+union AmbientBacklightColorFormat {
+  int RGB888;
 }
