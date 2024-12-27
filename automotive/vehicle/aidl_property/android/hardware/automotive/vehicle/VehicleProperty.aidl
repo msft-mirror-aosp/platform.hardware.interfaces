@@ -1910,6 +1910,14 @@ enum VehicleProperty {
      *              configArray[1] = PSI
      *              configArray[2] = BAR
      *
+     * If {@code HasSupportedValueInfo} is not {@code null} for the global area ID (0):
+     * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
+     * (0) must be {@code true}.
+     * {@code getSupportedValuesLists} for [TIRE_PRESSURE_DISPLAY_UNITS, areaId=0] must return a
+     * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList},
+     * e.g. [KILOPASCAL, PSI, BAR].
+     * At boot, the values in the config array are equal to the supported values list.
+     *
      * If updating TIRE_PRESSURE_DISPLAY_UNITS affects the values of other *_DISPLAY_UNITS
      * properties, then their values must be updated and communicated to the AAOS framework as well.
      *
@@ -1920,6 +1928,8 @@ enum VehicleProperty {
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleUnit
+     * @require_supported_values_list
+     * @legacy_supported_values_in_config
      * @version 2
      */
     TIRE_PRESSURE_DISPLAY_UNITS = 0x0602 + 0x10000000 + 0x01000000
