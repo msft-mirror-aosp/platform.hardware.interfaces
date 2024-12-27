@@ -3798,6 +3798,11 @@ enum VehicleProperty {
      * For each supported area ID, the VehicleAreaConfig#supportedEnumValues must be defined unless
      * all enum values of VehicleLightState are supported.
      *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true} for the area ID
+     * unless all enum values of VehicleLightState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleLightState
@@ -3819,6 +3824,11 @@ enum VehicleProperty {
      *
      * For each supported area ID, the VehicleAreaConfig#supportedEnumValues must be defined unless
      * all enum values of VehicleLightSwitch are supported.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true} for the area ID
+     * unless all enum values of VehicleLightSwitch are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
      * implement it as VehiclePropertyAccess.READ only.
@@ -3884,6 +3894,12 @@ enum VehicleProperty {
      * For each seat area ID, the VehicleAreaConfig#supportedEnumValues array must be defined unless
      * all states of VehicleAirbagLocation are supported (including OTHER, which is not
      * recommended).
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true} for the area ID
+     * unless all states of VehicleAirbagLocation are supported (including OTHER, which is not
+     * recommended).
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -4188,6 +4204,12 @@ enum VehicleProperty {
      * unless all states in WindshieldWipersState are supported (including OTHER, which is not
      * recommended).
      *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true} for the area ID
+     * unless all states in WindshieldWipersState are supported (including OTHER, which is not
+     * recommended).
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum WindshieldWipersState
@@ -4206,6 +4228,12 @@ enum VehicleProperty {
      * For each supported area ID, the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states in WindshieldWipersSwitch are supported (including OTHER, which is not
      * recommended).
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true} for the area ID
+     * unless all states in WindshieldWipersSwitch are supported (including OTHER, which is not
+     * recommended).
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
      * implement it as VehiclePropertyAccess.READ only.
@@ -4972,6 +5000,11 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues must be defined unless
      * all enum values of VehicleLightState are supported.
      *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all enum values of VehicleLightState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleLightState
@@ -4993,6 +5026,11 @@ enum VehicleProperty {
      *
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues must be defined unless
      * all enum values of VehicleLightSwitch are supported.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all enum values of VehicleLightSwitch are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
      * implement it as VehiclePropertyAccess.READ only.
@@ -6018,6 +6056,11 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of VehicleAutonomousState are supported.
      *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all enum values of VehicleAutonomousState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleAutonomousState
@@ -6145,6 +6188,12 @@ enum VehicleProperty {
      * unless all states of both AutomaticEmergencyBrakingState (including OTHER, which is not
      * recommended) and ErrorState are supported.
      *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both AutomaticEmergencyBrakingState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum AutomaticEmergencyBrakingState
@@ -6186,6 +6235,12 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of both ForwardCollisionWarningState (including OTHER, which is not
      * recommended) and ErrorState are supported.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both ForwardCollisionWarningState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -6229,6 +6284,12 @@ enum VehicleProperty {
      * unless all states of both BlindSpotWarningState (including OTHER, which is not
      * recommended) and ErrorState are supported.
      *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both BlindSpotWarningState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum BlindSpotWarningState
@@ -6271,6 +6332,12 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of both LaneDepartureWarningState (including OTHER, which is not
      * recommended) and ErrorState are supported.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both LaneDepartureWarningState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -6321,6 +6388,12 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of both LaneKeepAssistState (including OTHER, which is not
      * recommended) and ErrorState are supported.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both LaneKeepAssistState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -6374,6 +6447,11 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues must be defined unless
      * all enum values of LaneCenteringAssistCommand are supported.
      *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all enum values of LaneCenteringAssistCommand are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * When this property is not available because LCA is disabled (i.e.
      * LANE_CENTERING_ASSIST_ENABLED is false), this property must return
      * StatusCode#NOT_AVAILABLE_DISABLED. If LANE_CENTERING_ASSIST_STATE is implemented and the
@@ -6403,6 +6481,12 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of both LaneCenteringAssistState (including OTHER, which is not
      * recommended) and ErrorState are supported.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both LaneCenteringAssistState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -6448,6 +6532,12 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of EmergencyLaneKeepAssistState (including OTHER, which is not recommended)
      * and ErrorState are supported.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of EmergencyLaneKeepAssistState (including OTHER, which is not recommended)
+     * and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -6496,6 +6586,12 @@ enum VehicleProperty {
      * unless all states of CruiseControlType (including OTHER, which is not recommended) and
      * ErrorState are supported.
      *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of CruiseControlType (including OTHER, which is not recommended) and
+     * ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * Trying to write CruiseControlType#OTHER or an ErrorState to this property will throw an
      * IllegalArgumentException.
      *
@@ -6524,6 +6620,12 @@ enum VehicleProperty {
      * unless all states of CruiseControlState (including OTHER, which is not recommended) and
      * ErrorState are supported.
      *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of CruiseControlState (including OTHER, which is not recommended) and
+     * ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum CruiseControlState
@@ -6541,6 +6643,11 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of CruiseControlState are supported. Any unsupported commands sent through
      * this property must return StatusCode#INVALID_ARG.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of CruiseControlState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * When this property is not available because CC is disabled (i.e. CRUISE_CONTROL_ENABLED is
      * false), this property must return StatusCode#NOT_AVAILABLE_DISABLED. If CRUISE_CONTROL_STATE
@@ -6682,6 +6789,12 @@ enum VehicleProperty {
      * unless all states of both HandsOnDetectionDriverState (including OTHER, which is not
      * recommended) and ErrorState are supported.
      *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both HandsOnDetectionDriverState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum HandsOnDetectionDriverState
@@ -6704,6 +6817,12 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of both HandsOnDetectionWarning (including OTHER, which is not recommended)
      * and ErrorState are supported.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both HandsOnDetectionWarning (including OTHER, which is not recommended)
+     * and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -6755,6 +6874,12 @@ enum VehicleProperty {
      * unless all states of both DriverDrowsinessAttentionState (including OTHER, which is not
      * recommended) and ErrorState are supported.
      *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both DriverDrowsinessAttentionState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum DriverDrowsinessAttentionState
@@ -6801,6 +6926,12 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of both DriverDrowsinessAttentionWarning (including OTHER, which is not
      * recommended) and ErrorState are supported.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both DriverDrowsinessAttentionWarning (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -6850,6 +6981,12 @@ enum VehicleProperty {
      * unless all states of both DriverDistractionState (including OTHER, which is not
      * recommended) and ErrorState are supported.
      *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both DriverDistractionState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum DriverDistractionState
@@ -6895,6 +7032,12 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of both DriverDistractionWarning (including OTHER, which is not
      * recommended) and ErrorState are supported.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both DriverDistractionWarning (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -6945,6 +7088,12 @@ enum VehicleProperty {
      * unless all states of both LowSpeedCollisionWarningState (including OTHER, which is not
      * recommended) and ErrorState are supported.
      *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both LowSpeedCollisionWarningState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum LowSpeedCollisionWarningState
@@ -6987,6 +7136,12 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of both CrossTrafficMonitoringWarningState (including OTHER, which is not
      * recommended) and ErrorState are supported.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both CrossTrafficMonitoringWarningState (including OTHER, which is not
+     * recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
@@ -7041,6 +7196,12 @@ enum VehicleProperty {
      * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
      * unless all states of both LowSpeedAutomaticEmergencyBrakingState (including OTHER, which is
      * not recommended) and ErrorState are supported.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all states of both LowSpeedAutomaticEmergencyBrakingState (including OTHER, which is
+     * not recommended) and ErrorState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
