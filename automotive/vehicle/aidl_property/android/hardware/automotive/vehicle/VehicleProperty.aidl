@@ -2540,12 +2540,25 @@ enum VehicleProperty {
      *
      * The minInt32Value indicates the mirror is tilted completely downwards. This must be a
      * non-positive value.
+     *
      * The maxInt32Value indicates the mirror is tilted completely upwards. This must be a
      * non-negative value.
+     *
      * 0 indicates the mirror is not tilted in either direction.
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * fully downward and fully upwards positions.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * Values in between minSupportedValue and maxSupportedValue indicate a transition state between
+     * the fully downward and fully upwards positions.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -2555,6 +2568,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     MIRROR_Z_POS = 0x0B40 + 0x10000000 + 0x04000000
@@ -2594,12 +2608,25 @@ enum VehicleProperty {
      *
      * The minInt32Value indicates the mirror is tilted completely to the left. This must be a
      * non-positive value.
+     *
      * The maxInt32Value indicates the mirror is tilted completely to the right. This must be a
      * non-negative value.
+     *
      * 0 indicates the mirror is not tilted in either direction.
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * left extreme and right extreme positions.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * Values in between minSupportedValue and maxSupportedValue indicate a transition state between
+     * the fully downward and fully upwards positions.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -2609,6 +2636,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     MIRROR_Y_POS = 0x0B42 + 0x10000000 + 0x04000000
