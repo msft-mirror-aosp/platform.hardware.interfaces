@@ -2761,17 +2761,30 @@ enum VehicleProperty {
     /**
      * Seat memory select
      *
-     * This parameter selects the memory preset to use to select the seat position. The
-     * maxInt32Value and minInt32Value in VehicleAreaConfig must be defined. All integers between
-     * minInt32Value and maxInt32Value must be supported. The minInt32Value is always 0, and the
-     * maxInt32Value determines the number of seat preset memory slots available (i.e.
-     * numSeatPresets - 1).
+     * This parameter selects the memory preset to use to select the seat position.
+     *
+     * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
+     *
+     * All integers between minInt32Value and maxInt32Value must be supported.
+     *
+     * The minInt32Value is always 0, and the maxInt32Value determines the number of seat preset
+     * memory slots available (i.e. numSeatPresets - 1).
      *
      * For instance, if the driver's seat has 3 memory presets, the maxInt32Value will be 2. When
      * the user wants to select a preset, the desired preset number (0, 1, or 2) is set.
      *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
+     *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.WRITE
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_MEMORY_SELECT = 0x0B80 + 0x10000000 + 0x05000000
@@ -2780,12 +2793,24 @@ enum VehicleProperty {
      * Seat memory set
      *
      * This setting allows the user to save the current seat position settings into the selected
-     * preset slot. The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined. The
-     * minInt32Value must be 0, and the maxInt32Value for each seat position must match the
+     * preset slot.
+     *
+     * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
+     *
+     * The minInt32Value must be 0, and the maxInt32Value for each seat position must match the
      * maxInt32Value for SEAT_MEMORY_SELECT.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.WRITE
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_MEMORY_SET = 0x0B81 + 0x10000000 + 0x05000000
