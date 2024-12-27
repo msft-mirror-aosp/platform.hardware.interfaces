@@ -2432,10 +2432,20 @@ enum VehicleProperty {
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
      * The minInt32Value indicates the door is closed. The minInt32Value must be 0.
+     *
      * The maxInt32Value indicates the door is fully open.
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * closed and fully open positions.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -2448,6 +2458,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     DOOR_POS = 0x0B00 + 0x10000000 + 0x06000000
