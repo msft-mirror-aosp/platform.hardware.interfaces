@@ -2997,11 +2997,23 @@ enum VehicleProperty {
      *
      * The minInt32Value indicates the seat backrest's full recline position w.r.t the
      * actuator at the bottom of the seat.
+     *
      * The maxInt32Value indicates the seat backrest's most upright/forward position w.r.t the
      * actuator at the bottom of the seat.
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * full recline and upright/forward positions.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * Values in between minSupportedValue and maxSupportedValue indicate a transition state between
+     * the full recline and upright/forward positions.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -3011,6 +3023,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_BACKREST_ANGLE_1_POS = 0x0B87 + 0x10000000 + 0x05000000
@@ -3054,12 +3067,24 @@ enum VehicleProperty {
      * The minInt32Value indicates the seat backrest's full recline position w.r.t the next
      * actuator in the backrest from the one at the bottom of the seat (see
      * SEAT_BACKREST_ANGLE_1_POS for additional details).
+     *
      * The maxInt32Value indicates the seat backrest's most upright/forward position w.r.t the
      * next actuator in the backrest from the one at the bottom of the seat(see
      * SEAT_BACKREST_ANGLE_1_POS for additional details).
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * full recline and upright/forward positions.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} ihas the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * Values in between minSupportedValue and maxSupportedValue indicate a transition state between
+     * the full recline and upright/forward positions.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -3069,6 +3094,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_BACKREST_ANGLE_2_POS = 0x0B89 + 0x10000000 + 0x05000000
