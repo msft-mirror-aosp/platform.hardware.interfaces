@@ -3386,11 +3386,21 @@ enum VehicleProperty {
      *
      * The minInt32Value indicates the lumbar support is in its rearward most position (i.e. least
      * supportive position).
+     *
      * The maxInt32Value indicates the lumbar support is in its forward most position (i.e. most
      * supportive position).
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * forward and rearward positions.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -3400,6 +3410,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_LUMBAR_FORE_AFT_POS = 0x0B91 + 0x10000000 + 0x05000000
@@ -3410,15 +3421,25 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in each VehicleAreaConfig must be defined. All integers
      * between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value represents the maximum movement speed of the seat's lumbar support while
-     * moving forward.
      * The minInt32Value represents the maximum movement speed of the seat's lumbar support while
      * moving backward.
+     *
+     * The maxInt32Value represents the maximum movement speed of the seat's lumbar support while
+     * moving forward.
      *
      * Larger absolute values, either positive or negative, indicate a faster movement speed. Once
      * the seat's lumbar support reaches the positional limit, the value must reset to 0. If
      * SEAT_LUMBAR_FORE_AFT_MOVE's value is currently 0, then that means there is no movement
      * currently occurring.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative movement
      * speeds.
@@ -3429,6 +3450,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_LUMBAR_FORE_AFT_MOVE = 0x0B92 + 0x10000000 + 0x05000000
@@ -3441,11 +3463,21 @@ enum VehicleProperty {
      *
      * The minInt32Value indicates the lumbar side support is in its thinnest position (i.e.
      * most support).
+     *
      * The maxInt32Value indicates the lumbar side support is in its widest position (i.e.
      * least support).
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * thinnest and widest positions.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -3455,6 +3487,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_LUMBAR_SIDE_SUPPORT_POS = 0x0B93 + 0x10000000 + 0x05000000
@@ -3465,15 +3498,25 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in each VehicleAreaConfig must be defined. All integers
      * between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value represents the maximum movement speed of the seat's lumbar side support
-     * while getting wider.
      * The minInt32Value represents the maximum movement speed of the seat's lumbar side support
      * while getting thinner.
+     *
+     * The maxInt32Value represents the maximum movement speed of the seat's lumbar side support
+     * while getting wider.
      *
      * Larger absolute values, either positive or negative, indicate a faster movement speed. Once
      * the seat's lumbar side support reaches the positional limit, the value must reset to 0. If
      * SEAT_LUMBAR_SIDE_SUPPORT_MOVE's value is currently 0, then that means there is no movement
      * currently occurring.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative movement
      * speeds.
@@ -3484,6 +3527,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_LUMBAR_SIDE_SUPPORT_MOVE = 0x0B94 + 0x10000000 + 0x05000000
