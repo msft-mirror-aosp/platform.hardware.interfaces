@@ -255,6 +255,10 @@ class DefaultVehicleHal final : public aidlvhal::BnVehicle {
             const std::weak_ptr<SubscriptionManager>& subscriptionManager,
             const std::vector<SetValueErrorEvent>& errorEvents);
 
+    static void onSupportedValueChange(
+            const std::weak_ptr<SubscriptionManager>& subscriptionManager,
+            const std::vector<PropIdAreaId>& updatedPropIdAreaIds);
+
     static void checkHealth(IVehicleHardware* hardware,
                             std::weak_ptr<SubscriptionManager> subscriptionManager);
 

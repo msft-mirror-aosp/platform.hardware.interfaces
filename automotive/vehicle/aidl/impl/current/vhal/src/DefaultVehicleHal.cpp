@@ -160,6 +160,11 @@ DefaultVehicleHal::DefaultVehicleHal(std::unique_ptr<IVehicleHardware> vehicleHa
                     [subscriptionManagerCopy](std::vector<SetValueErrorEvent> errorEvents) {
                         onPropertySetErrorEvent(subscriptionManagerCopy, errorEvents);
                     }));
+    mVehicleHardware->registerSupportedValueChangeCallback(
+            std::make_unique<IVehicleHardware::SupportedValueChangeCallback>(
+                    [subscriptionManagerCopy](std::vector<PropIdAreaId> propIdAreaIds) {
+                        onSupportedValueChange(subscriptionManagerCopy, propIdAreaIds);
+                    }));
 
     // Register heartbeat event.
     mRecurrentAction = std::make_shared<std::function<void()>>(
@@ -207,7 +212,8 @@ void DefaultVehicleHal::batchPropertyChangeEvent(
         std::vector<VehiclePropValue>&& updatedValues) {
     auto batchedEventQueueStrong = batchedEventQueue.lock();
     if (batchedEventQueueStrong == nullptr) {
-        ALOGW("the batched property events queue is destroyed, DefaultVehicleHal is ending");
+        ALOGW("%s: the batched property events queue is destroyed, DefaultVehicleHal is ending",
+              __func__);
         return;
     }
     batchedEventQueueStrong->push(std::move(updatedValues));
@@ -223,7 +229,7 @@ void DefaultVehicleHal::onPropertyChangeEvent(
     ATRACE_CALL();
     auto manager = subscriptionManager.lock();
     if (manager == nullptr) {
-        ALOGW("the SubscriptionManager is destroyed, DefaultVehicleHal is ending");
+        ALOGW("%s: the SubscriptionManager is destroyed, DefaultVehicleHal is ending", __func__);
         return;
     }
     auto updatedValuesByClients = manager->getSubscribedClients(std::move(updatedValues));
@@ -237,12 +243,28 @@ void DefaultVehicleHal::onPropertySetErrorEvent(
         const std::vector<SetValueErrorEvent>& errorEvents) {
     auto manager = subscriptionManager.lock();
     if (manager == nullptr) {
-        ALOGW("the SubscriptionManager is destroyed, DefaultVehicleHal is ending");
+        ALOGW("%s: the SubscriptionManager is destroyed, DefaultVehicleHal is ending", __func__);
         return;
     }
     auto vehiclePropErrorsByClient = manager->getSubscribedClientsForErrorEvents(errorEvents);
     for (auto& [callback, vehiclePropErrors] : vehiclePropErrorsByClient) {
         SubscriptionClient::sendPropertySetErrors(callback, std::move(vehiclePropErrors));
+    }
+}
+
+void DefaultVehicleHal::onSupportedValueChange(
+        const std::weak_ptr<SubscriptionManager>& subscriptionManager,
+        const std::vector<PropIdAreaId>& propIdAreaIds) {
+    auto manager = subscriptionManager.lock();
+    if (manager == nullptr) {
+        ALOGW("%s: the SubscriptionManager is destroyed, DefaultVehicleHal is ending", __func__);
+        return;
+    }
+    auto updatedPropIdAreaIdsByClient =
+            manager->getSubscribedClientsForSupportedValueChange(propIdAreaIds);
+    for (auto& [callback, updatedPropIdAreaIds] : updatedPropIdAreaIdsByClient) {
+        SubscriptionClient::sendSupportedValueChangeEvents(callback,
+                                                           std::move(updatedPropIdAreaIds));
     }
 }
 
