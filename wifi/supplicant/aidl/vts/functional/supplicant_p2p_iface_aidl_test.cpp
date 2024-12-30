@@ -38,6 +38,7 @@ using aidl::android::hardware::wifi::supplicant::FreqRange;
 using aidl::android::hardware::wifi::supplicant::IfaceType;
 using aidl::android::hardware::wifi::supplicant::ISupplicant;
 using aidl::android::hardware::wifi::supplicant::ISupplicantP2pIface;
+using aidl::android::hardware::wifi::supplicant::ISupplicantP2pNetwork;
 using aidl::android::hardware::wifi::supplicant::MiracastMode;
 using aidl::android::hardware::wifi::supplicant::P2pAddGroupConfigurationParams;
 using aidl::android::hardware::wifi::supplicant::P2pConnectInfo;
@@ -979,6 +980,24 @@ TEST_P(SupplicantP2pIfaceAidlTest, ReinvokePersistentGroup) {
     params.deviceIdentityEntryId = 0;
 
     EXPECT_TRUE(p2p_iface_->reinvokePersistentGroup(params).isOk());
+}
+
+/*
+ * Test the P2P network management functions.
+ */
+TEST_P(SupplicantP2pIfaceAidlTest, ManageNetworks) {
+    std::shared_ptr<ISupplicantP2pNetwork> network;
+    EXPECT_TRUE(p2p_iface_->addNetwork(&network).isOk());
+    ASSERT_NE(network, nullptr);
+
+    std::vector<int32_t> networkList;
+    EXPECT_TRUE(p2p_iface_->listNetworks(&networkList).isOk());
+    ASSERT_FALSE(networkList.empty());
+
+    int networkId = networkList[0];
+    EXPECT_TRUE(p2p_iface_->getNetwork(networkId, &network).isOk());
+    ASSERT_NE(network, nullptr);
+    EXPECT_TRUE(p2p_iface_->removeNetwork(networkId).isOk());
 }
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SupplicantP2pIfaceAidlTest);
