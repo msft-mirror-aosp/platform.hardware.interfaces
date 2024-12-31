@@ -953,7 +953,9 @@ ScopedAStatus DefaultVehicleHal::subscribe(const CallbackType& callback,
     }
 
     {
-        // Lock to make sure onBinderDied would not be called concurrently.
+        // Lock to make sure onBinderDied would not be called concurrently
+        // (before subscribe). Without this, we may create a new subscription for an already dead
+        // client which will never be unsubscribed.
         std::scoped_lock lockGuard(mLock);
         if (!monitorBinderLifeCycleLocked(callback->asBinder().get())) {
             return ScopedAStatus::fromExceptionCodeWithMessage(EX_TRANSACTION_FAILED,
@@ -1178,14 +1180,24 @@ ScopedAStatus DefaultVehicleHal::registerSupportedValueChangeCallback(
     if (propIdAreaIdsToSubscribe.empty()) {
         return ScopedAStatus::ok();
     }
-    auto result =
-            mSubscriptionManager->subscribeSupportedValueChange(callback, propIdAreaIdsToSubscribe);
-    if (!result.ok()) {
-        ALOGW("registerSupportedValueChangeCallback: failed to subscribe supported value change"
-              " for %s, error: %s",
-              fmt::format("{}", propIdAreaIdsToSubscribe).c_str(),
-              result.error().message().c_str());
-        return toScopedAStatus(result);
+    {
+        // Lock to make sure onBinderDied would not be called concurrently
+        // (before subscribeSupportedValueChange). Without this, we may create a new subscription
+        // for an already dead client which will never be unsubscribed.
+        std::scoped_lock lockGuard(mLock);
+        if (!monitorBinderLifeCycleLocked(callback->asBinder().get())) {
+            return ScopedAStatus::fromExceptionCodeWithMessage(EX_TRANSACTION_FAILED,
+                                                               "client died");
+        }
+        auto result = mSubscriptionManager->subscribeSupportedValueChange(callback,
+                                                                          propIdAreaIdsToSubscribe);
+        if (!result.ok()) {
+            ALOGW("registerSupportedValueChangeCallback: failed to subscribe supported value change"
+                  " for %s, error: %s",
+                  fmt::format("{}", propIdAreaIdsToSubscribe).c_str(),
+                  result.error().message().c_str());
+            return toScopedAStatus(result);
+        }
     }
     return ScopedAStatus::ok();
 }
