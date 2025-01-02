@@ -39,6 +39,7 @@ import android.hardware.automotive.vehicle.VehiclePropertyType;
  * in response to such ill formed requests.
  */
 @VintfStability
+@JavaDerive(toString=true)
 @Backing(type="int")
 enum VehicleProperty {
     /**
