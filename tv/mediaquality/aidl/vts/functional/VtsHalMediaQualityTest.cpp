@@ -424,6 +424,47 @@ void validatePictureParameter(const PictureParameter& param) {
     }
 }
 
+void validateSoundParameter(const SoundParameter& param) {
+    switch (param.getTag()) {
+        case SoundParameter::Tag::balance: {
+            ALOGD("[validateSoundParameter] validate balance value");
+            int value = param.get<SoundParameter::Tag::balance>();
+            EXPECT_GE(value, -50);
+            EXPECT_LE(value, 50);
+            break;
+        }
+        case SoundParameter::Tag::bass: {
+            ALOGD("[validateSoundParameter] validate bass value");
+            int value = param.get<SoundParameter::Tag::bass>();
+            validateParameterRange0To100(value);
+            break;
+        }
+        case SoundParameter::Tag::treble: {
+            ALOGD("[validateSoundParameter] validate treble value");
+            int value = param.get<SoundParameter::Tag::treble>();
+            validateParameterRange0To100(value);
+            break;
+        }
+        case SoundParameter::Tag::speakersDelayMs: {
+            ALOGD("[validateSoundParameter] validate speakersDelayMs value");
+            int value = param.get<SoundParameter::Tag::speakersDelayMs>();
+            EXPECT_GE(value, 0);
+            EXPECT_LE(value, 250);
+            break;
+        }
+        case SoundParameter::Tag::digitalOutputDelayMs: {
+            ALOGD("[validateSoundParameter] validate digitalOutputDelayMs value");
+            int value = param.get<SoundParameter::Tag::digitalOutputDelayMs>();
+            EXPECT_GE(value, 0);
+            EXPECT_LE(value, 250);
+            break;
+        }
+        default:
+            ALOGD("Those parameters don't need to check.");
+            break;
+    }
+}
+
 class MediaQualityCallback : public BnMediaQualityCallback {
   public:
     explicit MediaQualityCallback(
@@ -476,7 +517,11 @@ class SoundProfileAdjustmentListener : public BnSoundProfileAdjustmentListener {
             const std::function<void(const SoundProfile& soundProfile)>&
                     on_hal_sound_profile_adjust)
         : on_hal_sound_profile_adjust_(on_hal_sound_profile_adjust) {}
+
     ScopedAStatus onSoundProfileAdjusted(const SoundProfile& soundProfile) override {
+        for (const auto& param : soundProfile.parameters.soundParameters) {
+            validateSoundParameter(param);
+        }
         on_hal_sound_profile_adjust_(soundProfile);
         return ScopedAStatus::ok();
     }
