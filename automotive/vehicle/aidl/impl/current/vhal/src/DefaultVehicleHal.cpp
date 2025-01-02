@@ -969,8 +969,8 @@ ScopedAStatus DefaultVehicleHal::returnSharedMemory(const CallbackType&, int64_t
     return ScopedAStatus::ok();
 }
 
-Result<const VehicleAreaConfig*> DefaultVehicleHal::getAreaConfigForPropIdAreaId(
-        int32_t propId, int32_t areaId) const {
+Result<VehicleAreaConfig> DefaultVehicleHal::getAreaConfigForPropIdAreaId(int32_t propId,
+                                                                          int32_t areaId) const {
     auto result = getConfig(propId);
     if (!result.ok()) {
         return Error() << "Failed to get property config for propertyId: " << propIdToString(propId)
@@ -982,12 +982,12 @@ Result<const VehicleAreaConfig*> DefaultVehicleHal::getAreaConfigForPropIdAreaId
         return Error() << "AreaId config not found for propertyId: " << propIdToString(propId)
                        << ", areaId: " << areaId;
     }
-    return areaConfig;
+    return *areaConfig;
 }
 
-Result<const HasSupportedValueInfo*> DefaultVehicleHal::getHasSupportedValueInfo(
-        int32_t propId, int32_t areaId) const {
-    Result<const VehicleAreaConfig*> propIdAreaIdConfigResult =
+Result<HasSupportedValueInfo> DefaultVehicleHal::getHasSupportedValueInfo(int32_t propId,
+                                                                          int32_t areaId) const {
+    Result<VehicleAreaConfig> propIdAreaIdConfigResult =
             getAreaConfigForPropIdAreaId(propId, areaId);
     if (!isGlobalProp(propId) && !propIdAreaIdConfigResult.ok()) {
         // For global property, it is possible that no config exists.
@@ -995,8 +995,8 @@ Result<const HasSupportedValueInfo*> DefaultVehicleHal::getHasSupportedValueInfo
     }
     if (propIdAreaIdConfigResult.has_value()) {
         auto areaConfig = propIdAreaIdConfigResult.value();
-        if (areaConfig->hasSupportedValueInfo.has_value()) {
-            return &(areaConfig->hasSupportedValueInfo.value());
+        if (areaConfig.hasSupportedValueInfo.has_value()) {
+            return areaConfig.hasSupportedValueInfo.value();
         }
     }
     return Error() << "property: " << propIdToString(propId) << ", areaId: " << areaId
@@ -1023,7 +1023,7 @@ ScopedAStatus DefaultVehicleHal::getSupportedValuesLists(
             continue;
         }
 
-        const auto& hasSupportedValueInfo = *(hasSupportedValueInfoResult.value());
+        const auto& hasSupportedValueInfo = hasSupportedValueInfoResult.value();
         if (hasSupportedValueInfo.hasSupportedValuesList) {
             toHardwarePropIdAreaIds.push_back(PropIdAreaId{.propId = propId, .areaId = areaId});
             toHardwareRequestCounters.push_back(requestCounter);
@@ -1084,7 +1084,7 @@ ScopedAStatus DefaultVehicleHal::getMinMaxSupportedValue(
             continue;
         }
 
-        const auto& hasSupportedValueInfo = *(hasSupportedValueInfoResult.value());
+        const auto& hasSupportedValueInfo = hasSupportedValueInfoResult.value();
         if (hasSupportedValueInfo.hasMinSupportedValue ||
             hasSupportedValueInfo.hasMaxSupportedValue) {
             toHardwarePropIdAreaIds.push_back(PropIdAreaId{.propId = propId, .areaId = areaId});
@@ -1140,7 +1140,7 @@ ScopedAStatus DefaultVehicleHal::registerSupportedValueChangeCallback(
                   hasSupportedValueInfoResult.error().message().c_str());
             return toScopedAStatus(hasSupportedValueInfoResult, StatusCode::INVALID_ARG);
         }
-        const auto& hasSupportedValueInfo = *(hasSupportedValueInfoResult.value());
+        const auto& hasSupportedValueInfo = hasSupportedValueInfoResult.value();
         if (!hasSupportedValueInfo.hasMinSupportedValue &&
             !hasSupportedValueInfo.hasMaxSupportedValue &&
             !hasSupportedValueInfo.hasSupportedValuesList) {
