@@ -62,6 +62,7 @@ using ::android::hardware::contexthub::vts_utils::waitForCallback;
 // 6612b522-b717-41c8-b48d-c0b1cc64e142
 constexpr std::array<uint8_t, 16> kUuid = {0x66, 0x12, 0xb5, 0x22, 0xb7, 0x17, 0x41, 0xc8,
                                            0xb4, 0x8d, 0xc0, 0xb1, 0xcc, 0x64, 0xe1, 0x42};
+
 const String16 kName{"VtsAidlHalContextHubTargetTest"};
 
 const String16 kEchoServiceName{"android.hardware.contexthub.test.EchoService"};
@@ -72,19 +73,29 @@ class ContextHubAidl : public testing::TestWithParam<std::tuple<std::string, int
         contextHub = android::waitForDeclaredService<IContextHub>(
                 String16(std::get<0>(GetParam()).c_str()));
         ASSERT_NE(contextHub, nullptr);
+    }
+
+    uint32_t getHubId() { return std::get<1>(GetParam()); }
+
+    sp<IContextHub> contextHub;
+
+    void testSettingChanged(Setting setting);
+};
+
+class ContextHubAidlWithTestMode : public ContextHubAidl {
+  public:
+    virtual void SetUp() override {
+        ContextHubAidl::SetUp();
 
         // Best effort enable test mode - this may not be supported on older HALS, so we
         // ignore the return value.
         contextHub->setTestMode(/* enable= */ true);
     }
 
-    virtual void TearDown() override { contextHub->setTestMode(/* enable= */ false); }
-
-    uint32_t getHubId() { return std::get<1>(GetParam()); }
-
-    void testSettingChanged(Setting setting);
-
-    sp<IContextHub> contextHub;
+    virtual void TearDown() override {
+        contextHub->setTestMode(/* enable= */ false);
+        ContextHubAidl::TearDown();
+    }
 };
 
 TEST_P(ContextHubAidl, TestGetHubs) {
@@ -546,7 +557,7 @@ class TestEndpointCallback : public BnEndpointCallback {
     bool mWasOnEndpointSessionOpenCompleteCalled = false;
 };
 
-TEST_P(ContextHubAidl, RegisterEndpoint) {
+TEST_P(ContextHubAidlWithTestMode, RegisterEndpoint) {
     EndpointInfo endpointInfo;
     endpointInfo.id.id = 1;
     endpointInfo.id.hubId = 0xCAFECAFECAFECAFE;
@@ -563,7 +574,7 @@ TEST_P(ContextHubAidl, RegisterEndpoint) {
     }
 }
 
-TEST_P(ContextHubAidl, RegisterEndpointSameNameFailure) {
+TEST_P(ContextHubAidlWithTestMode, RegisterEndpointSameNameFailure) {
     EndpointInfo endpointInfo;
     endpointInfo.id.id = 2;
     endpointInfo.id.hubId = 0xCAFECAFECAFECAFE;
@@ -589,7 +600,7 @@ TEST_P(ContextHubAidl, RegisterEndpointSameNameFailure) {
     EXPECT_FALSE(contextHub->registerEndpoint(endpointInfo2).isOk());
 }
 
-TEST_P(ContextHubAidl, RegisterEndpointSameIdFailure) {
+TEST_P(ContextHubAidlWithTestMode, RegisterEndpointSameIdFailure) {
     EndpointInfo endpointInfo;
     endpointInfo.id.id = 4;
     endpointInfo.id.hubId = 0xCAFECAFECAFECAFE;
@@ -615,7 +626,7 @@ TEST_P(ContextHubAidl, RegisterEndpointSameIdFailure) {
     EXPECT_FALSE(contextHub->registerEndpoint(endpointInfo2).isOk());
 }
 
-TEST_P(ContextHubAidl, UnregisterEndpoint) {
+TEST_P(ContextHubAidlWithTestMode, UnregisterEndpoint) {
     EndpointInfo endpointInfo;
     endpointInfo.id.id = 6;
     endpointInfo.id.hubId = 0xCAFECAFECAFECAFE;
@@ -634,7 +645,7 @@ TEST_P(ContextHubAidl, UnregisterEndpoint) {
     EXPECT_TRUE(contextHub->unregisterEndpoint(endpointInfo).isOk());
 }
 
-TEST_P(ContextHubAidl, UnregisterEndpointNonexistent) {
+TEST_P(ContextHubAidlWithTestMode, UnregisterEndpointNonexistent) {
     EndpointInfo endpointInfo;
     endpointInfo.id.id = 100;
     endpointInfo.id.hubId = 0xCAFECAFECAFECAFE;
@@ -651,7 +662,7 @@ TEST_P(ContextHubAidl, UnregisterEndpointNonexistent) {
     }
 }
 
-TEST_P(ContextHubAidl, RegisterCallback) {
+TEST_P(ContextHubAidlWithTestMode, RegisterEndpointCallback) {
     auto cb = sp<TestEndpointCallback>::make();
     Status status = contextHub->registerEndpointCallback(cb);
     if (status.exceptionCode() == Status::EX_UNSUPPORTED_OPERATION ||
@@ -662,7 +673,7 @@ TEST_P(ContextHubAidl, RegisterCallback) {
     }
 }
 
-TEST_P(ContextHubAidl, OpenEndpointSessionInvalidRange) {
+TEST_P(ContextHubAidlWithTestMode, OpenEndpointSessionInvalidRange) {
     auto cb = sp<TestEndpointCallback>::make();
     Status status = contextHub->registerEndpointCallback(cb);
     if (status.exceptionCode() == Status::EX_UNSUPPORTED_OPERATION ||
@@ -713,7 +724,7 @@ TEST_P(ContextHubAidl, OpenEndpointSessionInvalidRange) {
                          .isOk());
 }
 
-TEST_P(ContextHubAidl, OpenEndpointSessionAndSendMessageEchoesBack) {
+TEST_P(ContextHubAidlWithTestMode, OpenEndpointSessionAndSendMessageEchoesBack) {
     auto cb = sp<TestEndpointCallback>::make();
     Status status = contextHub->registerEndpointCallback(cb);
     if (status.exceptionCode() == Status::EX_UNSUPPORTED_OPERATION ||
@@ -789,13 +800,17 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ContextHubAidl);
 INSTANTIATE_TEST_SUITE_P(ContextHub, ContextHubAidl, testing::ValuesIn(generateContextHubMapping()),
                          PrintGeneratedTest);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ContextHubAidlWithTestMode);
+INSTANTIATE_TEST_SUITE_P(ContextHub, ContextHubAidlWithTestMode,
+                         testing::ValuesIn(generateContextHubMapping()), PrintGeneratedTest);
+
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ContextHubTransactionTest);
 INSTANTIATE_TEST_SUITE_P(ContextHub, ContextHubTransactionTest,
                          testing::ValuesIn(generateContextHubMapping()), PrintGeneratedTest);
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
-    ProcessState::self()->setThreadPoolMaxThreadCount(1);
+    ProcessState::self()->setThreadPoolMaxThreadCount(2);
     ProcessState::self()->startThreadPool();
     return RUN_ALL_TESTS();
 }
