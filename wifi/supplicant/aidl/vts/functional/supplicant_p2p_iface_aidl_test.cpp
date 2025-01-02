@@ -1054,6 +1054,24 @@ TEST_P(SupplicantP2pIfaceAidlTest, RemoveClient) {
     EXPECT_FALSE(p2p_iface_->removeClient(invalidMacAddr, false).isOk());
 }
 
+/*
+ * ConfigureEapolIpAddressAllocationParams
+ */
+TEST_P(SupplicantP2pIfaceAidlTest, ConfigureEapolIpAddressAllocationParams) {
+    if (interface_version_ < 2) {
+        GTEST_SKIP() << "ConfigureEapolIpAddressAllocationParams is available as of Supplicant V2";
+    }
+    // The IP addresses are IPV4 addresses and higher-order address bytes are in the
+    // lower-order int bytes (e.g. 192.168.1.1 is represented as 0x0101A8C0)
+    EXPECT_TRUE(p2p_iface_
+                        ->configureEapolIpAddressAllocationParams(0x0101A8C0, 0x00FFFFFF,
+                                                                  0x0501A8C0, 0x0801A8C0)
+                        .isOk());
+
+    // Clear the configuration.
+    EXPECT_TRUE(p2p_iface_->configureEapolIpAddressAllocationParams(0, 0, 0, 0).isOk());
+}
+
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SupplicantP2pIfaceAidlTest);
 INSTANTIATE_TEST_SUITE_P(Supplicant, SupplicantP2pIfaceAidlTest,
                          testing::ValuesIn(android::getAidlHalInstanceNames(
