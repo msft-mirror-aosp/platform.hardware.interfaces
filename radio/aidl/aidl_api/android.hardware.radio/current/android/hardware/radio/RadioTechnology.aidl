@@ -71,5 +71,4 @@ enum RadioTechnology {
    */
   LTE_CA,
   NR,
-  NB_IOT_NTN,
 }
