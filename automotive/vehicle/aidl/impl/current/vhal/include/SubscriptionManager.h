@@ -146,6 +146,7 @@ class SubscriptionManager final {
   private:
     // Friend class for testing.
     friend class DefaultVehicleHalTest;
+    friend class SubscriptionManagerTest;
 
     IVehicleHardware* mVehicleHardware;
 

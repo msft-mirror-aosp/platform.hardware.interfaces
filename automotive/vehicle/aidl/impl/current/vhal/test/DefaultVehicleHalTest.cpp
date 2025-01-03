@@ -445,11 +445,7 @@ class DefaultVehicleHalTest : public testing::Test {
 
     size_t countPendingRequests() { return mVhal->mPendingRequestPool->countPendingRequests(); }
 
-    size_t countClients() {
-        std::scoped_lock<std::mutex> lockGuard(mVhal->mLock);
-        return mVhal->mGetValuesClients.size() + mVhal->mSetValuesClients.size() +
-               mVhal->countSubscribeClients();
-    }
+    size_t countClients() { return mVhal->countClients(); }
 
     std::shared_ptr<PendingRequestPool> getPool() { return mVhal->mPendingRequestPool; }
 
@@ -2575,8 +2571,10 @@ TEST_F(DefaultVehicleHalTest, testUnregisterSupportedValueChangeCallback) {
     ASSERT_TRUE(status.isOk()) << "Get non-okay status from unregisterSupportedValueChangeCallback"
                                << status.getMessage();
 
-    ASSERT_TRUE(getHardware()->getSubscribedSupportedValueChangePropIdAreaIds().empty())
+    EXPECT_TRUE(getHardware()->getSubscribedSupportedValueChangePropIdAreaIds().empty())
             << "All registered [propId, areaId]s must be unregistered";
+    EXPECT_EQ(countClients(), static_cast<size_t>(0)) << "subscribe clients must be cleared";
+    EXPECT_TRUE(hasNoSubscriptions()) << "subscribe clients must be cleared";
 }
 
 TEST_F(DefaultVehicleHalTest, testUnregisterSupportedValueChangeCallback_errorFromHardware) {

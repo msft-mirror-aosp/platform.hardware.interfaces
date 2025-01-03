@@ -219,7 +219,7 @@ class DefaultVehicleHal final : public aidlvhal::BnVehicle {
     // mBinderEvents.
     void onBinderDiedUnlinkedHandler();
 
-    size_t countSubscribeClients();
+    size_t countClients();
 
     // Handles the property change events in batch.
     void handleBatchedPropertyEvents(std::vector<aidlvhal::VehiclePropValue>&& batchedEvents);
