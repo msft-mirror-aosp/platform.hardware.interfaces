@@ -622,10 +622,8 @@ enum VehicleProperty {
      * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
      * {@code HasSupportedValueInfo.hasMinSupportedValue} and
      * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
-     * {@code MinMaxSupportedValueResult.minSupportedValue} represents the lower bound of the
-     * recommended tire pressure for the tire at the specified area ID.
-     * {@code MinMaxSupportedValueResult.maxSupportedValue} represents the upper bound of the
-     * recommended tire pressure for the tire at the specified area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minFloatValue.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxFloatValue.
      * For example, if the recommended tire pressure of left_front tire is from 200.0 KILOPASCAL to
      * 240.0 KILOPASCAL, {@code getMinMaxSupportedValue} for
      * [propId=TIRE_PRESSURE, areaId=VehicleAreaWheel::LEFT_FRONT] must return a
@@ -921,10 +919,8 @@ enum VehicleProperty {
      * If {@code HasSupportedValueInfo} is not {@code null} for the global area ID (0):
      * {@code HasSupportedValueInfo.hasMinSupportedValue} and
      * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for global area ID(0)
-     * {@code MinMaxSupportedValueResult.minSupportedValue} must be 0.
-     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the setting for the maximum
-     * amount of energy regenerated from braking. The minSupportedValue indicates the setting for no
-     * regenerative braking.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
      * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
      * maxSupportedValue.
      *
@@ -1206,14 +1202,15 @@ enum VehicleProperty {
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
      * The minInt32Value indicates the lowest fan speed.
+     *
      * The maxInt32Value indicates the highest fan speed.
      *
      * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
      * {@code HasSupportedValueInfo.hasMinSupportedValue} and
      * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specific
      * area ID.
-     * {@code MinMaxSupportedValueResult.minSupportedValue} indicates the lowest fan speed.
-     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the highest fan speed.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
      * All integers between minSupportedValue and maxSupportedValue must be supported.
      * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
      * maxSupportedValue.
@@ -1265,6 +1262,7 @@ enum VehicleProperty {
      * The minFloatValue and maxFloatValue in VehicleAreaConfig must be defined.
      *
      * The minFloatValue indicates the minimum temperature setting in Celsius.
+     *
      * The maxFloatValue indicates the maximum temperature setting in Celsius.
      *
      * If all the values between minFloatValue and maxFloatValue are not supported, the configArray
@@ -1308,10 +1306,8 @@ enum VehicleProperty {
      * {@code HasSupportedValueInfo.hasMinSupportedValue} and
      * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specific
      * area ID.
-     * {@code MinMaxSupportedValueResult.minSupportedValue} indicates the minimum temperature
-     * setting in Celsius.
-     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the maximum temperature
-     * setting in Celsius.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minFloatValue.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxFloatValue.
      * If not all the values between minSupportedValue and maxSupportedValue are supported,
      * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true} for the
      * specified area ID. At boot, supportedValuesList must be equal to what is described in
@@ -1492,19 +1488,17 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value indicates the maximum seat temperature heating setting.
      * The minInt32Value must be 0, unless the vehicle supports seat cooling as well. In this case,
      * minInt32Value indicates the maximum seat temperature cooling setting.
+     *
+     * The maxInt32Value indicates the maximum seat temperature heating setting.
      *
      * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
      * {@code HasSupportedValueInfo.hasMinSupportedValue} and
      * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specified
      * area ID.
-     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the maximum seat temperature
-     * heating setting.
-     * {@code MinMaxSupportedValueResult.minSupportedValue} must be 0, unless the vehicle supports
-     * seat cooling as well. In this case, minSupportedValue indicates the maximum seat temperature
-     * cooling setting.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
      * All integers between minSupportedValue and maxSupportedValue must be supported.
      * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
      * maxSupportedValue.
@@ -1531,15 +1525,16 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value in the config data represents the maximum heating level.
      * The minInt32Value in the config data MUST be zero and indicates no heating.
+     *
+     * The maxInt32Value in the config data represents the maximum heating level.
      *
      * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
      * {@code HasSupportedValueInfo.hasMinSupportedValue} and
      * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specified
      * area ID.
-     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the maximum heating level.
-     * {@code MinMaxSupportedValueResult.minSupportedValue} must be 0 and indicates no heating.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
      * All integers between minSupportedValue and maxSupportedValue must be supported.
      * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
      * maxSupportedValue.
@@ -1566,18 +1561,16 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value indicates the maximum steering wheel heating setting.
      * The minInt32Value should be 0, unless the vehicle supports steering wheel cooling as well. In
      * such a case, the minInt32Value indicates the maximum steering wheel cooling setting.
+     *
+     * The maxInt32Value indicates the maximum steering wheel heating setting.
      *
      * If {@code HasSupportedValueInfo} is not null for the global area ID (0):
      * {@code HasSupportedValueInfo.hasMinSupportedValue} and
      * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true}.
-     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the maximum steering wheel
-     * heating setting.
-     * {@code MinMaxSupportedValueResult.minSupportedValue} should be 0, unless the vehicle supports
-     * steering wheel cooling as well. In such a case, the minSupportedValue indicates the maximum
-     * steering wheel cooling setting.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
      * All integers between minSupportedValue and maxSupportedValue must be supported.
      * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
      * maxSupportedValue.
@@ -1741,9 +1734,8 @@ enum VehicleProperty {
      * {@code HasSupportedValueInfo.hasMinSupportedValue} and
      * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specified
      * area ID.
-     * {@code MinMaxSupportedValueResult.minSupportedValue} must be 0.
-     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the maximum ventilation
-     * setting available for the seat.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
      * All integers between minSupportedValue and maxSupportedValue must be supported.
      * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
      * maxSupportedValue.
