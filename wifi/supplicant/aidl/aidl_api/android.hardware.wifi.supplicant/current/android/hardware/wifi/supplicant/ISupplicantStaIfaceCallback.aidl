@@ -82,10 +82,25 @@ interface ISupplicantStaIfaceCallback {
   oneway void onSupplicantStateChanged(in android.hardware.wifi.supplicant.SupplicantStateChangeData stateChangeData);
   oneway void onQosPolicyResponseForScs(in android.hardware.wifi.supplicant.QosPolicyScsResponseStatus[] qosPolicyScsResponseStatus);
   oneway void onPmkSaCacheAdded(in android.hardware.wifi.supplicant.PmkSaCacheData pmkSaData);
+  oneway void onUsdPublishStarted(in int cmdId, in int publishId);
+  oneway void onUsdSubscribeStarted(in int cmdId, in int subscribeId);
+  oneway void onUsdPublishConfigFailed(in int cmdId, in android.hardware.wifi.supplicant.ISupplicantStaIfaceCallback.UsdConfigErrorCode errorCode);
+  oneway void onUsdSubscribeConfigFailed(in int cmdId, in android.hardware.wifi.supplicant.ISupplicantStaIfaceCallback.UsdConfigErrorCode errorCode);
+  oneway void onUsdPublishTerminated(in int publishId, in android.hardware.wifi.supplicant.UsdTerminateReasonCode reasonCode);
+  oneway void onUsdSubscribeTerminated(in int subscribeId, in android.hardware.wifi.supplicant.UsdTerminateReasonCode reasonCode);
+  oneway void onUsdPublishReplied(in android.hardware.wifi.supplicant.UsdServiceDiscoveryInfo info);
+  oneway void onUsdServiceDiscovered(in android.hardware.wifi.supplicant.UsdServiceDiscoveryInfo info);
+  oneway void onUsdMessageReceived(in android.hardware.wifi.supplicant.UsdMessageInfo messageInfo);
   @Backing(type="int") @VintfStability
   enum MloLinkInfoChangeReason {
     TID_TO_LINK_MAP = 0,
     MULTI_LINK_RECONFIG_AP_REMOVAL = 1,
-    MULTI_LINK_RECONFIG_AP_ADDITION = 2,
+    MULTI_LINK_DYNAMIC_RECONFIG = 2,
+  }
+  @Backing(type="int") @VintfStability
+  enum UsdConfigErrorCode {
+    FAILURE_UNKNOWN = 0,
+    FAILURE_TIMEOUT = 1,
+    FAILURE_NOT_AVAILABLE = 2,
   }
 }

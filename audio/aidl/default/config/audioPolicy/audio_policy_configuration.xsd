@@ -417,6 +417,18 @@
             <xs:enumeration value="AUDIO_FORMAT_APTX_ADAPTIVE_R4"/>
             <xs:enumeration value="AUDIO_FORMAT_DTS_HD_MA"/>
             <xs:enumeration value="AUDIO_FORMAT_DTS_UHD_P2"/>
+            <xs:enumeration value="AUDIO_FORMAT_IAMF_SIMPLE_OPUS"/>
+            <xs:enumeration value="AUDIO_FORMAT_IAMF_SIMPLE_AAC"/>
+            <xs:enumeration value="AUDIO_FORMAT_IAMF_SIMPLE_PCM"/>
+            <xs:enumeration value="AUDIO_FORMAT_IAMF_SIMPLE_FLAC"/>
+            <xs:enumeration value="AUDIO_FORMAT_IAMF_BASE_OPUS"/>
+            <xs:enumeration value="AUDIO_FORMAT_IAMF_BASE_AAC"/>
+            <xs:enumeration value="AUDIO_FORMAT_IAMF_BASE_PCM"/>
+            <xs:enumeration value="AUDIO_FORMAT_IAMF_BASE_FLAC"/>
+            <xs:enumeration value="AUDIO_FORMAT_IAMF_BASE_ENHANCED_OPUS"/>
+            <xs:enumeration value="AUDIO_FORMAT_IAMF_BASE_ENHANCED_AAC"/>
+            <xs:enumeration value="AUDIO_FORMAT_IAMF_BASE_ENHANCED_PCM"/>
+            <xs:enumeration value="AUDIO_FORMAT_IAMF_BASE_ENHANCED_FLAC"/>
         </xs:restriction>
     </xs:simpleType>
     <xs:simpleType name="extendableAudioFormat">
@@ -464,7 +476,7 @@
             <xs:enumeration value="AUDIO_CHANNEL_OUT_7POINT1POINT4"/>
             <xs:enumeration value="AUDIO_CHANNEL_OUT_9POINT1POINT4"/>
             <xs:enumeration value="AUDIO_CHANNEL_OUT_9POINT1POINT6"/>
-            <xs:enumeration value="AUDIO_CHANNEL_OUT_13POINT_360RA"/>
+            <xs:enumeration value="AUDIO_CHANNEL_OUT_13POINT0"/>
             <xs:enumeration value="AUDIO_CHANNEL_OUT_22POINT2"/>
             <xs:enumeration value="AUDIO_CHANNEL_OUT_MONO_HAPTIC_A"/>
             <xs:enumeration value="AUDIO_CHANNEL_OUT_STEREO_HAPTIC_A"/>

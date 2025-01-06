@@ -43,13 +43,13 @@ static constexpr int kMinDelay = 0;
 static const std::vector<TagVectorPair> kParamsIncreasingVector = {
         {EnvironmentalReverb::roomLevelMb, {-3500, -2800, -2100, -1400, -700, 0}},
         {EnvironmentalReverb::roomHfLevelMb, {-4000, -3200, -2400, -1600, -800, 0}},
-        {EnvironmentalReverb::decayTimeMs, {800, 1600, 2400, 3200, 4000}},
-        {EnvironmentalReverb::decayHfRatioPm, {100, 600, 1100, 1600, 2000}},
+        {EnvironmentalReverb::decayTimeMs, {400, 800, 1200, 1600, 2000}},
+        {EnvironmentalReverb::decayHfRatioPm, {1000, 900, 800, 700}},
         {EnvironmentalReverb::levelMb, {-3500, -2800, -2100, -1400, -700, 0}},
 };
 
 static const TagVectorPair kDiffusionParam = {EnvironmentalReverb::diffusionPm,
-                                              {200, 400, 600, 800, 1000}};
+                                              {100, 300, 500, 700, 900}};
 static const TagVectorPair kDensityParam = {EnvironmentalReverb::densityPm,
                                             {0, 200, 400, 600, 800, 1000}};
 
@@ -224,12 +224,6 @@ class EnvironmentalReverbHelper : public EffectHelper {
                                                output.size());
     }
 
-    void generateSineWaveInput(std::vector<float>& input) {
-        int frequency = 1000;
-        for (size_t i = 0; i < input.size(); i++) {
-            input[i] = sin(2 * M_PI * frequency * i / kSamplingFrequency);
-        }
-    }
     using Maker = EnvironmentalReverb (*)(int);
 
     static constexpr std::array<Maker, static_cast<int>(EnvironmentalReverb::bypass) + 1>
@@ -287,6 +281,7 @@ class EnvironmentalReverbHelper : public EffectHelper {
 
     static constexpr int kDurationMilliSec = 500;
     static constexpr int kBufferSize = kSamplingFrequency * kDurationMilliSec / 1000;
+    static constexpr int kInputFrequency = 2000;
 
     int mStereoChannelCount =
             getChannelCount(AudioChannelLayout::make<AudioChannelLayout::layoutMask>(
@@ -349,7 +344,7 @@ class EnvironmentalReverbDataTest
         : EnvironmentalReverbHelper(std::get<DESCRIPTOR_INDEX>(GetParam())) {
         std::tie(mTag, mParamValues) = std::get<TAG_VALUE_PAIR>(GetParam());
         mInput.resize(kBufferSize);
-        generateSineWaveInput(mInput);
+        generateSineWave(kInputFrequency, mInput);
     }
     void SetUp() override {
         SKIP_TEST_IF_DATA_UNSUPPORTED(mDescriptor.common.flags);
@@ -439,7 +434,7 @@ class EnvironmentalReverbMinimumParamTest
 
 TEST_P(EnvironmentalReverbMinimumParamTest, MinimumValueTest) {
     std::vector<float> input(kBufferSize);
-    generateSineWaveInput(input);
+    generateSineWave(kInputFrequency, input);
     std::vector<float> output(kBufferSize);
     setParameterAndProcess(input, output, mValue, mTag);
     float energy = computeOutputEnergy(input, output);
@@ -475,7 +470,7 @@ class EnvironmentalReverbDiffusionTest
         : EnvironmentalReverbHelper(std::get<DESCRIPTOR_INDEX>(GetParam())) {
         std::tie(mTag, mParamValues) = std::get<TAG_VALUE_PAIR>(GetParam());
         mInput.resize(kBufferSize);
-        generateSineWaveInput(mInput);
+        generateSineWave(kInputFrequency, mInput);
     }
     void SetUp() override {
         SKIP_TEST_IF_DATA_UNSUPPORTED(mDescriptor.common.flags);
@@ -554,7 +549,7 @@ class EnvironmentalReverbDensityTest
         if (mIsInputMute) {
             std::fill(mInput.begin(), mInput.end(), 0);
         } else {
-            generateSineWaveInput(mInput);
+            generateSineWave(kInputFrequency, mInput);
         }
     }
     void SetUp() override {

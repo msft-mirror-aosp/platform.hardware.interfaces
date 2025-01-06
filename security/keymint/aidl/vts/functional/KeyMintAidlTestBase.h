@@ -103,6 +103,7 @@ class KeyMintAidlTestBase : public ::testing::TestWithParam<string> {
     uint32_t vendor_patch_level() { return vendor_patch_level_; }
     uint32_t boot_patch_level(const vector<KeyCharacteristics>& key_characteristics);
     uint32_t boot_patch_level();
+    std::optional<vector<uint8_t>> getModuleHash();
     bool isDeviceIdAttestationRequired();
     bool isSecondImeiIdAttestationRequired();
     std::optional<bool> isRkpOnly();
@@ -113,6 +114,10 @@ class KeyMintAidlTestBase : public ::testing::TestWithParam<string> {
 
     ErrorCode GenerateKey(const AuthorizationSet& key_desc, vector<uint8_t>* key_blob,
                           vector<KeyCharacteristics>* key_characteristics);
+
+    ErrorCode GenerateKey(const AuthorizationSet& key_desc, vector<uint8_t>* key_blob,
+                          vector<KeyCharacteristics>* key_characteristics,
+                          vector<Certificate>* cert_chain);
 
     ErrorCode GenerateKey(const AuthorizationSet& key_desc,
                           const optional<AttestationKey>& attest_key, vector<uint8_t>* key_blob,
@@ -401,8 +406,8 @@ void add_tag_from_prop(AuthorizationSetBuilder* tags, TypedTag<TagType::BYTES, t
     add_tag(tags, ttag, ::android::base::GetProperty(prop, /* default= */ ""));
 }
 
-// Return the VSR API level for this device.
-int get_vsr_api_level();
+// Return the vendor API level for this device.
+int get_vendor_api_level();
 
 // Indicate whether the test is running on a GSI image.
 bool is_gsi_image();

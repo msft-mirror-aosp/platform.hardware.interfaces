@@ -148,8 +148,10 @@ class Module : public BnModule {
     struct VendorDebug {
         static const std::string kForceTransientBurstName;
         static const std::string kForceSynchronousDrainName;
+        static const std::string kForceDrainToDrainingName;
         bool forceTransientBurst = false;
         bool forceSynchronousDrain = false;
+        bool forceDrainToDraining = false;
     };
     // ids of device ports created at runtime via 'connectExternalDevice'.
     // Also stores a list of ids of mix ports with dynamic profiles that were populated from
@@ -205,12 +207,15 @@ class Module : public BnModule {
     virtual std::unique_ptr<Configuration> initializeConfig();
     virtual int32_t getNominalLatencyMs(
             const ::aidl::android::media::audio::common::AudioPortConfig& portConfig);
+    virtual ndk::ScopedAStatus calculateBufferSizeFrames(
+            const ::aidl::android::media::audio::common::AudioFormatDescription &format,
+            int32_t latencyMs, int32_t sampleRateHz, int32_t *bufferSizeFrames);
     virtual ndk::ScopedAStatus createMmapBuffer(
             const ::aidl::android::hardware::audio::core::StreamContext& context,
             ::aidl::android::hardware::audio::core::StreamDescriptor* desc);
 
     // Utility and helper functions accessible to subclasses.
-    static int32_t calculateBufferSizeFrames(int32_t latencyMs, int32_t sampleRateHz) {
+    static int32_t calculateBufferSizeFramesForPcm(int32_t latencyMs, int32_t sampleRateHz) {
         const int32_t rawSizeFrames =
                 aidl::android::hardware::audio::common::frameCountFromDurationMs(latencyMs,
                                                                                  sampleRateHz);

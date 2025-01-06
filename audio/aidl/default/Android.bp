@@ -121,6 +121,52 @@ cc_library {
     ],
 }
 
+cc_library {
+    name: "libeffectconfig",
+    srcs: [
+        "EffectConfig.cpp",
+    ],
+    defaults: [
+        "latest_android_hardware_audio_effect_ndk_shared",
+        "latest_android_media_audio_common_types_ndk_shared",
+    ],
+    shared_libs: [
+        "libaudioutils",
+        "libaudio_aidl_conversion_common_ndk",
+        "libbase",
+        "libbinder_ndk",
+        "liblog",
+        "libmedia_helper",
+        "libtinyxml2",
+        "libutils",
+    ],
+    header_libs: [
+        "libaudio_system_headers",
+        "libaudioaidl_headers",
+    ],
+    export_shared_lib_headers: [
+        "libtinyxml2",
+    ],
+    export_include_dirs: [
+        "include",
+    ],
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DBACKEND_NDK",
+    ],
+    vendor: true,
+    host_supported: true,
+    target: {
+        android: {
+            shared_libs: [
+                "libapexsupport",
+            ],
+        },
+    },
+}
+
 cc_binary {
     name: "android.hardware.audio.service-aidl.example",
     relative_install_path: "hw",
@@ -200,6 +246,47 @@ cc_test {
     test_suites: ["general-tests"],
 }
 
+cc_test {
+    name: "audio_alsa_utils_tests",
+    vendor_available: true,
+    defaults: [
+        "latest_android_media_audio_common_types_ndk_static",
+        "latest_android_hardware_audio_core_ndk_static",
+    ],
+    static_libs: [
+        "libalsautilsv2",
+        "libtinyalsav2",
+    ],
+    shared_libs: [
+        "libaudio_aidl_conversion_common_ndk",
+        "libaudioaidlcommon",
+        "libaudioutils",
+        "libbase",
+        "libbinder_ndk",
+        "libcutils",
+        "libfmq",
+        "libmedia_helper",
+        "libstagefright_foundation",
+        "libutils",
+    ],
+    header_libs: [
+        "libaudio_system_headers",
+        "libaudioaidl_headers",
+    ],
+    srcs: [
+        "alsa/Utils.cpp",
+        "tests/AlsaUtilsTest.cpp",
+    ],
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wthread-safety",
+        "-DBACKEND_NDK",
+    ],
+    test_suites: ["general-tests"],
+}
+
 cc_defaults {
     name: "aidlaudioeffectservice_defaults",
     defaults: [
@@ -249,10 +336,9 @@ cc_binary {
     defaults: ["aidlaudioeffectservice_defaults"],
     shared_libs: [
         "libapexsupport",
-        "libtinyxml2",
+        "libeffectconfig",
     ],
     srcs: [
-        "EffectConfig.cpp",
         "EffectFactory.cpp",
         "EffectMain.cpp",
     ],

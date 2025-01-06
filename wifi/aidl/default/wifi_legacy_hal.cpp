@@ -185,11 +185,14 @@ std::function<void(wifi_request_id, unsigned num_results, wifi_rtt_result_v2* rt
         on_rtt_results_internal_callback_v2;
 std::function<void(wifi_request_id, unsigned num_results, wifi_rtt_result_v3* rtt_results_v3[])>
         on_rtt_results_internal_callback_v3;
+std::function<void(wifi_request_id, unsigned num_results, wifi_rtt_result_v4* rtt_results_v4[])>
+        on_rtt_results_internal_callback_v4;
 
 void invalidateRttResultsCallbacks() {
     on_rtt_results_internal_callback = nullptr;
     on_rtt_results_internal_callback_v2 = nullptr;
     on_rtt_results_internal_callback_v3 = nullptr;
+    on_rtt_results_internal_callback_v4 = nullptr;
 };
 
 void onAsyncRttResults(wifi_request_id id, unsigned num_results, wifi_rtt_result* rtt_results[]) {
@@ -214,6 +217,15 @@ void onAsyncRttResultsV3(wifi_request_id id, unsigned num_results,
     const auto lock = aidl_sync_util::acquireGlobalLock();
     if (on_rtt_results_internal_callback_v3) {
         on_rtt_results_internal_callback_v3(id, num_results, rtt_results_v3);
+        invalidateRttResultsCallbacks();
+    }
+}
+
+void onAsyncRttResultsV4(wifi_request_id id, unsigned num_results,
+                         wifi_rtt_result_v4* rtt_results_v4[]) {
+    const auto lock = aidl_sync_util::acquireGlobalLock();
+    if (on_rtt_results_internal_callback_v4) {
+        on_rtt_results_internal_callback_v4(id, num_results, rtt_results_v4);
         invalidateRttResultsCallbacks();
     }
 }
@@ -369,6 +381,16 @@ void onAsyncNanEventSuspensionModeChange(NanSuspensionModeChangeInd* event) {
     const auto lock = aidl_sync_util::acquireGlobalLock();
     if (on_nan_event_suspension_mode_change_user_callback && event) {
         on_nan_event_suspension_mode_change_user_callback(*event);
+    }
+}
+
+std::function<void(wifi_rtt_result* rtt_results[], uint32_t num_results, uint16_t session_id)>
+        on_nan_event_ranging_results_callback;
+void onAsyncNanEventRangingResults(wifi_rtt_result* rtt_results[], uint32_t num_results,
+                                   uint16_t session_id) {
+    const auto lock = aidl_sync_util::acquireGlobalLock();
+    if (on_nan_event_ranging_results_callback && rtt_results) {
+        on_nan_event_ranging_results_callback(rtt_results, num_results, session_id);
     }
 }
 
@@ -1334,6 +1356,38 @@ wifi_error WifiLegacyHal::registerSubsystemRestartCallbackHandler(
     return status;
 }
 
+wifi_error WifiLegacyHal::startRttRangeRequestV4(
+        const std::string& iface_name, wifi_request_id id,
+        const std::vector<wifi_rtt_config_v4>& rtt_configs,
+        const on_rtt_results_callback_v4& on_results_user_callback_v4) {
+    if (on_rtt_results_internal_callback_v4) {
+        return WIFI_ERROR_NOT_AVAILABLE;
+    }
+
+    on_rtt_results_internal_callback_v4 = [on_results_user_callback_v4](
+                                                  wifi_request_id id, unsigned num_results,
+                                                  wifi_rtt_result_v4* rtt_results_v4[]) {
+        if (num_results > 0 && !rtt_results_v4) {
+            LOG(ERROR) << "Unexpected nullptr in RTT v4 results";
+            return;
+        }
+        std::vector<const wifi_rtt_result_v4*> rtt_results_vec_v4;
+        std::copy_if(rtt_results_v4, rtt_results_v4 + num_results,
+                     back_inserter(rtt_results_vec_v4),
+                     [](wifi_rtt_result_v4* rtt_result_v4) { return rtt_result_v4 != nullptr; });
+        on_results_user_callback_v4(id, rtt_results_vec_v4);
+    };
+
+    std::vector<wifi_rtt_config_v4> rtt_configs_internal(rtt_configs);
+    wifi_error status = global_func_table_.wifi_rtt_range_request_v4(
+            id, getIfaceHandle(iface_name), rtt_configs.size(), rtt_configs_internal.data(),
+            {onAsyncRttResultsV4});
+    if (status != WIFI_SUCCESS) {
+        invalidateRttResultsCallbacks();
+    }
+    return status;
+}
+
 wifi_error WifiLegacyHal::startRttRangeRequestV3(
         const std::string& iface_name, wifi_request_id id,
         const std::vector<wifi_rtt_config_v3>& rtt_configs,
@@ -1450,6 +1504,14 @@ std::pair<wifi_error, wifi_rtt_capabilities_v3> WifiLegacyHal::getRttCapabilitie
     return {status, rtt_caps_v3};
 }
 
+std::pair<wifi_error, wifi_rtt_capabilities_v4> WifiLegacyHal::getRttCapabilitiesV4(
+        const std::string& iface_name) {
+    wifi_rtt_capabilities_v4 rtt_caps_v4;
+    wifi_error status = global_func_table_.wifi_get_rtt_capabilities_v4(getIfaceHandle(iface_name),
+                                                                        &rtt_caps_v4);
+    return {status, rtt_caps_v4};
+}
+
 std::pair<wifi_error, wifi_rtt_responder> WifiLegacyHal::getRttResponderInfo(
         const std::string& iface_name) {
     wifi_rtt_responder rtt_responder;
@@ -1510,6 +1572,7 @@ wifi_error WifiLegacyHal::nanRegisterCallbackHandlers(const std::string& iface_n
     on_nan_event_schedule_update_user_callback = user_callbacks.on_event_schedule_update;
     on_nan_event_suspension_mode_change_user_callback =
             user_callbacks.on_event_suspension_mode_change;
+    on_nan_event_ranging_results_callback = user_callbacks.on_ranging_results;
 
     return global_func_table_.wifi_nan_register_handler(getIfaceHandle(iface_name),
                                                         {onAsyncNanNotifyResponse,
@@ -1534,7 +1597,8 @@ wifi_error WifiLegacyHal::nanRegisterCallbackHandlers(const std::string& iface_n
                                                          onAsyncNanEventPairingConfirm,
                                                          onAsyncNanEventBootstrappingRequest,
                                                          onAsyncNanEventBootstrappingConfirm,
-                                                         onAsyncNanEventSuspensionModeChange});
+                                                         onAsyncNanEventSuspensionModeChange,
+                                                         onAsyncNanEventRangingResults});
 }
 
 wifi_error WifiLegacyHal::nanEnableRequest(const std::string& iface_name, transaction_id id,

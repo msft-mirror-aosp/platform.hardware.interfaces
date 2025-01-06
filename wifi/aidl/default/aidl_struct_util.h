@@ -17,6 +17,8 @@
 #ifndef AIDL_STRUCT_UTIL_H_
 #define AIDL_STRUCT_UTIL_H_
 
+#include <aidl/android/hardware/wifi/Akm.h>
+#include <aidl/android/hardware/wifi/CipherSuite.h>
 #include <aidl/android/hardware/wifi/IWifiChip.h>
 #include <aidl/android/hardware/wifi/IWifiChipEventCallback.h>
 #include <aidl/android/hardware/wifi/NanBandIndex.h>
@@ -153,6 +155,10 @@ bool convertAidlVectorOfRttConfigToLegacyV3(
         const std::vector<RttConfig>& aidl_configs,
         std::vector<legacy_hal::wifi_rtt_config_v3>* legacy_configs);
 
+bool convertAidlVectorOfRttConfigToLegacyV4(
+        const std::vector<RttConfig>& aidl_configs,
+        std::vector<legacy_hal::wifi_rtt_config_v4>* legacy_configs);
+
 bool convertAidlRttLciInformationToLegacy(const RttLciInformation& aidl_info,
                                           legacy_hal::wifi_lci_information* legacy_info);
 bool convertAidlRttLcrInformationToLegacy(const RttLcrInformation& aidl_info,
@@ -169,6 +175,9 @@ bool convertLegacyRttCapabilitiesToAidl(
 bool convertLegacyRttCapabilitiesV3ToAidl(
         const legacy_hal::wifi_rtt_capabilities_v3& legacy_capabilities_v3,
         RttCapabilities* aidl_capabilities);
+bool convertLegacyRttCapabilitiesV4ToAidl(
+        const legacy_hal::wifi_rtt_capabilities_v4& legacy_capabilities_v4,
+        RttCapabilities* aidl_capabilities);
 
 bool convertLegacyVectorOfRttResultToAidl(
         const std::vector<const legacy_hal::wifi_rtt_result*>& legacy_results,
@@ -178,6 +187,9 @@ bool convertLegacyVectorOfRttResultV2ToAidl(
         std::vector<RttResult>* aidl_results);
 bool convertLegacyVectorOfRttResultV3ToAidl(
         const std::vector<const legacy_hal::wifi_rtt_result_v3*>& legacy_results,
+        std::vector<RttResult>* aidl_results);
+bool convertLegacyVectorOfRttResultV4ToAidl(
+        const std::vector<const legacy_hal::wifi_rtt_result_v4*>& legacy_results,
         std::vector<RttResult>* aidl_results);
 uint32_t convertAidlWifiBandToLegacyMacBand(WifiBand band);
 uint32_t convertAidlWifiIfaceModeToLegacy(uint32_t aidl_iface_mask);
@@ -231,6 +243,8 @@ bool convertLegacyHalTwtSessionToAidl(legacy_hal::wifi_twt_session twt_session,
                                       TwtSession* aidl_twt_session);
 bool convertLegacyHalTwtSessionStatsToAidl(legacy_hal::wifi_twt_session_stats twt_stats,
                                            TwtSessionStats* aidl_twt_stats);
+legacy_hal::wifi_rtt_preamble convertAidlRttPreambleToLegacy(RttPreamble type);
+
 }  // namespace aidl_struct_util
 }  // namespace wifi
 }  // namespace hardware

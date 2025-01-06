@@ -548,10 +548,8 @@ interface IKeyMintDevice {
     void deleteKey(in byte[] keyBlob);
 
     /**
-     * Deletes all keys in the hardware keystore.  Used when keystore is reset completely.  After
-     * this function is called all keys with Tag::ROLLBACK_RESISTANCE in their hardware-enforced
-     * authorization lists must be rendered permanently unusable.  Keys without
-     * Tag::ROLLBACK_RESISTANCE may or may not be rendered unusable.
+     * Deletes all keys in the hardware keystore. Used when keystore is reset completely. After
+     * this function is called all keys created previously must be rendered permanently unusable.
      */
     void deleteAllKeys();
 
@@ -828,6 +826,7 @@ interface IKeyMintDevice {
      *
      * @param passwordOnly N/A due to the deprecation
      * @param timestampToken N/A due to the deprecation
+     * @deprecated Method has never been used due to design limitations
      */
     void deviceLocked(in boolean passwordOnly, in @nullable TimeStampToken timestampToken);
 
@@ -966,10 +965,11 @@ interface IKeyMintDevice {
      * IKeyMintDevice must ignore KeyParameters with tags not included in the following list:
      *
      * o Tag::MODULE_HASH: holds a hash that must be included in attestations in the moduleHash
-     *   field of the software enforced authorization list. If Tag::MODULE_HASH is included in more
-     *   than one setAdditionalAttestationInfo call, the implementation should compare the initial
-     *   KeyParamValue with the more recent one. If they differ, the implementation should fail with
-     *   ErrorCode::MODULE_HASH_ALREADY_SET. If they are the same, no action needs to be taken.
+     *   field of the software enforced authorization list.
+     *
+     * @return error ErrorCode::MODULE_HASH_ALREADY_SET if this is not the first time
+     *         setAdditionalAttestationInfo is called with Tag::MODULE_HASH, and the associated
+     *         KeyParamValue of the current call doesn't match the KeyParamValue of the first call.
      */
     void setAdditionalAttestationInfo(in KeyParameter[] info);
 }

@@ -51,14 +51,6 @@ interface IContextHub {
   void sendMessageDeliveryStatusToHub(in int contextHubId, in android.hardware.contexthub.MessageDeliveryStatus messageDeliveryStatus);
   List<android.hardware.contexthub.HubInfo> getHubs();
   List<android.hardware.contexthub.EndpointInfo> getEndpoints();
-  void registerEndpoint(in android.hardware.contexthub.EndpointInfo endpoint);
-  void unregisterEndpoint(in android.hardware.contexthub.EndpointInfo endpoint);
-  void registerEndpointCallback(in android.hardware.contexthub.IEndpointCallback callback);
-  int[] requestSessionIdRange(int size);
-  void openEndpointSession(int sessionId, in android.hardware.contexthub.EndpointId destination, in android.hardware.contexthub.EndpointId initiator, in @nullable String serviceDescriptor);
-  void sendMessageToEndpoint(int sessionId, in android.hardware.contexthub.Message msg);
-  void sendMessageDeliveryStatusToEndpoint(int sessionId, in android.hardware.contexthub.MessageDeliveryStatus msgStatus);
-  void closeEndpointSession(int sessionId, in android.hardware.contexthub.Reason reason);
-  void endpointSessionOpenComplete(int sessionId);
+  @PropagateAllowBlocking android.hardware.contexthub.IEndpointCommunication registerEndpointHub(in android.hardware.contexthub.IEndpointCallback callback, in android.hardware.contexthub.HubInfo hubInfo);
   const int EX_CONTEXT_HUB_UNSPECIFIED = (-1) /* -1 */;
 }

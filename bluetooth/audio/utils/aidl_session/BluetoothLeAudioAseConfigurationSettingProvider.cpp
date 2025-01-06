@@ -47,6 +47,8 @@
 #include <aidl/android/hardware/bluetooth/audio/Phy.h>
 #include <android-base/logging.h>
 
+#include <optional>
+
 #include "flatbuffers/idl.h"
 #include "flatbuffers/util.h"
 
@@ -92,9 +94,10 @@ constexpr uint8_t kLeAudioSamplingFreq384000Hz = 0x0D;
 /* Frame Durations */
 constexpr uint8_t kLeAudioCodecFrameDur7500us = 0x00;
 constexpr uint8_t kLeAudioCodecFrameDur10000us = 0x01;
+constexpr uint8_t kLeAudioCodecFrameDur20000us = 0x02;
 
 /* Audio Allocations */
-constexpr uint32_t kLeAudioLocationNotAllowed = 0x00000000;
+constexpr uint32_t kLeAudioLocationMonoAudio = 0x00000000;
 constexpr uint32_t kLeAudioLocationFrontLeft = 0x00000001;
 constexpr uint32_t kLeAudioLocationFrontRight = 0x00000002;
 constexpr uint32_t kLeAudioLocationFrontCenter = 0x00000004;
@@ -171,12 +174,14 @@ const std::map<uint8_t, CodecSpecificConfigurationLtv::FrameDuration>
         {kLeAudioCodecFrameDur7500us,
          CodecSpecificConfigurationLtv::FrameDuration::US7500},
         {kLeAudioCodecFrameDur10000us,
-         CodecSpecificConfigurationLtv::FrameDuration::US10000}};
+         CodecSpecificConfigurationLtv::FrameDuration::US10000},
+        {kLeAudioCodecFrameDur20000us,
+         CodecSpecificConfigurationLtv::FrameDuration::US20000}};
 
 /* Helper map for matching various audio channel allocation notations */
 std::map<uint32_t, uint32_t> audio_channel_allocation_map = {
-    {kLeAudioLocationNotAllowed,
-     CodecSpecificConfigurationLtv::AudioChannelAllocation::NOT_ALLOWED},
+    {kLeAudioLocationMonoAudio,
+     CodecSpecificConfigurationLtv::AudioChannelAllocation::MONO},
     {kLeAudioLocationFrontLeft,
      CodecSpecificConfigurationLtv::AudioChannelAllocation::FRONT_LEFT},
     {kLeAudioLocationFrontRight,
@@ -487,6 +492,9 @@ void AudioSetConfigurationProviderJson::populateAseQosConfiguration(
       case CodecSpecificConfigurationLtv::FrameDuration::US10000:
         qos.sduIntervalUs = 10000;
         break;
+      case CodecSpecificConfigurationLtv::FrameDuration::US20000:
+        qos.sduIntervalUs = 20000;
+        break;
     }
     qos.sduIntervalUs *= frameBlockValue;
   }
@@ -555,6 +563,17 @@ void AudioSetConfigurationProviderJson::processSubconfig(
   if (ase_cnt == 2) directionAseConfiguration.push_back(config);
 }
 
+// Comparing if 2 AseDirectionConfiguration is equal.
+// Configuration are copied in, so we can remove some fields for comparison
+// without affecting the result.
+bool isAseConfigurationEqual(AseDirectionConfiguration cfg_a,
+                             AseDirectionConfiguration cfg_b) {
+  // Remove unneeded fields when comparing.
+  cfg_a.aseConfiguration.metadata = std::nullopt;
+  cfg_b.aseConfiguration.metadata = std::nullopt;
+  return cfg_a == cfg_b;
+}
+
 void AudioSetConfigurationProviderJson::PopulateAseConfigurationFromFlat(
     const le_audio::AudioSetConfiguration* flat_cfg,
     std::vector<const le_audio::CodecConfiguration*>* codec_cfgs,
@@ -563,7 +582,7 @@ void AudioSetConfigurationProviderJson::PopulateAseConfigurationFromFlat(
     std::vector<std::optional<AseDirectionConfiguration>>&
         sourceAseConfiguration,
     std::vector<std::optional<AseDirectionConfiguration>>& sinkAseConfiguration,
-    ConfigurationFlags& /*configurationFlags*/) {
+    ConfigurationFlags& configurationFlags) {
   if (flat_cfg == nullptr) {
     LOG(ERROR) << "flat_cfg cannot be null";
     return;
@@ -630,17 +649,41 @@ void AudioSetConfigurationProviderJson::PopulateAseConfigurationFromFlat(
                          sourceAseConfiguration, location);
       }
     }
-  } else {
-    if (codec_cfg == nullptr) {
-      LOG(ERROR) << "No codec config matching key " << codec_config_key.c_str()
-                 << " found";
+
+    // After putting all subconfig, check if it's an asymmetric configuration
+    // and populate information for ConfigurationFlags
+    if (!sinkAseConfiguration.empty() && !sourceAseConfiguration.empty()) {
+      if (sinkAseConfiguration.size() == sourceAseConfiguration.size()) {
+        for (int i = 0; i < sinkAseConfiguration.size(); ++i) {
+          if (sinkAseConfiguration[i].has_value() !=
+              sourceAseConfiguration[i].has_value()) {
+            // Different configuration: one is not empty and other is.
+            configurationFlags.bitmask |=
+                ConfigurationFlags::ALLOW_ASYMMETRIC_CONFIGURATIONS;
+          } else if (sinkAseConfiguration[i].has_value()) {
+            // Both is not empty, comparing inner fields:
+            if (!isAseConfigurationEqual(sinkAseConfiguration[i].value(),
+                                         sourceAseConfiguration[i].value())) {
+              configurationFlags.bitmask |=
+                  ConfigurationFlags::ALLOW_ASYMMETRIC_CONFIGURATIONS;
+            }
+          }
+        }
+      } else {
+        // Different number of ASE, is a different configuration.
+        configurationFlags.bitmask |=
+            ConfigurationFlags::ALLOW_ASYMMETRIC_CONFIGURATIONS;
+      }
     } else {
-      LOG(ERROR) << "Configuration '" << flat_cfg->name()->c_str()
-                 << "' has no valid subconfigurations.";
+      if (codec_cfg == nullptr) {
+        LOG(ERROR) << "No codec config matching key "
+                   << codec_config_key.c_str() << " found";
+      } else {
+        LOG(ERROR) << "Configuration '" << flat_cfg->name()->c_str()
+                   << "' has no valid subconfigurations.";
+      }
     }
   }
-
-  // TODO: Populate information for ConfigurationFlags
 }
 
 bool AudioSetConfigurationProviderJson::LoadConfigurationsFromFiles(

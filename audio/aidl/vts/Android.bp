@@ -31,6 +31,7 @@ cc_defaults {
     ],
     header_libs: [
         "libaudioaidl_headers",
+        "libaudioutils_headers",
         "libexpectedutils_headers",
     ],
     cflags: [
@@ -116,6 +117,9 @@ cc_test {
     defaults: ["VtsHalAudioEffectTargetTestDefaults"],
     static_libs: ["libaudioaidlranges"],
     srcs: ["VtsHalDynamicsProcessingTest.cpp"],
+    shared_libs: [
+        "libaudioutils",
+    ],
 }
 
 cc_test {
@@ -170,6 +174,9 @@ cc_test {
     name: "VtsHalVisualizerTargetTest",
     defaults: ["VtsHalAudioEffectTargetTestDefaults"],
     srcs: ["VtsHalVisualizerTargetTest.cpp"],
+    shared_libs: [
+        "libaudioutils",
+    ],
 }
 
 cc_test {

@@ -16,11 +16,13 @@
 
 package android.hardware.graphics.composer3;
 
+import android.hardware.drm.HdcpLevels;
 import android.hardware.graphics.common.DisplayDecorationSupport;
 import android.hardware.graphics.common.Hdr;
 import android.hardware.graphics.common.HdrConversionCapability;
 import android.hardware.graphics.common.HdrConversionStrategy;
 import android.hardware.graphics.common.Transform;
+import android.hardware.graphics.composer3.Buffer;
 import android.hardware.graphics.composer3.ClientTargetProperty;
 import android.hardware.graphics.composer3.ClockMonotonicTimestamp;
 import android.hardware.graphics.composer3.ColorMode;
@@ -37,6 +39,7 @@ import android.hardware.graphics.composer3.DisplayIdentification;
 import android.hardware.graphics.composer3.FormatColorComponent;
 import android.hardware.graphics.composer3.HdrCapabilities;
 import android.hardware.graphics.composer3.IComposerCallback;
+import android.hardware.graphics.composer3.Luts;
 import android.hardware.graphics.composer3.OverlayProperties;
 import android.hardware.graphics.composer3.PerFrameMetadataKey;
 import android.hardware.graphics.composer3.PowerMode;
@@ -97,6 +100,14 @@ interface IComposerClient {
      * Proposed configuration failed for undisclosed reasons
      */
     const int EX_CONFIG_FAILED = 11;
+
+    /**
+     * The number of per-layer picture profiles in use is larger than the number of layer-specific
+     * picture-processing pipelines, as-defined by getMaxLayerPictureProfiles.
+     *
+     * @see LayerCommand.pictureProfileId
+     */
+    const int EX_PICTURE_PROFILE_MAX_EXCEEDED = 12;
 
     /**
      * Integer.MAX_VALUE is reserved for the invalid configuration.
@@ -919,4 +930,40 @@ interface IComposerClient {
      */
     oneway void notifyExpectedPresent(
             long display, in ClockMonotonicTimestamp expectedPresentTime, int frameIntervalNs);
+
+    /*
+     * Returns the number of layer-specific picture-processing profiles that can be referenced from
+     * multiple LayerCommand.pictureProfileId. If the client passes in more pictureProfileIds whose
+     * values are larger than zero (indicating none) then the implementation can support, it should
+     * return EX_PICTURE_PROFILE_MAX_EXCEEDED.
+     *
+     * If the implementation only supports one display-wide picture-processing
+     * pipeline, a value of zero should be returned here.
+     */
+    int getMaxLayerPictureProfiles(long display);
+
+    /**
+     * Supports HDCP lazy activation.
+     *
+     * When SurfaceFlinger detects secure layers, this method is called to instruct HWC side that
+     * HDCP negotiation process can be started.
+     *
+     * When HDCP is successfully started or failed to start, HWC reports the HDCP levels via
+     * IComposerCallback.onHdcpLevelsChanged().
+     *
+     * @param display is the display whose HDCP negotiation can be started.
+     * @param levels is the desired HDCP levels.
+     *
+     * @see IComposerCallback.onHdcpLevelsChanged
+     *
+     */
+    oneway void startHdcpNegotiation(long display, in HdcpLevels levels);
+
+    /*
+     * Returns the Luts based on the buffers.
+     *
+     * @param display is the display for which the luts are requested.
+     * @param buffers is the buffer where the luts can be computed from
+     */
+    Luts[] getLuts(long display, in Buffer[] buffers);
 }
