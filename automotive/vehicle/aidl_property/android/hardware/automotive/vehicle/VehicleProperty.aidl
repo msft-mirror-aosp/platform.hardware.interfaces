@@ -620,22 +620,15 @@ enum VehicleProperty {
      * }
      *
      * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
-     *
      * {@code HasSupportedValueInfo.hasMinSupportedValue} and
      * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
-     *
-     * {@code MinMaxSupportedValueResult.minSupportedValue} represents the lower bound of the
-     * recommended tire pressure for the tire at the specified area ID.
-     *
-     * {@code MinMaxSupportedValueResult.maxSupportedValue} represents the upper bound of the
-     * recommended tire pressure for the tire at the specified area ID.
-     *
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minFloatValue.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxFloatValue.
      * For example, if the recommended tire pressure of left_front tire is from 200.0 KILOPASCAL to
      * 240.0 KILOPASCAL, {@code getMinMaxSupportedValue} for
      * [propId=TIRE_PRESSURE, areaId=VehicleAreaWheel::LEFT_FRONT] must return a
      * {@code MinMaxSupportedValueResult} with OK status, 200.0 as minSupportedValue, 240.0 as
      * maxSupportedValue.
-     *
      * At boot, minFloatValue is equal to minSupportedValue, maxFloatValue is equal to
      * maxSupportedValue.
      *
@@ -784,10 +777,8 @@ enum VehicleProperty {
      * unless all bit flags of ImpactSensorLocation are supported.
      *
      * If {@code HasSupportedValueInfo} is not {@code null} for the global area ID (0):
-     *
      * {@code getSupportedValuesList} must return a {@code SupportedValuesListResult} that contains
      * supported values unless all bit flags of ImpactSensorLocation are supported.
-     *
      * At boot, supportedEnumValues is equal to the supported values list.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
@@ -825,22 +816,17 @@ enum VehicleProperty {
      * selected by the driver instead of simply GEAR_DRIVE.
      *
      * If {@code HasSupportedValueInfo} is not {@code null} for the global area ID (0):
-     *
      * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
      * (0) must be {@code true}.
-     *
      * {@code getSupportedValuesList} for [GEAR_SELECTION, areaId=0] must return a
      * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList}.
-     *
      * The supportedValues must represent the list of supported gears for this vehicle. For example,
      * for an automatic transmission, the list can be {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_PARK,
      * GEAR_DRIVE, GEAR_1, GEAR_2,...} and for manual transmission it can be {GEAR_NEUTRAL,
      * GEAR_REVERSE, GEAR_1, GEAR_2,...}.
-     *
      * In the case of an automatic transmission vehicle that allows the driver to select specific
      * gears on demand (i.e. "manual mode"), the GEAR_SELECTION property value must be set to the
      * specific gear selected by the driver instead of simply GEAR_DRIVE.
-     *
      * At boot, the config array's values are equal to the supported values list.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
@@ -866,20 +852,16 @@ enum VehicleProperty {
      * same as that of the supported gears reported in GEAR_SELECTION.
      *
      * If {@code HasSupportedValueInfo} is not {@code null} for the global area ID (0):
-     *
      * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
      * (0) must be {@code true}.
-     *
      * {@code getSupportedValuesList} for [GEAR_SELECTION, areaId=0] must return a
      * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList}.
-     *
      * The supported values list must represent the list of supported gears
      * for this vehicle.  For example, for an automatic transmission, this list can be
      * {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_PARK, GEAR_1, GEAR_2,...}
      * and for manual transmission the list can be
      * {GEAR_NEUTRAL, GEAR_REVERSE, GEAR_1, GEAR_2,...}. This list need not be the
      * same as that of the supported gears reported in GEAR_SELECTION.
-     *
      * At boot, the config array's values are equal to the supported values list.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
@@ -935,19 +917,12 @@ enum VehicleProperty {
      * All values between min and max supported value must be supported.
      *
      * If {@code HasSupportedValueInfo} is not {@code null} for the global area ID (0):
-     *
      * {@code HasSupportedValueInfo.hasMinSupportedValue} and
      * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for global area ID(0)
-     *
-     * {@code MinMaxSupportedValueResult.minSupportedValue} must be 0.
-     *
-     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the setting for the maximum
-     * amount of energy regenerated from braking. The minSupportedValue indicates the setting for no
-     * regenerative braking.
-     *
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
      * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
      * maxSupportedValue.
-     *
      *
      * This property is a more granular form of EV_REGENERATIVE_BRAKING_STATE. It allows the user to
      * set a more specific level of regenerative braking if the states in EvRegenerativeBrakingState
@@ -1054,13 +1029,10 @@ enum VehicleProperty {
      * all enum values of EvStoppingMode are supported.
      *
      * If {@code HasSupportedValueInfo} is not {@code null} for the global area ID (0):
-     *
      * For the global area ID (0), {@code getSupportedValuesList}
      * must return a {@code SupportedValuesListResult} that contains supported values unless all
      * enum values of EvStoppingMode are supported.
-     *
      * At boot, supportedEnumValues is equal to the supported values list.
-     *
      *
      * The EvStoppingMode enum may be extended to include more states in the future.
      *
@@ -1109,12 +1081,10 @@ enum VehicleProperty {
      * recommended) and ErrorState are supported.
      *
      * If {@code HasSupportedValueInfo} is not {@code null} for the global area ID (0):
-     *
      * For the global area ID (0), {@code getSupportedValuesList}
      * must return a {@code SupportedValuesListResult} that contains supported values unless all
      * states of both ElectronicStabilityControlState (including OTHER, which is not
      * recommended) and ErrorState are supported.
-     *
      * At boot, supportedEnumValues is equal to the supported values list.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
@@ -1232,23 +1202,18 @@ enum VehicleProperty {
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
      * The minInt32Value indicates the lowest fan speed.
+     *
      * The maxInt32Value indicates the highest fan speed.
      *
      * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
-     *
      * {@code HasSupportedValueInfo.hasMinSupportedValue} and
      * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specific
      * area ID.
-     *
-     * {@code MinMaxSupportedValueResult.minSupportedValue} indicates the lowest fan speed.
-     *
-     * {@code MinMaxSupportedValueResult.maxSupportedValue} indicates the highest fan speed.
-     *
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
      * All integers between minSupportedValue and maxSupportedValue must be supported.
-     *
      * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
      * maxSupportedValue.
-     *
      *
      * This property is not in any particular unit but in a specified range of relative speeds.
      *
@@ -1297,6 +1262,7 @@ enum VehicleProperty {
      * The minFloatValue and maxFloatValue in VehicleAreaConfig must be defined.
      *
      * The minFloatValue indicates the minimum temperature setting in Celsius.
+     *
      * The maxFloatValue indicates the maximum temperature setting in Celsius.
      *
      * If all the values between minFloatValue and maxFloatValue are not supported, the configArray
@@ -1336,6 +1302,19 @@ enum VehicleProperty {
      *
      * Any value set in between a valid value should be rounded to the closest valid value.
      *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specific
+     * area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minFloatValue.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxFloatValue.
+     * If not all the values between minSupportedValue and maxSupportedValue are supported,
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true} for the
+     * specified area ID. At boot, supportedValuesList must be equal to what is described in
+     * config array.
+     * At boot, minFloatValue is equal to minSupportedValue, maxFloatValue is equal to
+     * maxSupportedValue.
+     *
      * It is highly recommended that the OEM also implement the HVAC_TEMPERATURE_VALUE_SUGGESTION
      * vehicle property because it provides applications a simple method for determining temperature
      * values that can be set for this vehicle and for converting values between Celsius and
@@ -1348,6 +1327,7 @@ enum VehicleProperty {
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
      * @unit VehicleUnit.CELSIUS
+     * @require_min_max_supported_value
      * @version 2
      */
     HVAC_TEMPERATURE_SET = 0x0503 + 0x10000000 + 0x05000000
@@ -1508,9 +1488,20 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value indicates the maximum seat temperature heating setting.
      * The minInt32Value must be 0, unless the vehicle supports seat cooling as well. In this case,
      * minInt32Value indicates the maximum seat temperature cooling setting.
+     *
+     * The maxInt32Value indicates the maximum seat temperature heating setting.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specified
+     * area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit, but in a specified range of relative temperature
      * settings.
@@ -1521,6 +1512,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     HVAC_SEAT_TEMPERATURE = 0x050B + 0x10000000 + 0x05000000
@@ -1533,8 +1525,19 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value in the config data represents the maximum heating level.
      * The minInt32Value in the config data MUST be zero and indicates no heating.
+     *
+     * The maxInt32Value in the config data represents the maximum heating level.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specified
+     * area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative heating
      * settings.
@@ -1545,6 +1548,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     HVAC_SIDE_MIRROR_HEAT = 0x050C + 0x10000000 + 0x04000000
@@ -1557,9 +1561,19 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value indicates the maximum steering wheel heating setting.
      * The minInt32Value should be 0, unless the vehicle supports steering wheel cooling as well. In
      * such a case, the minInt32Value indicates the maximum steering wheel cooling setting.
+     *
+     * The maxInt32Value indicates the maximum steering wheel heating setting.
+     *
+     * If {@code HasSupportedValueInfo} is not null for the global area ID (0):
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true}.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of heating settings.
      *
@@ -1569,6 +1583,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     HVAC_STEERING_WHEEL_HEAT = 0x050D + 0x10000000 + 0x01000000
@@ -1576,11 +1591,20 @@ enum VehicleProperty {
     /**
      * Temperature units for display
      *
-     * Indicates whether the vehicle is displaying temperature to the user as
-     * Celsius or Fahrenheit.
+     * Indicates whether the vehicle is displaying temperature to the user as Celsius or Fahrenheit.
+     *
      * VehiclePropConfig.configArray is used to indicate the supported temperature display units.
+     *
      * For example: configArray[0] = CELSIUS
      *              configArray[1] = FAHRENHEIT
+     *
+     * If {@code HasSupportedValueInfo} is not {@code null} for the global area ID (0):
+     * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
+     * (0) must be {@code true}.
+     * {@code getSupportedValuesLists} for [HVAC_TEMPERATURE_DISPLAY_UNITS, areaId=0] must return a
+     * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList},
+     * e.g. [CELSIUS, FAHRENHEIT].
+     * At boot, the values in the config array are equal to the supported values list.
      *
      * This parameter MAY be used for displaying any HVAC temperature in the system.
      * Values must be one of VehicleUnit.CELSIUS or VehicleUnit.FAHRENHEIT
@@ -1596,6 +1620,8 @@ enum VehicleProperty {
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleUnit
+     * @require_supported_values_list
+     * @legacy_supported_values_in_config
      * @version 2
      */
     HVAC_TEMPERATURE_DISPLAY_UNITS = 0x050E + 0x10000000 + 0x01000000
@@ -1696,11 +1722,23 @@ enum VehicleProperty {
     /**
      * Seat ventilation
      *
-     * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
+     * The minInt32Value and maxInt32Value in VehicleAreaConfig must be defined.
+     *
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
      * The minInt32Value must be 0.
+     *
      * The maxInt32Value indicates the maximum ventilation setting available for the seat.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specified
+     * area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in the specified range of ventilation
      * settings.
@@ -1715,6 +1753,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     HVAC_SEAT_VENTILATION = 0x0513 + 0x10000000 + 0x05000000
@@ -1800,6 +1839,14 @@ enum VehicleProperty {
      *              configArray[1] = KILOMETER
      *              configArray[2] = MILE
      *
+     * If {@code HasSupportedValueInfo} is not {@code null} for the global area ID (0):
+     * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
+     * (0) must be {@code true}.
+     * {@code getSupportedValuesLists} for [DISTANCE_DISPLAY_UNITS, areaId=0] must returns a
+     * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList},
+     * e.g. [METER, KILOMETER, MILE].
+     * At boot, the values in the config array are equal to the supported values list.
+     *
      * If updating DISTANCE_DISPLAY_UNITS affects the values of other *_DISPLAY_UNITS properties,
      * then their values must be updated and communicated to the AAOS framework as well.
      *
@@ -1810,6 +1857,8 @@ enum VehicleProperty {
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleUnit
+     * @require_supported_values_list
+     * @legacy_supported_values_in_config
      * @version 2
      */
     DISTANCE_DISPLAY_UNITS = 0x0600 + 0x10000000 + 0x01000000
@@ -1920,16 +1969,12 @@ enum VehicleProperty {
      *              configArray[2] = KILOMETERS_PER_HOUR
      *
      * If {@code HasSupportedValueInfo} is not {@code null} for the global area ID (0):
-     *
      * {@code VehicleAreaConfig.HasSupportedValueInfo.hasSupportedValuesList} for the global area ID
      * (0) must be {@code true}.
-     *
      * {@code getSupportedValuesLists} for [VEHICLE_SPEED_DISPLAY_UNITS, areaId=0] must return a
      * {@code SupportedValuesListResult} that contains non-null {@code supportedValuesList},
      * e.g. [METER_PER_SEC, MILES_PER_HOUR, KILOMETERS_PER_HOUR].
-     *
      * At boot, the values in the config array are equal to the supported values list.
-     *
      *
      * If updating VEHICLE_SPEED_DISPLAY_UNITS affects the values of other *_DISPLAY_UNITS
      * properties, then their values must be updated and communicated to the AAOS framework as well.
