@@ -6839,8 +6839,15 @@ enum VehicleProperty {
      * OEMs should set the minFloatValue and maxFloatValue values for this property to define the
      * min and max target speed values. These values must be non-negative.
      *
-     * The maxFloatValue represents the upper bound of the target speed.
      * The minFloatValue represents the lower bound of the target speed.
+     *
+     * The maxFloatValue represents the upper bound of the target speed.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true}.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minFloatValue.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxFloatValue.
      *
      * When this property is not available because CC is disabled (i.e. CRUISE_CONTROL_ENABLED is
      * false), this property must return StatusCode#NOT_AVAILABLE_DISABLED. If CRUISE_CONTROL_STATE
@@ -6852,6 +6859,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @unit VehicleUnit.METER_PER_SEC
+     * @require_min_max_supported_value
      * @version 2
      */
     CRUISE_CONTROL_TARGET_SPEED =
