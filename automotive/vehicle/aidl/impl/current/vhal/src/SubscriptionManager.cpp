@@ -414,6 +414,7 @@ VhalResult<void> SubscriptionManager::subscribeSupportedValueChange(
     std::scoped_lock<std::mutex> lockGuard(mLock);
 
     ClientIdType clientId = callback->asBinder().get();
+    ALOGE("ClientId: %p", clientId);
 
     // It is possible that some of the [propId, areaId]s are already subscribed, IVehicleHardware
     // will ignore them.
@@ -579,6 +580,25 @@ SubscriptionManager::getSubscribedClientsForErrorEvents(
         }
     }
     return clients;
+}
+
+std::unordered_map<std::shared_ptr<IVehicleCallback>, std::vector<PropIdAreaId>>
+SubscriptionManager::getSubscribedClientsForSupportedValueChange(
+        const std::vector<PropIdAreaId>& propIdAreaIds) {
+    std::scoped_lock<std::mutex> lockGuard(mLock);
+    std::unordered_map<std::shared_ptr<IVehicleCallback>, std::vector<PropIdAreaId>>
+            propIdAreaIdsByClient;
+
+    for (const auto& propIdAreaId : propIdAreaIds) {
+        const auto clientIter = mSupportedValueChangeClientsByPropIdAreaId.find(propIdAreaId);
+        if (clientIter == mSupportedValueChangeClientsByPropIdAreaId.end()) {
+            continue;
+        }
+        for (const auto& [_, client] : clientIter->second) {
+            propIdAreaIdsByClient[client].push_back(propIdAreaId);
+        }
+    }
+    return propIdAreaIdsByClient;
 }
 
 bool SubscriptionManager::isEmpty() {
