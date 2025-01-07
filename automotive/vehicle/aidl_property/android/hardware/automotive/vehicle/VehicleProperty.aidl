@@ -3915,13 +3915,23 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in each VehicleAreaConfig must be defined. All integers
      * between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value indicates the seat cushion side support is in its widest position (i.e.
-     * least support).
      * The minInt32Value indicates the seat cushion side support is in its thinnest position (i.e.
      * most support).
      *
+     * The maxInt32Value indicates the seat cushion side support is in its widest position (i.e.
+     * least support).
+     *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * thinnest and widest positions.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -3931,6 +3941,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_CUSHION_SIDE_SUPPORT_POS =
@@ -3941,15 +3952,25 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in each VehicleAreaConfig must be defined. All integers
      * between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value represents the maximum movement speed of the seat cushion side support when
-     * growing wider (i.e. support is decreasing).
      * The minInt32Value represents the maximum movement speed of the seat cushion side support when
      * growing thinner (i.e. support is increasing).
+     *
+     * The maxInt32Value represents the maximum movement speed of the seat cushion side support when
+     * growing wider (i.e. support is decreasing).
      *
      * Larger absolute values, either positive or negative, indicate a faster movement speed. Once
      * the seat cushion side support reaches the positional limit, the value must reset to 0. If
      * SEAT_CUSHION_SIDE_SUPPORT_MOVE's value is currently 0, then that means there is no movement
      * currently occurring.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative movement
      * speeds.
@@ -3960,6 +3981,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_CUSHION_SIDE_SUPPORT_MOVE =
@@ -3970,11 +3992,21 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in each VehicleAreaConfig must be defined. All integers
      * between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value indicates the lumbar support's highest position.
      * The minInt32Value indicates the lumbar support's lowest position.
+     *
+     * The maxInt32Value indicates the lumbar support's highest position.
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * lowest and highest positions.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -3984,6 +4016,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_LUMBAR_VERTICAL_POS =
@@ -3994,13 +4027,23 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in each VehicleAreaConfig must be defined. All integers
      * between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value indicates the lumbar support is moving at the fastest upward speed.
      * The minInt32Value indicates the lumbar support is moving at the fastest downward speed.
+     *
+     * The maxInt32Value indicates the lumbar support is moving at the fastest upward speed.
      *
      * Larger absolute values, either positive or negative, indicate a faster movement speed. Once
      * the seat cushion side support reaches the positional limit, the value must reset to 0. If
      * SEAT_LUMBAR_VERTICAL_MOVE's value is currently 0, then that means there is no movement
      * currently occurring.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative movement
      * speeds.
@@ -4011,6 +4054,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_LUMBAR_VERTICAL_MOVE =
@@ -4022,10 +4066,20 @@ enum VehicleProperty {
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
      * The minInt32Value indicates the normal seat position. The minInt32Value must be 0.
+     *
      * The maxInt32Value indicates the seat is in the full walk-in position.
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * normal and walk-in positions.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -4038,6 +4092,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     SEAT_WALK_IN_POS =
@@ -4078,6 +4133,7 @@ enum VehicleProperty {
      * Window Position
      *
      * The maxInt32Value and minInt32Value in each VehicleAreaConfig must be defined.
+     *
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
      * The minInt32Value indicates the window is closed/fully open out of plane. If the window
@@ -4085,6 +4141,7 @@ enum VehicleProperty {
      * and must be 0. If the window can open out of plane, the minInt32Value indicates the window
      * is fully open in its position out of plane and will be a negative value. See the example
      * below for a more detailed explanation.
+     *
      * The maxInt32Value indicates the window is fully open.
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
@@ -4101,12 +4158,22 @@ enum VehicleProperty {
      *
      *    Note that in this mode, 0 indicates the window is closed.
      *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
+     *
      * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
      * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     WINDOW_POS = 0x0BC0 + 0x10000000 + 0x03000000
@@ -4117,9 +4184,10 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in each VehicleAreaConfig must be defined. All integers
      * between minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value indicates the window is opening in plane/closing in the out of plane
-     * direction at the fastest speed.
      * The minInt32Value indicates the window is closing in plane/opening in the out of plane
+     * direction at the fastest speed.
+     *
+     * The maxInt32Value indicates the window is opening in plane/closing in the out of plane
      * direction at the fastest speed.
      *
      * Larger absolute values, either positive or negative, indicate a faster movement speed. Once
@@ -4144,12 +4212,22 @@ enum VehicleProperty {
      *   Max = open the sunroof, automatically stop when sunroof is fully open.
      *   Min = open the vent, automatically stop when vent is fully open.
      *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
+     *
      * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
      * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     WINDOW_MOVE = 0x0BC1 + 0x10000000 + 0x03000000
@@ -4179,13 +4257,25 @@ enum VehicleProperty {
      * When an intermittent wiper setting is selected, this property value must be set to 0 during
      * the "pause" period of the intermittent wiping.
      *
-     * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined. The maxInt32Value
-     * for each area ID must specify the longest wiper period. The minInt32Value must be set to 0
-     * for each area ID.
+     * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
+     *
+     * The minInt32Value must be set to 0 for each area ID.
+     *
+     * The maxInt32Value for each area ID must specify the longest wiper period.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true}.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @unit VehicleUnit.MILLI_SECS
+     * @require_min_max_supported_value
      * @version 2
      */
     WINDSHIELD_WIPERS_PERIOD =
@@ -4260,11 +4350,21 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined. All values between
      * minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value indicates the steering wheel position furthest from the driver.
      * The minInt32Value indicates the steering wheel position closest to the driver.
+     *
+     * The maxInt32Value indicates the steering wheel position furthest from the driver.
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * closest and furthest positions.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true}.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -4274,6 +4374,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     STEERING_WHEEL_DEPTH_POS =
@@ -4284,13 +4385,23 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined. All values between
      * minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value indicates the steering wheel moving away from the driver.
      * The minInt32Value indicates the steering wheel moving towards the driver.
+     *
+     * The maxInt32Value indicates the steering wheel moving away from the driver.
      *
      * Larger integers, either positive or negative, indicate a faster movement speed. Once the
      * steering wheel reaches the positional limit, the value must reset to 0. If
      * STEERING_WHEEL_DEPTH_MOVE's value is currently 0, then that means there is no movement
      * currently occurring.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true}.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative movement
      * speeds.
@@ -4301,6 +4412,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     STEERING_WHEEL_DEPTH_MOVE =
@@ -4311,11 +4423,21 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined. All values between
      * minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value indicates the steering wheel being in the highest position.
      * The minInt32Value indicates the steering wheel being in the lowest position.
+     *
+     * The maxInt32Value indicates the steering wheel being in the highest position.
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * lowest and highest positions.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true}.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -4325,6 +4447,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     STEERING_WHEEL_HEIGHT_POS =
@@ -4335,13 +4458,23 @@ enum VehicleProperty {
      * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined. All values between
      * minInt32Value and maxInt32Value must be supported.
      *
-     * The maxInt32Value indicates the steering wheel moving upwards.
      * The minInt32Value indicates the steering wheel moving downwards.
+     *
+     * The maxInt32Value indicates the steering wheel moving upwards.
      *
      * Larger integers, either positive or negative, indicate a faster movement speed. Once the
      * steering wheel reaches the positional limit, the value must reset to 0. If
      * STEERING_WHEEL_HEIGHT_MOVE's value is currently 0, then that means there is no movement
      * currently occurring.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true}.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative movement
      * speeds.
@@ -4352,6 +4485,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     STEERING_WHEEL_HEIGHT_MOVE =
@@ -4410,10 +4544,20 @@ enum VehicleProperty {
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
      * The minInt32Value indicates that the glove box door is closed. The minInt32Value must be 0.
+     *
      * The maxInt32Value indicates that the glove box door is in the fully open position.
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
      * closed and fully open positions.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true}.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * This property is not in any particular unit but in a specified range of relative positions.
      *
@@ -4427,6 +4571,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     GLOVE_BOX_DOOR_POS =
