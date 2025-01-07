@@ -4133,6 +4133,7 @@ enum VehicleProperty {
      * Window Position
      *
      * The maxInt32Value and minInt32Value in each VehicleAreaConfig must be defined.
+     *
      * All integers between minInt32Value and maxInt32Value must be supported.
      *
      * The minInt32Value indicates the window is closed/fully open out of plane. If the window
@@ -4140,6 +4141,7 @@ enum VehicleProperty {
      * and must be 0. If the window can open out of plane, the minInt32Value indicates the window
      * is fully open in its position out of plane and will be a negative value. See the example
      * below for a more detailed explanation.
+     *
      * The maxInt32Value indicates the window is fully open.
      *
      * Values in between minInt32Value and maxInt32Value indicate a transition state between the
@@ -4156,12 +4158,22 @@ enum VehicleProperty {
      *
      *    Note that in this mode, 0 indicates the window is closed.
      *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
+     *
      * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
      * implement it as VehiclePropertyAccess.READ only.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 2
      */
     WINDOW_POS = 0x0BC0 + 0x10000000 + 0x03000000
