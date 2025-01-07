@@ -1336,15 +1336,19 @@ binder_status_t DefaultVehicleHal::dump(int fd, const char** args, uint32_t numA
         dprintf(fd, "Containing %zu property configs\n", configsByPropIdCopy.size());
         dprintf(fd, "Currently have %zu getValues clients\n", mGetValuesClients.size());
         dprintf(fd, "Currently have %zu setValues clients\n", mSetValuesClients.size());
-        dprintf(fd, "Currently have %zu subscribe clients\n", countSubscribeClients());
+        dprintf(fd, "Currently have %zu subscribe clients\n",
+                mSubscriptionManager->countPropertyChangeClients());
         dprintf(fd, "Currently have %zu supported values change subscribe clients\n",
                 mSubscriptionManager->countSupportedValueChangeClients());
     }
     return STATUS_OK;
 }
 
-size_t DefaultVehicleHal::countSubscribeClients() {
-    return mSubscriptionManager->countPropertyChangeClients();
+size_t DefaultVehicleHal::countClients() {
+    std::scoped_lock<std::mutex> lockGuard(mLock);
+    return mGetValuesClients.size() + mSetValuesClients.size() +
+           mSubscriptionManager->countPropertyChangeClients() +
+           mSubscriptionManager->countSupportedValueChangeClients();
 }
 
 }  // namespace vehicle

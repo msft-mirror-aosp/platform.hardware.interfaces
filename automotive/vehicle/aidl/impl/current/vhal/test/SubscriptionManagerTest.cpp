@@ -124,6 +124,8 @@ class SubscriptionManagerTest : public testing::Test {
 
     std::shared_ptr<MockVehicleHardware> getHardware() { return mHardware; }
 
+    bool isEmpty() { return mManager->isEmpty(); }
+
   private:
     std::unique_ptr<SubscriptionManager> mManager;
     std::shared_ptr<PropertyCallback> mCallback;
@@ -946,6 +948,19 @@ TEST_F(SubscriptionManagerTest, testUnsubscribeSupportedValueChange) {
             << "Incorrect supported value change events for client1";
     ASSERT_THAT(clients[client2], UnorderedElementsAre(propIdAreaId2))
             << "Incorrect supported value change events for client2";
+
+    result = getManager()->unsubscribeSupportedValueChange(binder2.get(), {propIdAreaId2});
+
+    ASSERT_TRUE(result.ok()) << "failed to call unsubscribeSupportedValueChange"
+                             << result.error().message();
+
+    result = getManager()->unsubscribeSupportedValueChange(binder1.get(), {propIdAreaId1});
+
+    ASSERT_TRUE(result.ok()) << "failed to call unsubscribeSupportedValueChange"
+                             << result.error().message();
+
+    EXPECT_EQ(getManager()->countSupportedValueChangeClients(), 0u) << "All clients cleared";
+    EXPECT_TRUE(isEmpty()) << "All clients cleared";
 }
 
 }  // namespace vehicle

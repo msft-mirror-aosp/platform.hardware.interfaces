@@ -414,7 +414,6 @@ VhalResult<void> SubscriptionManager::subscribeSupportedValueChange(
     std::scoped_lock<std::mutex> lockGuard(mLock);
 
     ClientIdType clientId = callback->asBinder().get();
-    ALOGE("ClientId: %p", clientId);
 
     // It is possible that some of the [propId, areaId]s are already subscribed, IVehicleHardware
     // will ignore them.
@@ -479,7 +478,7 @@ VhalResult<void> SubscriptionManager::unsubscribeSupportedValueChangeLocked(
             mSupportedValueChangeClientsByPropIdAreaId.end()) {
             mSupportedValueChangeClientsByPropIdAreaId[propIdAreaId].erase(clientId);
         }
-        if (mSupportedValueChangeClientsByPropIdAreaId.empty()) {
+        if (mSupportedValueChangeClientsByPropIdAreaId[propIdAreaId].empty()) {
             mSupportedValueChangeClientsByPropIdAreaId.erase(propIdAreaId);
         }
         mSupportedValueChangePropIdAreaIdsByClient[clientId].erase(propIdAreaId);
