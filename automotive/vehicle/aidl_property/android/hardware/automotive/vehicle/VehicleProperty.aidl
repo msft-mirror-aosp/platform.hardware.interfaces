@@ -5920,8 +5920,20 @@ enum VehicleProperty {
     /**
      * Indicates the maximum current draw threshold for charging set by the user
      *
-     * configArray[0] is used to specify the max current draw allowed by
-     * the vehicle in Amperes.
+     * configArray[0] is used to specify the max current draw allowed by the vehicle in Amperes at
+     * boot time.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null},
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} must be {@code true}.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} specifies the max current draw allowed
+     * by the vehicle in Amperes at the current moment.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} must be 0.
+     * At boot, configArray[0] is equal to maxSupportedValue.
+     *
+     * If the max current draw allowed by the vehicle may change dynamically,
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} and
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} must be implemented.
      *
      * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
      * implement it as VehiclePropertyAccess.READ only.
