@@ -5952,11 +5952,21 @@ enum VehicleProperty {
      *
      * Returns a float value from 0 to 100.
      *
-     * configArray is used to specify the valid values.
+     * configArray is used to specify the valid values at boot time.
      *   For example, if the vehicle supports the following charge percent limit values:
      *     [20, 40, 60, 80, 100]
      *   then the configArray should be {20, 40, 60, 80, 100}
      * If the configArray is empty then all values from 0 to 100 must be valid.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null},
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}.
+     * {@code SupportedValuesListResult#supportedValuesList} specifies the
+     * valid maximum charge percent threshold options at the current moment.
+     * At boot, configArray content must match the supported values list.
+     *
+     * If the valid values may change dynamically,
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true} and
+     * {@code SupportedValuesListResult#supportedValuesList} must be implemented.
      *
      * This property is defined as VehiclePropertyAccess.READ_WRITE, but OEMs have the option to
      * implement it as VehiclePropertyAccess.READ only.
@@ -5964,6 +5974,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
+     * @legacy_supported_values_in_config
      * @version 2
      */
     EV_CHARGE_PERCENT_LIMIT = 0x0F40 + 0x10000000 + 0x01000000
