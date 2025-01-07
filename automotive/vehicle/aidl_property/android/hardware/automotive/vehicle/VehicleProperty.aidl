@@ -4257,13 +4257,25 @@ enum VehicleProperty {
      * When an intermittent wiper setting is selected, this property value must be set to 0 during
      * the "pause" period of the intermittent wiping.
      *
-     * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined. The maxInt32Value
-     * for each area ID must specify the longest wiper period. The minInt32Value must be set to 0
-     * for each area ID.
+     * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
+     *
+     * The minInt32Value must be set to 0 for each area ID.
+     *
+     * The maxInt32Value for each area ID must specify the longest wiper period.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true}.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * All integers between minSupportedValue and maxSupportedValue must be supported.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @unit VehicleUnit.MILLI_SECS
+     * @require_min_max_supported_value
      * @version 2
      */
     WINDSHIELD_WIPERS_PERIOD =
