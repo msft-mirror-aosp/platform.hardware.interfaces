@@ -6262,9 +6262,15 @@ enum VehicleProperty {
      * and is currently in the target level of autonomy, this property must be equal to the value of
      * VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL.
      *
-     * For the global area ID (0), the SupportedValuesListResult#supportedValuesList array must be
-     * defined unless all states of VehicleAutonomousState are supported. These values must match
-     * the values in supportedValuesList of VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL.
+     * For the global area ID (0), the VehicleAreaConfig#supportedEnumValues array must be defined
+     * unless all states of VehicleAutonomousState are supported. The supported values for this
+     * property must be the same as the supported values for
+     * VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}
+     * unless all enum values of VehicleAutonomousState are supported.
+     * At boot, the supported values list is the same as supportedEnumValues.
      *
      * For the property that communicates the current state of autonomy, see
      * VEHICLE_DRIVING_AUTOMATION_CURRENT_LEVEL.
