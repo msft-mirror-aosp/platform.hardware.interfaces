@@ -6874,9 +6874,17 @@ enum VehicleProperty {
      * vehicle's front-most point. The actual time gap from a leading vehicle can be above or below
      * this value.
      *
-     * The possible values to set for the target time gap should be specified in configArray in
-     * ascending order. All values must be positive. If the property is writable, all values must be
-     * writable.
+     * The possible values to set for the target time gap at boot time should be specified in
+     * configArray in ascending order. All values must be positive. If the property is writable, all
+     * values must be writable.
+     *
+     * If {@code HasSupportedValueInfo} is not {@code null},
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}. The supported
+     * values list represents the possible values to set at the current moment.
+     *
+     * If the possible values to set may change dynamically,
+     * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true} and the supported
+     * values list must be implemented.
      *
      * When this property is not available because CC is disabled (i.e. CRUISE_CONTROL_ENABLED is
      * false), this property must return StatusCode#NOT_AVAILABLE_DISABLED. If CRUISE_CONTROL_STATE
@@ -6892,6 +6900,7 @@ enum VehicleProperty {
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
      * @unit VehicleUnit.MILLI_SECS
+     * @legacy_supported_values_in_config
      * @version 2
      */
     ADAPTIVE_CRUISE_CONTROL_TARGET_TIME_GAP =
