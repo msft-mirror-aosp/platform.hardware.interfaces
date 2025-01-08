@@ -736,17 +736,27 @@ enum VehicleProperty {
      *   scenario, this property must be set to -20 for all wheels except for the front left, which
      *   must be set to 10.
      *
-     * HasSupportedValueInfo.hasMinSupportedValue and HasSupportedValueInfo.hasMaxSupportedValue
-     * must be true for all areas.
+     * {@code minInt32Value} and {@code maxInt32Value} in {@code VehicleAreaConfig} must be
+     * specified for all supported area IDs.
      *
-     * MinMaxSupportedValueResult.minSupportedValue represents the lower bound of the suspension
-     * height for the wheel at the specified area ID.
+     * {@code minInt32Value} represents the lower bound of the suspension height for the wheel at
+     * the specified area ID.
      *
-     * MinMaxSupportedValueResult.maxSupportedValue represents the upper bound of the suspension
-     * height for the wheel at the specified area ID.
+     * {@code maxInt32Value} represents the upper bound of the suspension height for the wheel at
+     * the specified area ID.
+     *
+     * If {@code HasSupportedValueInfo} for a specific area ID is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true} for the specified
+     * area ID.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
+     * At boot, minInt32Value is equal to minSupportedValue, maxInt32Value is equal to
+     * maxSupportedValue.
      *
      * @change_mode VehiclePropertyChangeMode.CONTINUOUS
      * @access VehiclePropertyAccess.READ
+     * @require_min_max_supported_value
      * @version 4
      */
     VEHICLE_PASSIVE_SUSPENSION_HEIGHT =
