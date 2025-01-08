@@ -6914,9 +6914,17 @@ enum VehicleProperty {
      * vehicle and the front-most point of the ACC vehicle.
      *
      * The maxInt32Value and minInt32Value in VehicleAreaConfig must be defined.
+     *
      * The minInt32Value should be 0.
+     *
      * The maxInt32Value should be populated with the maximum range the distance sensor can support.
      * This value should be non-negative.
+     *
+     * If {@code HasSupportedValueInfo} for the global area ID (0) is not {@code null}:
+     * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+     * {@code HasSupportedValueInfo.hasMaxSupportedValue} must be {@code true}.
+     * {@code MinMaxSupportedValueResult.minSupportedValue} has the same meaning as minInt32Value.
+     * {@code MinMaxSupportedValueResult.maxSupportedValue} has the same meaning as maxInt32Value.
      *
      * When no lead vehicle is detected (that is, when there is no leading vehicle or the leading
      * vehicle is too far away for the sensor to detect), this property should return
@@ -6932,6 +6940,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.CONTINUOUS
      * @access VehiclePropertyAccess.READ
      * @unit VehicleUnit.MILLIMETER
+     * @require_min_max_supported_value
      * @version 2
      */
     ADAPTIVE_CRUISE_CONTROL_LEAD_VEHICLE_MEASURED_DISTANCE =
