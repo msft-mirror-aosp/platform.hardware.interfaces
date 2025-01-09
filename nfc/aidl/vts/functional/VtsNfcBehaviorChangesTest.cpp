@@ -157,7 +157,7 @@ tNFA_STATUS static nfaObserveModeEnable(bool enable) {
                      static_cast<uint8_t>(enable ? NCI_ANDROID_PASSIVE_OBSERVE_PARAM_ENABLE
                                                  : NCI_ANDROID_PASSIVE_OBSERVE_PARAM_DISABLE)};
 
-    status = NFA_SendRawVsCommand(sizeof(cmd), cmd, nfaVSCallback);
+    status = NFA_SendVsCommand(NCI_MSG_PROP_ANDROID, sizeof(cmd), cmd, nfaVSCallback);
 
     if (status == NFA_STATUS_OK) {
         if (!sNfaVsCommand.wait(1000)) {
