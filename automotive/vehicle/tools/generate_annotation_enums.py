@@ -58,6 +58,28 @@ RE_ACCESS = re.compile('\s*\* @access (\S+)\s*')
 RE_DATA_ENUM = re.compile('\s*\* @data_enum (\S+)\s*')
 RE_UNIT = re.compile('\s*\* @unit (\S+)\s+')
 RE_VALUE = re.compile('\s*(\w+)\s*=(.*)')
+RE_ANNOTATION = re.compile('\s*\* @(\S+)\s*')
+
+SUPPORTED_ANNOTATIONS = ['change_mode', 'access', 'unit', 'data_enum', 'data_enum_bit_flags',
+    'version', 'require_min_max_supported_value', 'require_supported_values_list',
+    'legacy_supported_values_in_config']
+
+# Non static data_enum properties that do not require supported values list.
+# These properties are either deprecated or for internal use only.
+ENUM_PROPERTIES_WITHOUT_SUPPORTED_VALUES = [
+    # deprecated
+    'TURN_SIGNAL_STATE',
+    # The supported values are exposed through HVAC_FAN_DIRECTION_AVAILABLE
+    'HVAC_FAN_DIRECTION',
+    # Internal use only
+    'HW_ROTARY_INPUT',
+    # Internal use only
+    'HW_CUSTOM_INPUT',
+    # Internal use only
+    'SHUTDOWN_REQUEST',
+    # Internal use only
+    'CAMERA_SERVICE_CURRENT_STATE'
+]
 
 LICENSE = """/*
  * Copyright (C) 2023 The Android Open Source Project
@@ -198,6 +220,7 @@ class PropertyConfig:
         self.enum_types = []
         self.unit_type = None
         self.version = None
+        self.annotations = []
 
     def __repr__(self):
         return self.__str__()
@@ -232,60 +255,15 @@ class FileParser:
                 if RE_COMMENT_BEGIN.match(line):
                     in_comment = True
                     config = PropertyConfig()
-                    description = ''
+                    # Use an array so that we could modify the string in parseComment.
+                    description = ['']
                     continue
 
                 if RE_COMMENT_END.match(line):
                     in_comment = False
                 if in_comment:
-                    match = RE_CHANGE_MODE.match(line)
-                    if match:
-                        config.change_mode = match.group(1).replace('VehiclePropertyChangeMode.', '')
-                        continue
-                    match = RE_ACCESS.match(line)
-                    if match:
-                        config.access_modes.append(match.group(1).replace('VehiclePropertyAccess.', ''))
-                        continue
-                    match = RE_UNIT.match(line)
-                    if match:
-                        config.unit_type = match.group(1)
-                        continue
-                    match = RE_DATA_ENUM.match(line)
-                    if match:
-                        config.enum_types.append(match.group(1))
-                        continue
-                    match = RE_VERSION.match(line)
-                    if match:
-                        if config.version != None:
-                            raise Exception('Duplicate version annotation for property: ' + prop_name)
-                        config.version = match.group(1)
-                        continue
-
-                    sline = line.strip()
-                    if sline.startswith('*'):
-                        # Remove the '*'.
-                        sline = sline[1:].strip()
-
-                    if not config.description:
-                        # We reach an empty line of comment, the description part is ending.
-                        if sline == '':
-                            config.description = description
-                        else:
-                            if description != '':
-                                description += ' '
-                            description += sline
-                    else:
-                        if not config.comment:
-                            if sline != '':
-                                # This is the first line for comment.
-                                config.comment = sline
-                        else:
-                            if sline != '':
-                                # Concat this line with the previous line's comment with a space.
-                                config.comment += ' ' + sline
-                            else:
-                                # Treat empty line comment as a new line.
-                                config.comment += '\n'
+                    # We will update the string in description in this function.
+                    self.parseComment(line, config, description)
                 else:
                     match = RE_VALUE.match(line)
                     if match:
@@ -300,11 +278,78 @@ class FileParser:
                                     'No access_mode annotation for property: ' + prop_name)
                         if not config.version:
                             raise Exception(
-                                    'no version annotation for property: ' + prop_name)
+                                    'No version annotation for property: ' + prop_name)
+                        if ('data_enum' in config.annotations and
+                            'require_supported_values_list' not in config.annotations and
+                            config.change_mode != 'STATIC' and
+                            prop_name not in ENUM_PROPERTIES_WITHOUT_SUPPORTED_VALUES):
+                            raise Exception(
+                                    'The property: ' + prop_name + ' has @data_enum '
+                                    'annotation but does not have @require_supported_values_list'
+                                    ', either add the annotation or add the property name to '
+                                    'ENUM_PROPERTIES_WITHOUT_SUPPORTED_VALUES in '
+                                    'generate_annotation_enums.py')
+
                         config.name = prop_name
                         configs.append(config)
 
         self.configs = configs
+
+    def parseComment(self, line, config, description):
+        match_annotation = RE_ANNOTATION.match(line)
+        if match_annotation:
+            annotation = match_annotation.group(1)
+            if annotation not in SUPPORTED_ANNOTATIONS:
+                raise Exception('Annotation: @' + annotation + " is not supported, typo?")
+            config.annotations.append(annotation)
+            match = RE_CHANGE_MODE.match(line)
+            if match:
+                config.change_mode = match.group(1).replace('VehiclePropertyChangeMode.', '')
+                return
+            match = RE_ACCESS.match(line)
+            if match:
+                config.access_modes.append(match.group(1).replace('VehiclePropertyAccess.', ''))
+                return
+            match = RE_UNIT.match(line)
+            if match:
+                config.unit_type = match.group(1)
+                return
+            match = RE_DATA_ENUM.match(line)
+            if match:
+                config.enum_types.append(match.group(1))
+                return
+            match = RE_VERSION.match(line)
+            if match:
+                if config.version != None:
+                    raise Exception('Duplicate version annotation for property: ' + prop_name)
+                config.version = match.group(1)
+                return
+
+        sline = line.strip()
+        if sline.startswith('*'):
+            # Remove the '*'.
+            sline = sline[1:].strip()
+
+        if not config.description:
+            # We reach an empty line of comment, the description part is ending.
+            if sline == '':
+                config.description = description[0]
+            else:
+                if description[0] != '':
+                    description[0] += ' '
+                description[0] += sline
+        else:
+            if not config.comment:
+                if sline != '':
+                    # This is the first line for comment.
+                    config.comment = sline
+            else:
+                if sline != '':
+                    # Concat this line with the previous line's comment with a space.
+                    config.comment += ' ' + sline
+                else:
+                    # Treat empty line comment as a new line.
+                    config.comment += '\n'
 
     def convert(self, output, header, footer, cpp, field):
         """Converts the property config file to C++/Java output file."""
