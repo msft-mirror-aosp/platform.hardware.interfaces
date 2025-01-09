@@ -37,6 +37,51 @@ import android.hardware.automotive.vehicle.VehiclePropertyType;
  *
  * Properties set to values out of range must be ignored and no action taken
  * in response to such ill formed requests.
+ *
+ * Used custom annotation:
+ *
+ * change_mode:
+ * Required (except for INVALID). The change mode.
+ *
+ * access:
+ * Required (except for INVALID). The allowed access mode, can be specified multiple
+ * times to list multiple allowed access mode. Vendor must implement one of them.
+ *
+ * unit:
+ * Optional. the unit for the property.
+ *
+ * data_enum:
+ * Optional. If specified, the property is an enum-type property. Its value must be one of the
+ * enum values (unless it has data_enum_bit_flag annotation, see below). Can be specified multiple
+ * times to specify two separated enum types are supported.
+ *
+ * data_enum_bit_flag:
+ * Optional. Its value must be one or more enum values bit-ored together.
+ *
+ * version:
+ * Required (except for INVALID). Since which VHAL version is this property introduced in.
+ *
+ * require_min_max_supported_value:
+ * Optional. The property must specify min value and max value for all supported area IDs in the
+ * vehicle area config.
+ * If {@code HasSupportedValueInfo} in the vehicle area config is not {@code null},
+ * {@code HasSupportedValueInfo.hasMinSupportedValue} and
+ * {@code HasSupportedValueInfo.hasMinSupportedValue} must be {@code true}.
+ *
+ * require_supported_values_list:
+ * Optional. The property must expose the supported values list through some way. If the property
+ * has data_enum annotation, it must specify {@code supportedEnumValues} in the vehicle area config
+ * unless all possible enum values (or all possible enum combination for data_enum_bit_flags) are
+ * supported.
+ * For certain properties, they must use the config array to specify supported values (see
+ * legacy_supported_values_in_config)
+ * If {@code HasSupportedValueInfo} in the vehicle area config is not {@code null},
+ * {@code HasSupportedValueInfo.hasSupportedValuesList} must be {@code true}.
+ *
+ * legacy_supported_values_in_config:
+ * For certain legacy properties, they must use config array to specify supported values. For
+ * properties introduced later than V4, this is no longer used since the supported values can
+ * be specified via {@code getSupportedValuesLists} instead.
  */
 @VintfStability
 @JavaDerive(toString=true)
@@ -794,6 +839,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum ImpactSensorLocation
+     * @data_enum_bit_flags
      * @require_supported_values_list
      * @version 3
      */
@@ -1131,6 +1177,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleTurnSignal
+     * @data_enum_bit_flags
      * @version 4
      */
     TURN_SIGNAL_LIGHT_STATE =
@@ -1362,7 +1409,6 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ_WRITE
      * @access VehiclePropertyAccess.READ
-     * @config_flags Supported areaIds
      * @version 2
      */
     HVAC_AC_ON = 0x0505 + 0x10000000 + 0x05000000
@@ -1706,6 +1752,7 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.STATIC
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleHvacFanDirection
+     * @data_enum_bit_flags
      * @version 2
      */
     HVAC_FAN_DIRECTION_AVAILABLE = 0x0511 + 0x10000000 + 0x05000000
@@ -2304,7 +2351,6 @@ enum VehicleProperty {
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
-     * @config_flags
      * @version 2
      */
     HW_KEY_INPUT = 0x0A10 + 0x10000000 + 0x01000000
@@ -2327,7 +2373,6 @@ enum VehicleProperty {
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
-     * @config_flags
      * @version 2
      */
     HW_KEY_INPUT_V2 =
@@ -2362,7 +2407,6 @@ enum VehicleProperty {
      *
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
-     * @config_flags
      * @version 2
      */
     HW_MOTION_INPUT =
@@ -2415,6 +2459,7 @@ enum VehicleProperty {
      */
     HW_CUSTOM_INPUT = 0X0A30 + 0x10000000 + 0x01000000
             + 0x00410000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:INT32_VEC
+
     /***************************************************************************
      * Most Car Cabin properties have both a POSition and MOVE parameter.  These
      * are used to control the various movements for seats, doors, and windows
@@ -2743,7 +2788,6 @@ enum VehicleProperty {
      * @access VehiclePropertyAccess.READ
      * @version 2
      */
-
     MIRROR_AUTO_FOLD_ENABLED =
             0x0B46 + VehiclePropertyGroup.SYSTEM + VehicleArea.MIRROR + VehiclePropertyType.BOOLEAN,
 
@@ -2762,7 +2806,6 @@ enum VehicleProperty {
      * @access VehiclePropertyAccess.READ
      * @version 2
      */
-
     MIRROR_AUTO_TILT_ENABLED =
             0x0B47 + VehiclePropertyGroup.SYSTEM + VehicleArea.MIRROR + VehiclePropertyType.BOOLEAN,
 
@@ -4131,7 +4174,6 @@ enum VehicleProperty {
      * @change_mode VehiclePropertyChangeMode.ON_CHANGE
      * @access VehiclePropertyAccess.READ
      * @data_enum VehicleSeatOccupancyState
-     * @require_supported_values_list
      * @version 2
      */
     SEAT_OCCUPANCY = 0x0BB0 + 0x10000000 + 0x05000000
@@ -5694,7 +5736,7 @@ enum VehicleProperty {
      * @access VehiclePropertyAccess.WRITE
      * @version 2
      */
-    WATCHDOG_ALIVE = 0xF31 + 0x10000000 + 0x01000000
+    WATCHDOG_ALIVE = 0x0F31 + 0x10000000 + 0x01000000
             + 0x00500000, // VehiclePropertyGroup:SYSTEM,VehicleArea:GLOBAL,VehiclePropertyType:INT64
     /**
      * Defines a process terminated by car watchdog and the reason of termination.
