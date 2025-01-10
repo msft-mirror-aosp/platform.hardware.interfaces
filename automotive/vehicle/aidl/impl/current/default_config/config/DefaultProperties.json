@@ -2549,45 +2549,45 @@
             "property": "VehicleProperty::HVAC_TEMPERATURE_SET",
             "defaultValue": {
                 "floatValues": [
-                    18.5
+                    17.0
                 ]
             },
             "areas": [
                 {
                     "areaId": "Constants::SEAT_1_LEFT",
-                    "minFloatValue": 17.5,
-                    "maxFloatValue": 32.5
+                    "minFloatValue": 16.0,
+                    "maxFloatValue": 28.0
                 },
                 {
                     "areaId": "Constants::SEAT_1_RIGHT",
-                    "minFloatValue": 17.5,
-                    "maxFloatValue": 32.5
+                    "minFloatValue": 16.0,
+                    "maxFloatValue": 28.0
                 },
                 {
                     "areaId": "Constants::SEAT_2_LEFT",
-                    "minFloatValue": 17.5,
-                    "maxFloatValue": 32.5
+                    "minFloatValue": 16.0,
+                    "maxFloatValue": 28.0
                 },
                 {
                     "areaId": "Constants::SEAT_2_RIGHT",
-                    "minFloatValue": 17.5,
-                    "maxFloatValue": 32.5
+                    "minFloatValue": 16.0,
+                    "maxFloatValue": 28.0
                 },
                 {
                     "areaId": "Constants::SEAT_2_CENTER",
-                    "minFloatValue": 17.5,
-                    "maxFloatValue": 32.5
+                    "minFloatValue": 16.0,
+                    "maxFloatValue": 28.0
                 }
             ],
             "comment":
                     "minFloatValue and maxFloatValue in area config should match corresponding values in configArray",
             "configArray": [
-                175,
-                325,
+                160,
+                280,
                 5,
-                600,
-                900,
-                10
+                608,
+                824,
+                9
             ]
         },
         {
