@@ -133,22 +133,22 @@ class Bump(object):
         try:
             check_call(["grep", "-h",
                         f"{self.current_letter.upper()} = {self.current_level}",
-                        "system/libvintf/include/vintf/Level.h"])
+                        f"{self.top}/system/libvintf/include/vintf/Level.h"])
         except subprocess.CalledProcessError:
             print("Adding new API level to libvintf")
-            add_lines_above("system/libvintf/analyze_matrix/analyze_matrix.cpp",
+            add_lines_above(f"{self.top}/system/libvintf/analyze_matrix/analyze_matrix.cpp",
                             "        case Level::UNSPECIFIED:",
                             textwrap.indent(textwrap.dedent(f"""\
                                     case Level::{self.current_letter.upper()}:
                                         return "Android {self.current_version} ({self.current_letter.upper()})";"""),
                             "    "*2))
-            add_lines_above("system/libvintf/include/vintf/Level.h",
+            add_lines_above(f"{self.top}/system/libvintf/include/vintf/Level.h",
                             "    // To add new values:",
                             f"    {self.current_letter.upper()} = {self.current_level},")
-            add_lines_above("system/libvintf/include/vintf/Level.h",
+            add_lines_above(f"{self.top}/system/libvintf/include/vintf/Level.h",
                             "        Level::UNSPECIFIED,",
                             f"        Level::{self.current_letter.upper()},")
-            add_lines_above("system/libvintf/RuntimeInfo.cpp",
+            add_lines_above(f"{self.top}/system/libvintf/RuntimeInfo.cpp",
                             "            // Add more levels above this line.",
                             textwrap.indent(textwrap.dedent(f"""\
                                         case {self.current_version}: {{
