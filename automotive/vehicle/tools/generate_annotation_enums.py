@@ -45,6 +45,8 @@ ACCESS_JAVA_FILE_PATH = GENERATED_LIB + '/java/AccessForVehicleProperty.java'
 ENUM_JAVA_FILE_PATH = GENERATED_LIB + '/java/EnumForVehicleProperty.java'
 UNITS_JAVA_FILE_PATH = GENERATED_LIB + '/java/UnitsForVehicleProperty.java'
 VERSION_CPP_FILE_PATH = GENERATED_LIB + '/cpp/VersionForVehicleProperty.h'
+ANNOTATIONS_CPP_FILE_PATH = GENERATED_LIB + '/cpp/AnnotationsForVehicleProperty.h'
+ANNOTATIONS_JAVA_FILE_PATH = GENERATED_LIB + '/java/AnnotationsForVehicleProperty.java'
 SCRIPT_PATH = 'hardware/interfaces/automotive/vehicle/tools/generate_annotation_enums.py'
 
 TAB = '    '
@@ -164,6 +166,24 @@ namespace vehicle {
 std::unordered_map<VehicleProperty, int32_t> VersionForVehicleProperty = {
 """
 
+ANNOTATIONS_CPP_HEADER = """#pragma once
+
+#include <aidl/android/hardware/automotive/vehicle/VehicleProperty.h>
+
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+
+namespace aidl {
+namespace android {
+namespace hardware {
+namespace automotive {
+namespace vehicle {
+
+std::unordered_map<VehicleProperty, std::unordered_set<std::string>>
+        AnnotationsForVehicleProperty = {
+"""
+
 CHANGE_MODE_JAVA_HEADER = """package android.hardware.automotive.vehicle;
 
 import java.util.Map;
@@ -207,6 +227,16 @@ public final class UnitsForVehicleProperty {
     public static final Map<Integer, Integer> values = Map.ofEntries(
 """
 
+ANNOTATIONS_JAVA_HEADER = """package android.hardware.automotive.vehicle;
+
+import java.util.Set;
+import java.util.Map;
+
+public final class AnnotationsForVehicleProperty {
+
+    public static final Map<Integer, Set<String>> values = Map.ofEntries(
+"""
+
 
 class PropertyConfig:
     """Represents one VHAL property definition in VehicleProperty.aidl."""
@@ -220,7 +250,8 @@ class PropertyConfig:
         self.enum_types = []
         self.unit_type = None
         self.version = None
-        self.annotations = []
+        # Use a set to avoid duplicate annotation.
+        self.annotations = set()
 
     def __repr__(self):
         return self.__str__()
@@ -301,7 +332,7 @@ class FileParser:
             annotation = match_annotation.group(1)
             if annotation not in SUPPORTED_ANNOTATIONS:
                 raise Exception('Annotation: @' + annotation + " is not supported, typo?")
-            config.annotations.append(annotation)
+            config.annotations.add(annotation)
             match = RE_CHANGE_MODE.match(line)
             if match:
                 config.change_mode = match.group(1).replace('VehiclePropertyChangeMode.', '')
@@ -358,38 +389,45 @@ class FileParser:
         for config in self.configs:
             if field == 'change_mode':
                 if cpp:
-                    annotation = "VehiclePropertyChangeMode::" + config.change_mode
+                    value = "VehiclePropertyChangeMode::" + config.change_mode
                 else:
-                    annotation = "VehiclePropertyChangeMode." + config.change_mode
+                    value = "VehiclePropertyChangeMode." + config.change_mode
             elif field == 'access_mode':
                 if cpp:
-                    annotation = "VehiclePropertyAccess::" + config.access_modes[0]
+                    value = "VehiclePropertyAccess::" + config.access_modes[0]
                 else:
-                    annotation = "VehiclePropertyAccess." + config.access_modes[0]
+                    value = "VehiclePropertyAccess." + config.access_modes[0]
             elif field == 'enum_types':
                 if len(config.enum_types) < 1:
-                    continue;
+                    continue
                 if not cpp:
-                    annotation = "List.of(" + ', '.join([class_name + ".class" for class_name in config.enum_types]) + ")"
+                    value = "List.of(" + ', '.join([class_name + ".class" for class_name in config.enum_types]) + ")"
             elif field == 'unit_type':
                 if not config.unit_type:
                     continue
                 if not cpp:
-                    annotation = config.unit_type
-
+                    value = config.unit_type
             elif field == 'version':
                 if cpp:
-                    annotation = config.version
+                    value = config.version
+            elif field == 'annotations':
+                if len(config.annotations) < 1:
+                    continue
+                joined_annotation_strings = ', '.join(['"' + annotation + '"' for annotation in config.annotations])
+                if cpp:
+                    value = "{" + joined_annotation_strings + "}"
+                else:
+                    value = "Set.of(" + joined_annotation_strings + ")"
             else:
                 raise Exception('Unknown field: ' + field)
             if counter != 0:
                 content += '\n'
             if cpp:
                 content += (TAB + TAB + '{VehicleProperty::' + config.name + ', ' +
-                            annotation + '},')
+                            value + '},')
             else:
                 content += (TAB + TAB + 'Map.entry(VehicleProperty.' + config.name + ', ' +
-                            annotation + '),')
+                            value + '),')
             counter += 1
 
         # Remove the additional ',' at the end for the Java file.
@@ -571,6 +609,15 @@ def main():
     version.setCppHeader(VERSION_CPP_HEADER)
     version.setCppFooter(CPP_FOOTER)
     generated_files.append(version)
+
+    annotations = GeneratedFile('annotations')
+    annotations.setCppFilePath(os.path.join(android_top, ANNOTATIONS_CPP_FILE_PATH))
+    annotations.setJavaFilePath(os.path.join(android_top, ANNOTATIONS_JAVA_FILE_PATH))
+    annotations.setCppHeader(ANNOTATIONS_CPP_HEADER)
+    annotations.setCppFooter(CPP_FOOTER)
+    annotations.setJavaHeader(ANNOTATIONS_JAVA_HEADER)
+    annotations.setJavaFooter(JAVA_FOOTER)
+    generated_files.append(annotations)
 
     temp_files = []
 
