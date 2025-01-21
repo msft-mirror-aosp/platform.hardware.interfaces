@@ -52,6 +52,8 @@ class Bump(object):
 
         self.next_level = cmdline_args.next_level
         self.next_letter = cmdline_args.next_letter
+        self.current_sdk = cmdline_args.current_sdk
+        self.next_sdk = cmdline_args.next_sdk
         self.next_module_name = f"framework_compatibility_matrix.{self.next_level}.xml"
         self.next_xml = self.interfaces_dir / f"compatibility_matrices/compatibility_matrix.{self.next_level}.xml"
 
@@ -61,6 +63,7 @@ class Bump(object):
         self.edit_android_bp()
         self.bump_libvintf()
         self.bump_libvts_vintf()
+        self.bump_cuttlefish()
 
     def bump_kernel_configs(self):
         check_call([
@@ -170,6 +173,53 @@ class Bump(object):
                         f"        {{{self.current_level}, Level::{self.current_letter.upper()}}},",
                         f"        {{{self.next_level}, Level::{self.next_letter.upper()}}},\n")
 
+    def bump_cuttlefish(self):
+      if not self.next_sdk:
+        print("Skip Cuttlefish update...")
+        return
+      cf_mk_file =  f"{self.top}/device/google/cuttlefish/shared/device.mk"
+      try:
+        check_call(["grep", "-h",
+                    f"PRODUCT_SHIPPING_API_LEVEL := {self.next_sdk}",
+                    cf_mk_file])
+        print("Cuttlefish is already up-to-date")
+      except subprocess.CalledProcessError:
+        print("Bumping Cuttlefish to the next SHIPPING_API_LEVEL")
+        final_lines = []
+        with open(cf_mk_file, 'r+') as f:
+          for line in f:
+            if f"PRODUCT_SHIPPING_API_LEVEL := {self.current_sdk}" in line:
+              final_lines.append(f"PRODUCT_SHIPPING_API_LEVEL := {self.next_sdk}\n")
+            elif line.startswith("PRODUCT_SHIPPING_API_LEVEL :="):
+              # this is the previous SDK level.
+              final_lines.append(f"PRODUCT_SHIPPING_API_LEVEL := {self.current_sdk}\n")
+            else:
+              final_lines.append(line)
+          f.seek(0)
+          f.write("".join(final_lines))
+          f.truncate()
+      final_lines = []
+      with open(f"{self.top}/device/google/cuttlefish/shared/config/previous_manifest.xml", 'r+') as f:
+        for line in f:
+          if "target-level=" in line:
+            final_lines.append(f"<manifest version=\"1.0\" type=\"device\" target-level=\"{self.current_level}\">\n")
+          else:
+            final_lines.append(line)
+        f.seek(0)
+        f.write("".join(final_lines))
+        f.truncate()
+
+      final_lines = []
+      with open(f"{self.top}/device/google/cuttlefish/shared/config/manifest.xml", 'r+') as f:
+        for line in f:
+          if "target-level=" in line:
+            final_lines.append(f"<manifest version=\"1.0\" type=\"device\" target-level=\"{self.next_level}\">\n")
+          else:
+            final_lines.append(line)
+        f.seek(0)
+        f.write("".join(final_lines))
+        f.truncate()
+
 def add_lines_above(file, pattern, lines):
     with open(file, 'r+') as f:
         text = f.read()
@@ -216,6 +266,15 @@ def main():
                         type=str,
                         nargs="?",
                         help="Next Android release version number number (e.g. 17)")
+    parser.add_argument("current_sdk",
+                        type=str,
+                        nargs="?",
+                        help="Version of the current SDK API level (e.g. 36)")
+    parser.add_argument("next_sdk",
+                        type=str,
+                        nargs="?",
+                        help="Version of the next SDK API level(e.g. 37)")
+
     cmdline_args = parser.parse_args()
 
     Bump(cmdline_args).run()
