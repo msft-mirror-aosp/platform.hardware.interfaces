@@ -30,6 +30,9 @@
 
 #include "wifi_aidl_test_utils.h"
 
+using aidl::android::hardware::wifi::AfcChannelAllowance;
+using aidl::android::hardware::wifi::AvailableAfcChannelInfo;
+using aidl::android::hardware::wifi::AvailableAfcFrequencyInfo;
 using aidl::android::hardware::wifi::BnWifiChipEventCallback;
 using aidl::android::hardware::wifi::IfaceType;
 using aidl::android::hardware::wifi::IWifiApIface;
@@ -271,6 +274,23 @@ TEST_P(WifiChipAidlTest, SetCountryCode) {
 }
 
 /*
+ * Tests the setAfcChannelAllowance() API.
+ */
+TEST_P(WifiChipAidlTest, SetAfcChannelAllowance) {
+    configureChipForConcurrencyType(IfaceConcurrencyType::STA);
+    int32_t features = getChipFeatureSet(wifi_chip_);
+    AfcChannelAllowance allowance;
+    allowance.availableAfcChannelInfos = std::vector<AvailableAfcChannelInfo>();
+    allowance.availableAfcFrequencyInfos = std::vector<AvailableAfcFrequencyInfo>();
+    auto status = wifi_chip_->setAfcChannelAllowance(allowance);
+    if (features & static_cast<int32_t>(IWifiChip::FeatureSetMask::SET_AFC_CHANNEL_ALLOWANCE)) {
+        EXPECT_TRUE(status.isOk());
+    } else {
+        EXPECT_TRUE(checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
+    }
+}
+
+/*
  * SetLatencyMode_normal
  * Tests the setLatencyMode() API with Latency mode NORMAL.
  */
@@ -505,6 +525,9 @@ TEST_P(WifiChipAidlTest, StartLoggingToDebugRingBuffer) {
 
     status = wifi_chip_->startLoggingToDebugRingBuffer(
             ring_name, WifiDebugRingBufferVerboseLevel::VERBOSE, 5, 1024);
+    EXPECT_TRUE(status.isOk() || checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
+
+    status = wifi_chip_->stopLoggingToDebugRingBuffer();
     EXPECT_TRUE(status.isOk() || checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED));
 }
 
@@ -1007,6 +1030,54 @@ TEST_P(WifiChipAidlTest, SetMloMode) {
     auto status = wifi_chip_->setMloMode(IWifiChip::ChipMloMode::LOW_LATENCY);
     if (checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED)) {
         GTEST_SKIP() << "setMloMode() is not supported by vendor.";
+    }
+    EXPECT_TRUE(status.isOk());
+}
+
+/*
+ * EnableDebugErrorAlerts
+ */
+TEST_P(WifiChipAidlTest, EnableDebugErrorAlerts) {
+    // STA iface needs to be configured for this test
+    auto iface = configureChipForStaAndGetIface();
+    ASSERT_NE(iface, nullptr);
+
+    auto status = wifi_chip_->enableDebugErrorAlerts(true);
+    if (checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED)) {
+        GTEST_SKIP() << "EnableDebugErrorAlerts is not supported by vendor";
+    }
+    EXPECT_TRUE(status.isOk());
+    EXPECT_TRUE(wifi_chip_->enableDebugErrorAlerts(false).isOk());
+}
+
+/*
+ * TriggerSubsystemRestart
+ */
+TEST_P(WifiChipAidlTest, TriggerSubsystemRestart) {
+    // STA iface needs to be configured for this test
+    auto iface = configureChipForStaAndGetIface();
+    ASSERT_NE(iface, nullptr);
+
+    auto status = wifi_chip_->triggerSubsystemRestart();
+    if (checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED)) {
+        GTEST_SKIP() << "TriggerSubsystemRestart is not supported by vendor";
+    }
+    EXPECT_TRUE(status.isOk());
+}
+
+/*
+ * EnableStaChannelForPeerNetwork
+ */
+TEST_P(WifiChipAidlTest, EnableStaChannelForPeerNetwork) {
+    // STA iface needs to be configured for this test
+    auto iface = configureChipForStaAndGetIface();
+    ASSERT_NE(iface, nullptr);
+
+    int categoryMask = (int)IWifiChip::ChannelCategoryMask::INDOOR_CHANNEL |
+                       (int)IWifiChip::ChannelCategoryMask::DFS_CHANNEL;
+    auto status = wifi_chip_->enableStaChannelForPeerNetwork(categoryMask);
+    if (checkStatusCode(&status, WifiStatusCode::ERROR_NOT_SUPPORTED)) {
+        GTEST_SKIP() << "EnableStaChannelForPeerNetwork is not supported by vendor";
     }
     EXPECT_TRUE(status.isOk());
 }
