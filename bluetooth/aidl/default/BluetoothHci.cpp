@@ -97,10 +97,6 @@ class Hal {
         std::vector<uint8_t>(data, data + len));
   }
 
-  static void ClientDied(void* instance) {
-    static_cast<Hal*>(instance)->ClientDied();
-  }
-
  private:
   int getFdFromDevPath() {
     int fd = open(mDevPath.c_str(), O_RDWR);
@@ -326,11 +322,6 @@ class Hal {
     return true;
   }
 
-  void ClientDied() {
-    ALOGE("Bluetooth client has died");
-    Close();
-  }
-
   std::unique_ptr<struct hal_callbacks> mCallbacks;
   std::string mDevPath;
   int mFd{-1};
@@ -363,7 +354,6 @@ struct hal_interface hal_new() {
       .send_acl = &Hal::SendAcl,
       .send_sco = &Hal::SendSco,
       .send_iso = &Hal::SendIso,
-      .client_died = &Hal::ClientDied,
   };
 }
 }
