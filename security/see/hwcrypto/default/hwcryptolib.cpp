@@ -115,10 +115,13 @@ static std::optional<cpp_hwcrypto::types::ExplicitKeyMaterial> convertExplicitKe
 class HwCryptoOperationContextNdk : public ndk_hwcrypto::BnCryptoOperationContext {
   private:
     sp<cpp_hwcrypto::ICryptoOperationContext> mContext;
+    std::weak_ptr<ndk_hwcrypto::ICryptoOperationContext> self;
 
   public:
     HwCryptoOperationContextNdk(sp<cpp_hwcrypto::ICryptoOperationContext> operations)
         : mContext(std::move(operations)) {}
+
+    ~HwCryptoOperationContextNdk() { contextMapping.erase(self); }
 
     static std::shared_ptr<HwCryptoOperationContextNdk> Create(
             sp<cpp_hwcrypto::ICryptoOperationContext> operations) {
@@ -132,6 +135,7 @@ class HwCryptoOperationContextNdk : public ndk_hwcrypto::BnCryptoOperationContex
             LOG(ERROR) << "failed to allocate HwCryptoOperationContext";
             return nullptr;
         }
+        contextNdk->self = contextNdk;
         return contextNdk;
     }
 };
@@ -592,9 +596,12 @@ class HwCryptoOperationsNdk : public ndk_hwcrypto::BnHwCryptoOperations {
 class OpaqueKeyNdk : public ndk_hwcrypto::BnOpaqueKey {
   private:
     sp<cpp_hwcrypto::IOpaqueKey> mOpaqueKey;
+    std::weak_ptr<ndk_hwcrypto::IOpaqueKey> self;
 
   public:
     OpaqueKeyNdk(sp<cpp_hwcrypto::IOpaqueKey> opaqueKey) : mOpaqueKey(std::move(opaqueKey)) {}
+
+    ~OpaqueKeyNdk() { keyMapping.erase(self); }
 
     static std::shared_ptr<OpaqueKeyNdk> Create(sp<cpp_hwcrypto::IOpaqueKey> opaqueKey) {
         if (opaqueKey == nullptr) {
@@ -607,6 +614,7 @@ class OpaqueKeyNdk : public ndk_hwcrypto::BnOpaqueKey {
             LOG(ERROR) << "failed to allocate HwCryptoKey";
             return nullptr;
         }
+        opaqueKeyNdk->self = opaqueKeyNdk;
         return opaqueKeyNdk;
     }
 
