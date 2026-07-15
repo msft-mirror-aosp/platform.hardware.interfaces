@@ -225,7 +225,6 @@ bool parseAsn1Time(const ASN1_TIME* asn1Time, time_t* outTime) {
         }
     } else if (asn1Time->type == V_ASN1_GENERALIZEDTIME) {
         tm.tm_year = parseDigits(&s, 4) - 1900;
-        tm.tm_year -= 1900;
     } else {
         LOG(ERROR) << "Unsupported ASN1_TIME type " << asn1Time->type;
         return false;
