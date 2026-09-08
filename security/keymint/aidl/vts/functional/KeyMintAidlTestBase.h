@@ -355,6 +355,12 @@ void add_tag_from_prop(AuthorizationSetBuilder* tags, TypedTag<TagType::BYTES, t
     }
 }
 
+// Returns the value of "ro.product.first_api_level", or fails the test if the property is not
+// available.
+//
+// The returned value has the format ...33, 34, 35, 36, etc.
+int get_product_first_api_level_or_fail();
+
 // Return the VSR API level for this device.
 int get_vsr_api_level();
 
