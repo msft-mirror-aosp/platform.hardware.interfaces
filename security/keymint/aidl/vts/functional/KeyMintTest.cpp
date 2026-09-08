@@ -8535,9 +8535,15 @@ TEST_P(VsrRequirementTest, Vsr13Test) {
 }
 
 TEST_P(VsrRequirementTest, Vsr14Test) {
-    int vsr_api_level = get_vsr_api_level();
-    if (vsr_api_level < __ANDROID_API_U__) {
-        GTEST_SKIP() << "Applies only to VSR API level 34, this device is: " << vsr_api_level;
+    int product_first_api_level = get_product_first_api_level_or_fail();
+    int board_api_level = get_board_api_level_or_fail();
+    int board_first_api_level = get_board_first_api_level_if_available();
+    bool gms_vsr_condition = product_first_api_level >= 34 &&
+                             (board_api_level >= 34 || board_first_api_level >= 34);
+    if (!gms_vsr_condition) {
+        GTEST_SKIP() << "Applies only if product first API level (" << product_first_api_level
+                     << ") is >= 34 and either board API level (" << board_api_level
+                     << ") or board first API level (" << board_first_api_level << ") is >= 34";
     }
     EXPECT_GE(AidlVersion(), 3) << "VSR 14+ requires KeyMint version 3";
 }
