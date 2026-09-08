@@ -1472,6 +1472,18 @@ int get_vsr_api_level() {
     return vendor_api_level;
 }
 
+int get_board_api_level_or_fail() {
+    int board_api_level = ::android::base::GetIntProperty("ro.board.api_level", -1);
+    // `ro.board.api_level` must be populated for Android 14 QPR3 and later.
+    // See https://source.android.com/docs/core/architecture/api-flags.
+    EXPECT_NE(board_api_level, -1) << "Could not find ro.board.api_level";
+    return board_api_level;
+}
+
+int get_board_first_api_level_if_available() {
+    return ::android::base::GetIntProperty("ro.board.first_api_level", -1);
+}
+
 bool is_gsi_image() {
     std::ifstream ifs("/system/system_ext/etc/init/init.gsi.rc");
     return ifs.good();
