@@ -394,6 +394,12 @@ void add_tag_from_prop(AuthorizationSetBuilder* tags, TypedTag<TagType::BYTES, t
     }
 }
 
+// Returns the value of "ro.product.first_api_level", or fails the test if the property is not
+// available.
+//
+// The returned value has the format ...33, 34, 35, 36, etc.
+int get_product_first_api_level_or_fail();
+
 // Returns the vendor API level.
 //
 // Uses the "ro.vendor.api_level" property if available, otherwise uses other properties to
