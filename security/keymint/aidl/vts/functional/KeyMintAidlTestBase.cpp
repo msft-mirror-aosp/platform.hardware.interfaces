@@ -1703,6 +1703,13 @@ void verify_subject(const X509* cert,       //
     OPENSSL_free(cert_issuer);
 }
 
+int get_product_first_api_level_or_fail() {
+    int product_first_api_level = ::android::base::GetIntProperty("ro.product.first_api_level", -1);
+    // `ro.product.first_api_level` must always be populated.
+    EXPECT_NE(product_first_api_level, -1) << "Could not find ro.product.first_api_level";
+    return product_first_api_level;
+}
+
 int get_vsr_api_level() {
     int vendor_api_level = ::android::base::GetIntProperty("ro.vendor.api_level", -1);
     if (vendor_api_level != -1) {
