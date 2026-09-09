@@ -1738,6 +1738,13 @@ void verify_subject(const X509* cert,       //
     OPENSSL_free(cert_issuer);
 }
 
+int get_product_first_api_level_or_fail() {
+    int product_first_api_level = ::android::base::GetIntProperty("ro.product.first_api_level", -1);
+    // `ro.product.first_api_level` must always be populated.
+    EXPECT_NE(product_first_api_level, -1) << "Could not find ro.product.first_api_level";
+    return product_first_api_level;
+}
+
 int get_vsr_api_level() {
     int vendor_api_level = ::android::base::GetIntProperty("ro.vendor.api_level", -1);
     if (vendor_api_level != -1) {
@@ -1761,6 +1768,18 @@ int get_vsr_api_level() {
         return product_api_level;
     }
     return vendor_api_level;
+}
+
+int get_board_api_level_or_fail() {
+    int board_api_level = ::android::base::GetIntProperty("ro.board.api_level", -1);
+    // `ro.board.api_level` must be populated for Android 14 QPR3 and later.
+    // See https://source.android.com/docs/core/architecture/api-flags.
+    EXPECT_NE(board_api_level, -1) << "Could not find ro.board.api_level";
+    return board_api_level;
+}
+
+int get_board_first_api_level_if_available() {
+    return ::android::base::GetIntProperty("ro.board.first_api_level", -1);
 }
 
 bool is_gsi_image() {
