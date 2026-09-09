@@ -375,8 +375,30 @@ void add_tag_from_prop(AuthorizationSetBuilder* tags, TypedTag<TagType::BYTES, t
     }
 }
 
-// Return the VSR API level for this device.
+// Returns the value of "ro.product.first_api_level", or fails the test if the property is not
+// available.
+//
+// The returned value has the format ...33, 34, 35, 36, etc.
+int get_product_first_api_level_or_fail();
+
+// Returns the vendor API level.
+//
+// Uses the "ro.vendor.api_level" property if available, otherwise uses other properties to
+// determine the vendor API level. The format of the returned value depends on which properties were
+// used, so the caller should use AVendorSupport_getVendorApiLevel() to convert the returned value
+// to the ...33, 34, 202404, 202504, etc. numbering scheme before performing any comparisons.
 int get_vsr_api_level();
+
+// Returns the value of "ro.board.api_level", or fails the test if the property is not available.
+//
+// The returned value has the format ...33, 34, 202404, 202504, etc.
+int get_board_api_level_or_fail();
+
+// Returns the value of "ro.board.first_api_level" if available, otherwise returns -1.
+//
+// The value is available only on devices with GRF chipsets, in which case the returned value has
+// the format ...33, 34, 202404, 202504, etc.
+int get_board_first_api_level_if_available();
 
 // Indicate whether the test is running on a GSI image.
 bool is_gsi_image();
