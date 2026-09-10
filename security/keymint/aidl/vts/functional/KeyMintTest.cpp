@@ -8913,9 +8913,15 @@ using VsrRequirementTest = KeyMintAidlTestBase;
 
 // @VsrTest = VSR-3.10-008
 TEST_P(VsrRequirementTest, Vsr13Test) {
-    int vsr_api_level = get_vsr_api_level();
-    if (vsr_api_level < __ANDROID_API_T__) {
-        GTEST_SKIP() << "Applies only to VSR API level 33, this device is: " << vsr_api_level;
+    int product_first_api_level = get_product_first_api_level_or_fail();
+    int board_api_level = get_board_api_level_or_fail();
+    int board_first_api_level = get_board_first_api_level_if_available();
+    bool gms_vsr_condition = product_first_api_level >= 33 &&
+                             (board_api_level >= 33 || board_first_api_level >= 33);
+    if (!gms_vsr_condition) {
+        GTEST_SKIP() << "Applies only if product first API level (" << product_first_api_level
+                     << ") is >= 33 and either board API level (" << board_api_level
+                     << ") or board first API level (" << board_first_api_level << ") is >= 33";
     }
     EXPECT_GE(AidlVersion(), 2) << "VSR 13+ requires KeyMint version 2";
 }
