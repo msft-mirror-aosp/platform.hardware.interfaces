@@ -261,7 +261,11 @@ Return<bool> Gnss::setCallback_2_0(const sp<V2_0::IGnssCallback>& callback) {
         return false;
     }
 
-    sGnssCallback_2_0 = callback;
+    {
+        std::unique_lock<std::mutex> lock(mMutex);
+        sGnssCallback_2_0 = callback;
+        sGnssCallback_2_1 = nullptr;
+    }
 
     using Capabilities = V2_0::IGnssCallback::Capabilities;
     const auto capabilities = Capabilities::MEASUREMENTS | Capabilities::MEASUREMENT_CORRECTIONS |
@@ -341,7 +345,11 @@ Return<bool> Gnss::setCallback_2_1(const sp<V2_1::IGnssCallback>& callback) {
         return false;
     }
 
-    sGnssCallback_2_1 = callback;
+    {
+        std::unique_lock<std::mutex> lock(mMutex);
+        sGnssCallback_2_1 = callback;
+        sGnssCallback_2_0 = nullptr;
+    }
 
     using Capabilities = V2_1::IGnssCallback::Capabilities;
     const auto capabilities = Capabilities::MEASUREMENTS | Capabilities::MEASUREMENT_CORRECTIONS |
