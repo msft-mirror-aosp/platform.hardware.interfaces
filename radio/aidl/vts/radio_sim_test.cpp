@@ -23,6 +23,12 @@
 #define ASSERT_OK(ret) ASSERT_TRUE(ret.isOk())
 
 void RadioSimTest::SetUp() {
+    if (telephony_flags::enforce_telephony_feature_mapping()) {
+        if (!deviceSupportsFeature(FEATURE_TELEPHONY_CDMA) &&
+            !deviceSupportsFeature(FEATURE_TELEPHONY_SUBSCRIPTION)) {
+            GTEST_SKIP() << "RadioSimTest: none of [FEATURE_TELEPHONY_SUBSCRIPTION, FEATURE_TELEPHONY_CDMA] supported";
+        }
+    }
     RadioServiceTest::SetUp();
     std::string serviceName = GetParam();
 

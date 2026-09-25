@@ -37,6 +37,15 @@ const RadioAccessSpecifier EUTRAN_SPECIFIER_20 = {
 }  // namespace
 
 void RadioNetworkTest::SetUp() {
+    if (telephony_flags::enforce_telephony_feature_mapping()) {
+        if (!deviceSupportsFeature(FEATURE_TELEPHONY) &&
+            !deviceSupportsFeature(FEATURE_TELEPHONY_IMS) &&
+            !deviceSupportsFeature(FEATURE_TELEPHONY_CDMA) &&
+            !deviceSupportsFeature(FEATURE_TELEPHONY_CALLING) &&
+	    !deviceSupportsFeature(FEATURE_TELEPHONY_RADIO_ACCESS)) {
+            GTEST_SKIP() << "RadioNetworkTest: none of [FEATURE_TELEPHONY_RADIO_ACCESS, FEATURE_TELEPHONY, FEATURE_TELEPHONY_CDMA, FEATURE_TELEPHONY_CALLING, FEATURE_TELEPHONY_IMS] supported";
+        }
+    }
     RadioServiceTest::SetUp();
     std::string serviceName = GetParam();
 

@@ -22,6 +22,14 @@
 #define ASSERT_OK(ret) ASSERT_TRUE(ret.isOk())
 
 void RadioModemTest::SetUp() {
+    if (telephony_flags::enforce_telephony_feature_mapping()) {
+        if (!deviceSupportsFeature(FEATURE_TELEPHONY) &&
+            !deviceSupportsFeature(FEATURE_TELEPHONY_GSM) &&
+            !deviceSupportsFeature(FEATURE_TELEPHONY_CDMA) &&
+            !deviceSupportsFeature(FEATURE_TELEPHONY_RADIO_ACCESS)) {
+            GTEST_SKIP() << "RadioModemTest: none of [FEATURE_TELEPHONY, FEATURE_TELEPHONY_RADIO_ACCESS, FEATURE_TELEPHONY_GSM, FEATURE_TELEPHONY_CDMA] supported";
+        }
+    }
     RadioServiceTest::SetUp();
     std::string serviceName = GetParam();
 
