@@ -23,6 +23,13 @@
 #define ASSERT_OK(ret) ASSERT_TRUE(ret.isOk())
 
 void RadioVoiceTest::SetUp() {
+    if (telephony_flags::enforce_telephony_feature_mapping()) {
+        if (!deviceSupportsFeature(FEATURE_TELEPHONY_IMS) &&
+            !deviceSupportsFeature(FEATURE_TELEPHONY_CDMA) &&
+            !deviceSupportsFeature(FEATURE_TELEPHONY_CALLING)) {
+            GTEST_SKIP() << "RadioVoiceTest: none of [FEATURE_TELEPHONY_CALLING, FEATURE_TELEPHONY_IMS, FEATURE_TELEPHONY_CDMA] supported";
+        }
+    }
     RadioServiceTest::SetUp();
     std::string serviceName = GetParam();
 
