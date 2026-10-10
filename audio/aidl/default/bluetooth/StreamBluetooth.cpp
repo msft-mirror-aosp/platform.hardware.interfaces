@@ -159,6 +159,7 @@ bool StreamBluetooth::checkConfigParams(const PcmConfiguration& pcmConfig,
 }
 
 ndk::ScopedAStatus StreamBluetooth::prepareToClose() {
+    RETURN_STATUS_IF_ERROR(StreamCommonImpl::prepareToClose());
     std::lock_guard guard(mLock);
     if (mBtDeviceProxy != nullptr) {
         if (mBtDeviceProxy->getState() != BluetoothStreamState::DISABLED) {

@@ -3203,6 +3203,7 @@ class AudioStream : public AudioCoreModule {
 
     void PrepareToCloseTwice() {
         std::shared_ptr<IStreamCommon> heldStreamCommon;
+        std::shared_ptr<Stream> heldStream;
         {
             StreamFixture<Stream> stream;
             ASSERT_NO_FATAL_FAILURE(
@@ -3210,6 +3211,7 @@ class AudioStream : public AudioCoreModule {
             if (auto reason = stream.skipTestReason(); !reason.empty()) {
                 GTEST_SKIP() << reason;
             }
+            heldStream = stream.getStreamSharedPointer();
             std::shared_ptr<IStreamCommon> streamCommon;
             ASSERT_IS_OK(stream.getStream()->getStreamCommon(&streamCommon));
             heldStreamCommon = streamCommon;
