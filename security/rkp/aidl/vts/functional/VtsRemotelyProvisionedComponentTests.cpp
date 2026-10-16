@@ -968,15 +968,13 @@ INSTANTIATE_REM_PROV_AIDL_TEST(VsrRequirementTest);
 TEST_P(VsrRequirementTest, VsrEnforcementTest) {
     RpcHardwareInfo hwInfo;
     ASSERT_TRUE(provisionable_->getHardwareInfo(&hwInfo).isOk());
-    int product_first_api_level = get_product_first_api_level_or_fail();
-    int board_api_level = get_board_api_level_or_fail();
-    int board_first_api_level = get_board_first_api_level_if_available();
-    bool gms_vsr_condition = product_first_api_level >= 34 &&
-                             (board_api_level >= 34 || board_first_api_level >= 34);
-    if (!gms_vsr_condition) {
-        GTEST_SKIP() << "Applies only if product first API level (" << product_first_api_level
-                     << ") is >= 34 and either board API level (" << board_api_level
-                     << ") or board first API level (" << board_first_api_level << ") is >= 34";
+    // The VSR-14 requirement 3.10-014 references ro.board.first_api_level and ro.board.api_level
+    // unconditionally. However, these properties should be referenced conditionally since they
+    // aren't always set prior to Android 14 QPR3. So, don't blindly check the properties while
+    // evaluating whether to skip the test.
+    if (auto skip_message = should_skip_pre_android_14_qpr3_vsr_test(34);
+        skip_message.has_value()) {
+        GTEST_SKIP() << *skip_message;
     }
     EXPECT_GE(hwInfo.versionNumber, 3)
             << "VSR 14+ requires IRemotelyProvisionedComponent v3 or newer.";
