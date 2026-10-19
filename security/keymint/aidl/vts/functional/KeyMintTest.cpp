@@ -8526,30 +8526,30 @@ INSTANTIATE_KEYMINT_AIDL_TEST(UnlockedDeviceRequiredTest);
 
 using VsrRequirementTest = KeyMintAidlTestBase;
 
+// @VsrTest = 3.10-008
+// @VsrTest = 3.10-009
 TEST_P(VsrRequirementTest, Vsr13Test) {
-    int product_first_api_level = get_product_first_api_level_or_fail();
-    int board_api_level = get_board_api_level_or_fail();
-    int board_first_api_level = get_board_first_api_level_if_available();
-    bool gms_vsr_condition = product_first_api_level >= 33 &&
-                             (board_api_level >= 33 || board_first_api_level >= 33);
-    if (!gms_vsr_condition) {
-        GTEST_SKIP() << "Applies only if product first API level (" << product_first_api_level
-                     << ") is >= 33 and either board API level (" << board_api_level
-                     << ") or board first API level (" << board_first_api_level << ") is >= 33";
+    // The VSR-13 requirements 3.10-008 and 3.10-009 references ro.board.first_api_level
+    // and ro.board.api_level unconditionally. However, these properties should be referenced
+    // conditionally since they aren't always set prior to Android 14 QPR3. So, don't blindly check
+    // the properties while evaluating whether to skip the test.
+    if (auto skip_message = should_skip_pre_android_14_qpr3_vsr_test(33);
+        skip_message.has_value()) {
+        GTEST_SKIP() << *skip_message;
     }
     EXPECT_GE(AidlVersion(), 2) << "VSR 13+ requires KeyMint version 2";
 }
 
+// @VsrTest = 3.10-013.001
 TEST_P(VsrRequirementTest, Vsr14Test) {
-    int product_first_api_level = get_product_first_api_level_or_fail();
-    int board_api_level = get_board_api_level_or_fail();
-    int board_first_api_level = get_board_first_api_level_if_available();
-    bool gms_vsr_condition = product_first_api_level >= 34 &&
-                             (board_api_level >= 34 || board_first_api_level >= 34);
-    if (!gms_vsr_condition) {
-        GTEST_SKIP() << "Applies only if product first API level (" << product_first_api_level
-                     << ") is >= 34 and either board API level (" << board_api_level
-                     << ") or board first API level (" << board_first_api_level << ") is >= 34";
+    // The VSR-14 requirement 3.10-013.001 does not reference ro.board.first_api_level or
+    // ro.board.api_level. This is incorrect since the required KeyMint version can only be
+    // determined based on these properties for GRF devices. However, these properties aren't
+    // always set prior to Android 14 QPR3. So, don't blindly check the properties while evaluating
+    // whether to skip the test.
+    if (auto skip_message = should_skip_pre_android_14_qpr3_vsr_test(34);
+        skip_message.has_value()) {
+        GTEST_SKIP() << *skip_message;
     }
     EXPECT_GE(AidlVersion(), 3) << "VSR 14+ requires KeyMint version 3";
 }
