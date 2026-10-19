@@ -375,6 +375,9 @@ void add_tag_from_prop(AuthorizationSetBuilder* tags, TypedTag<TagType::BYTES, t
     }
 }
 
+// Sentinel value returned when a system property is not found.
+constexpr int PROPERTY_NOT_FOUND = -1;
+
 // Returns the value of "ro.product.first_api_level", or fails the test if the property is not
 // available.
 //
@@ -391,14 +394,39 @@ int get_vsr_api_level();
 
 // Returns the value of "ro.board.api_level", or fails the test if the property is not available.
 //
+// This should only be used in tests targeting devices running Android 14 QPR3 and later. If a test
+// executes on both pre- and post-Android 14 QPR3 devices, use get_board_api_level_if_available() to
+// avoid failing the test on older devices. This is because the property is only set for GRF
+// chipsets on earlier Android versions (see
+// https://source.android.com/docs/core/architecture/api-flags).
+//
 // The returned value has the format ...33, 34, 202404, 202504, etc.
 int get_board_api_level_or_fail();
 
-// Returns the value of "ro.board.first_api_level" if available, otherwise returns -1.
+// Returns the value of "ro.board.api_level" if available, otherwise returns PROPERTY_NOT_FOUND.
+//
+// This should only be used in tests that can execute on devices running versions of Android older
+// than Android 14 QPR3. If a test executes only on devices running Android 14 QPR3 and later, use
+// get_board_api_level_or_fail() to be stricter about the set of properties that must be set. This
+// is because the property is only set for GRF chipsets on earlier Android versions (see
+// https://source.android.com/docs/core/architecture/api-flags).
+//
+// The returned value (if it's not PROPERTY_NOT_FOUND) has the format ...33, 34, 202404, 202504,
+// etc.
+int get_board_api_level_if_available();
+
+// Returns the value of "ro.board.first_api_level" if available, otherwise returns
+// PROPERTY_NOT_FOUND.
 //
 // The value is available only on devices with GRF chipsets, in which case the returned value has
 // the format ...33, 34, 202404, 202504, etc.
 int get_board_first_api_level_if_available();
+
+// Returns a skip message if a VSR test targeting the given pre-Android 14 QPR3 minimum API level
+// should be skipped on a device, otherwise returns std::nullopt.
+//
+// `min_api_level` must have the format ...33, 34, 35, 36, etc.
+std::optional<std::string> should_skip_pre_android_14_qpr3_vsr_test(int min_api_level);
 
 // Indicate whether the test is running on a GSI image.
 bool is_gsi_image();
