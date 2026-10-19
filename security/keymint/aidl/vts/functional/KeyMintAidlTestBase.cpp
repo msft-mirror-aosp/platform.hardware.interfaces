@@ -1704,47 +1704,94 @@ void verify_subject(const X509* cert,       //
 }
 
 int get_product_first_api_level_or_fail() {
-    int product_first_api_level = ::android::base::GetIntProperty("ro.product.first_api_level", -1);
+    int product_first_api_level =
+            ::android::base::GetIntProperty("ro.product.first_api_level", PROPERTY_NOT_FOUND);
     // `ro.product.first_api_level` must always be populated.
-    EXPECT_NE(product_first_api_level, -1) << "Could not find ro.product.first_api_level";
+    EXPECT_NE(product_first_api_level, PROPERTY_NOT_FOUND)
+            << "Could not find ro.product.first_api_level";
     return product_first_api_level;
 }
 
 int get_vsr_api_level() {
-    int vendor_api_level = ::android::base::GetIntProperty("ro.vendor.api_level", -1);
-    if (vendor_api_level != -1) {
+    int vendor_api_level =
+            ::android::base::GetIntProperty("ro.vendor.api_level", PROPERTY_NOT_FOUND);
+    if (vendor_api_level != PROPERTY_NOT_FOUND) {
         return vendor_api_level;
     }
 
     // Android S and older devices do not define ro.vendor.api_level
-    vendor_api_level = ::android::base::GetIntProperty("ro.board.api_level", -1);
-    if (vendor_api_level == -1) {
-        vendor_api_level = ::android::base::GetIntProperty("ro.board.first_api_level", -1);
+    vendor_api_level = ::android::base::GetIntProperty("ro.board.api_level", PROPERTY_NOT_FOUND);
+    if (vendor_api_level == PROPERTY_NOT_FOUND) {
+        vendor_api_level =
+                ::android::base::GetIntProperty("ro.board.first_api_level", PROPERTY_NOT_FOUND);
     }
 
-    int product_api_level = ::android::base::GetIntProperty("ro.product.first_api_level", -1);
-    if (product_api_level == -1) {
-        product_api_level = ::android::base::GetIntProperty("ro.build.version.sdk", -1);
-        EXPECT_NE(product_api_level, -1) << "Could not find ro.build.version.sdk";
+    int product_api_level =
+            ::android::base::GetIntProperty("ro.product.first_api_level", PROPERTY_NOT_FOUND);
+    if (product_api_level == PROPERTY_NOT_FOUND) {
+        product_api_level =
+                ::android::base::GetIntProperty("ro.build.version.sdk", PROPERTY_NOT_FOUND);
+        EXPECT_NE(product_api_level, PROPERTY_NOT_FOUND) << "Could not find ro.build.version.sdk";
     }
 
     // VSR API level is the minimum of vendor_api_level and product_api_level.
-    if (vendor_api_level == -1 || vendor_api_level > product_api_level) {
+    if (vendor_api_level == PROPERTY_NOT_FOUND || vendor_api_level > product_api_level) {
         return product_api_level;
     }
     return vendor_api_level;
 }
 
 int get_board_api_level_or_fail() {
-    int board_api_level = ::android::base::GetIntProperty("ro.board.api_level", -1);
+    int board_api_level =
+            ::android::base::GetIntProperty("ro.board.api_level", PROPERTY_NOT_FOUND);
     // `ro.board.api_level` must be populated for Android 14 QPR3 and later.
     // See https://source.android.com/docs/core/architecture/api-flags.
-    EXPECT_NE(board_api_level, -1) << "Could not find ro.board.api_level";
+    EXPECT_NE(board_api_level, PROPERTY_NOT_FOUND) << "Could not find ro.board.api_level";
     return board_api_level;
 }
 
+int get_board_api_level_if_available() {
+    return ::android::base::GetIntProperty("ro.board.api_level", PROPERTY_NOT_FOUND);
+}
+
 int get_board_first_api_level_if_available() {
-    return ::android::base::GetIntProperty("ro.board.first_api_level", -1);
+    return ::android::base::GetIntProperty("ro.board.first_api_level", PROPERTY_NOT_FOUND);
+}
+
+std::optional<std::string> should_skip_pre_android_14_qpr3_vsr_test(int min_api_level) {
+    int product_first_api_level = get_product_first_api_level_or_fail();
+
+    // We don't call `get_board_api_level_or_fail` because `ro.board.api_level` may legitimately not
+    // be set prior to Android 14 QPR3.
+    int board_api_level = get_board_api_level_if_available();
+
+    // If `ro.board.api_level` is not set, it means (1) the device is running a version of Android
+    // prior to Android 14 QPR3 and (2) the device doesn't have a GRF SoC. (2) implies that
+    // `ro.board.first_api_level` is also not set and therefore neither property should be used
+    // to determine whether to skip the test.
+    if (board_api_level == PROPERTY_NOT_FOUND) {
+        bool gms_vsr_condition = product_first_api_level >= min_api_level;
+        if (!gms_vsr_condition) {
+            std::ostringstream skip_message;
+            skip_message << "Applies only if product first API level (" << product_first_api_level
+                         << ") is >= " << min_api_level;
+            return skip_message.str();
+        }
+    } else {
+        int board_first_api_level = get_board_first_api_level_if_available();
+        bool gms_vsr_condition = product_first_api_level >= min_api_level &&
+                                 (board_api_level >= min_api_level ||
+                                  board_first_api_level >= min_api_level);
+        if (!gms_vsr_condition) {
+            std::ostringstream skip_message;
+            skip_message << "Applies only if product first API level (" << product_first_api_level
+                         << ") is >= " << min_api_level << " and either board API level ("
+                         << board_api_level << ") or board first API level ("
+                         << board_first_api_level << ") is >= " << min_api_level;
+            return skip_message.str();
+        }
+    }
+    return std::nullopt;
 }
 
 bool is_gsi_image() {
