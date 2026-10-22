@@ -3202,6 +3202,12 @@ class AudioStream : public AudioCoreModule {
     }
 
     void PrepareToCloseTwice() {
+        // Frozen BT HAL implementations lack the StreamCommonImpl::prepareToClose() call
+        // (b/575985500).
+        if (this->GetParam().ends_with("/bluetooth")) {
+            GTEST_SKIP()
+                    << "Frozen Bluetooth HAL does not reject prepareToClose on a closed stream";
+        }
         std::shared_ptr<IStreamCommon> heldStreamCommon;
         std::shared_ptr<Stream> heldStream;
         {
