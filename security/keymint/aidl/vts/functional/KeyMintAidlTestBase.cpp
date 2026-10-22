@@ -75,6 +75,15 @@ const uint32_t kInvalidPatchlevel = 99998877;
 // additional overhead, for the digest algorithmIdentifier required by PKCS#1.
 const size_t kPkcs1UndigestedSignaturePaddingOverhead = 11;
 
+// Determine whether the key description is for an asymmetric key.
+bool is_asymmetric(const AuthorizationSet& key_desc) {
+    auto algorithm = key_desc.GetTagValue(TAG_ALGORITHM);
+    if (algorithm && (algorithm.value() == Algorithm::RSA || algorithm.value() == Algorithm::EC)) {
+        return true;
+    } else {
+        return false;
+    }
+}
 typedef KeyMintAidlTestBase::KeyData KeyData;
 // Predicate for testing basic characteristics validity in generation or import.
 bool KeyCharacteristicsBasicallyValid(SecurityLevel secLevel,
@@ -217,7 +226,13 @@ bool KeyMintAidlTestBase::isSecondImeiIdAttestationRequired() {
     return AidlVersion() >= 3 && property_get_int32("ro.vendor.api_level", 0) > __ANDROID_API_T__;
 }
 
-bool KeyMintAidlTestBase::isRkpOnly() {
+std::optional<bool> KeyMintAidlTestBase::isRkpOnly() {
+    // GSI replaces the values for remote_prov_prop properties (since they’re system_internal_prop
+    // properties), so on GSI the properties are not reliable indicators of whether StrongBox/TEE is
+    // RKP-only or not.
+    if (is_gsi_image()) {
+        return std::nullopt;
+    }
     if (SecLevel() == SecurityLevel::STRONGBOX) {
         return property_get_bool("remote_provisioning.strongbox.rkp_only", false);
     }
@@ -296,8 +311,14 @@ ErrorCode KeyMintAidlTestBase::GenerateKey(const AuthorizationSet& key_desc,
     vector<Certificate> attest_cert_chain;
     // If an attestation is requested, but the system is RKP-only, we need to supply an explicit
     // attestation key. Else the result is a key without an attestation.
-    if (isRkpOnly() && key_desc.Contains(TAG_ATTESTATION_CHALLENGE)) {
-        skipAttestKeyTestIfNeeded();
+    // - If the RKP-only value is undeterminable (i.e., when running on GSI), generate and use the
+    //   `ATTEST_KEY` anyways.
+    // - In the case that using an `ATTEST_KEY` is not supported
+    //   (shouldSkipAttestKeyTest), assume the device has factory keys (so not RKP-only).
+    // - If the key being generated is a symmetric key (from test cases that check that the
+    //   attestation parameters are correctly ignored), don't try to use an `ATTEST_KEY`.
+    if (isRkpOnly().value_or(true) && key_desc.Contains(TAG_ATTESTATION_CHALLENGE) &&
+        !shouldSkipAttestKeyTest() && is_asymmetric(key_desc)) {
         AuthorizationSet attest_key_desc =
                 AuthorizationSetBuilder().EcdsaKey(EcCurve::P_256).AttestKey().SetDefaultValidity();
         attest_key.emplace();
@@ -338,10 +359,7 @@ ErrorCode KeyMintAidlTestBase::GenerateKey(const AuthorizationSet& key_desc,
         *key_characteristics = std::move(creationResult.keyCharacteristics);
         *cert_chain = std::move(creationResult.certificateChain);
 
-        auto algorithm = key_desc.GetTagValue(TAG_ALGORITHM);
-        EXPECT_TRUE(algorithm);
-        if (algorithm &&
-            (algorithm.value() == Algorithm::RSA || algorithm.value() == Algorithm::EC)) {
+        if (is_asymmetric(key_desc)) {
             EXPECT_GE(cert_chain->size(), 1);
             if (key_desc.Contains(TAG_ATTESTATION_CHALLENGE)) {
                 if (attest_key) {
@@ -382,10 +400,7 @@ ErrorCode KeyMintAidlTestBase::ImportKey(const AuthorizationSet& key_desc, KeyFo
         *key_characteristics = std::move(creationResult.keyCharacteristics);
         cert_chain_ = std::move(creationResult.certificateChain);
 
-        auto algorithm = key_desc.GetTagValue(TAG_ALGORITHM);
-        EXPECT_TRUE(algorithm);
-        if (algorithm &&
-            (algorithm.value() == Algorithm::RSA || algorithm.value() == Algorithm::EC)) {
+        if (is_asymmetric(key_desc)) {
             EXPECT_GE(cert_chain_.size(), 1);
             if (key_desc.Contains(TAG_ATTESTATION_CHALLENGE)) EXPECT_GT(cert_chain_.size(), 1);
         } else {
@@ -430,10 +445,7 @@ ErrorCode KeyMintAidlTestBase::ImportWrappedKey(string wrapped_key, string wrapp
         for (auto& entry : key_characteristics_) {
             allAuths.push_back(AuthorizationSet(entry.authorizations));
         }
-        auto algorithm = allAuths.GetTagValue(TAG_ALGORITHM);
-        EXPECT_TRUE(algorithm);
-        if (algorithm &&
-            (algorithm.value() == Algorithm::RSA || algorithm.value() == Algorithm::EC)) {
+        if (is_asymmetric(allAuths)) {
             EXPECT_GE(cert_chain_.size(), 1);
         } else {
             // For symmetric keys there should be no certificates.
@@ -1656,14 +1668,6 @@ bool KeyMintAidlTestBase::shouldSkipAttestKeyTest(void) const {
     // Check the chipset first as that doesn't require a round-trip to Package Manager.
     return (is_chipset_allowed_km4_strongbox() && is_strongbox_enabled() &&
             is_attest_key_feature_disabled());
-}
-
-// Skip a test that involves use of the ATTEST_KEY feature in specific configurations
-// where ATTEST_KEY is not supported (for either StrongBox or TEE).
-void KeyMintAidlTestBase::skipAttestKeyTestIfNeeded() const {
-    if (shouldSkipAttestKeyTest()) {
-        GTEST_SKIP() << "Test using ATTEST_KEY is not applicable on waivered device";
-    }
 }
 
 void verify_serial(X509* cert, const uint64_t expected_serial) {
